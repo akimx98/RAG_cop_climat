@@ -1,0 +1,412 @@
+# Science — GIEC, PNUE, OMM, Global Carbon Project, AIE, Copernicus, AEE.
+# Vérifié le 2026-11-06 (User-Agent "cop-corpus/0.1 (veille documentaire)").
+# Bloqués : www.unep.org et wedocs.unep.org (Cloudflare, "cf-mitigated: challenge", HTTP 403) ;
+# pages HTML de www.ipcc.ch (403) — les PDF ipcc.ch répondent bien (200/206).
+
+# --- GIEC AR6 ---------------------------------------------------------------------------
+- id: ipcc-ar6-wg1-spm-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/wg1/downloads/report/IPCC_AR6_WGI_SPM.pdf
+  title: "IPCC AR6 WGI — Climate Change 2021: The Physical Science Basis — Summary for Policymakers"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [physical_science, warming, carbon_budget]
+  lang: en
+  published: 2021-08-09
+
+- id: ipcc-ar6-wg1-ts-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/wg1/downloads/report/IPCC_AR6_WGI_TS.pdf
+  title: "IPCC AR6 WGI — Technical Summary"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [physical_science]
+  lang: en
+  published: 2021-08-09
+
+- id: ipcc-ar6-wg2-spm-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/wg2/downloads/report/IPCC_AR6_WGII_SummaryForPolicymakers.pdf
+  title: "IPCC AR6 WGII — Climate Change 2022: Impacts, Adaptation and Vulnerability — Summary for Policymakers"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [impacts, adaptation, vulnerability, loss_and_damage]
+  lang: en
+  published: 2022-02-28
+
+- id: ipcc-ar6-wg2-ts-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/wg2/downloads/report/IPCC_AR6_WGII_TechnicalSummary.pdf
+  title: "IPCC AR6 WGII — Technical Summary"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [impacts, adaptation]
+  lang: en
+  published: 2022-02-28
+
+- id: ipcc-ar6-wg3-spm-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/wg3/downloads/report/IPCC_AR6_WGIII_SPM.pdf
+  title: "IPCC AR6 WGIII — Climate Change 2022: Mitigation of Climate Change — Summary for Policymakers"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [mitigation, pathways, 2030_reductions, fossil_fuels]
+  lang: en
+  published: 2022-04-04
+
+- id: ipcc-ar6-wg3-ts-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/wg3/downloads/report/IPCC_AR6_WGIII_TechnicalSummary.pdf
+  title: "IPCC AR6 WGIII — Technical Summary"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [mitigation, pathways]
+  lang: en
+  published: 2022-04-04
+
+- id: ipcc-ar6-syr-spm-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/syr/downloads/report/IPCC_AR6_SYR_SPM.pdf
+  title: "IPCC AR6 Synthesis Report (2023) — Summary for Policymakers"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [synthesis, mitigation, adaptation, 1.5C, global_stocktake]
+  lang: en
+  published: 2023-03-20
+
+- id: ipcc-ar6-syr-longer-report-en
+  type: doc
+  url: https://www.ipcc.ch/report/ar6/syr/downloads/report/IPCC_AR6_SYR_LongerReport.pdf
+  title: "IPCC AR6 Synthesis Report (2023) — Longer Report"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [synthesis]
+  lang: en
+  published: 2023-03-20
+
+# Rapports spéciaux
+- id: ipcc-sr15-spm-en
+  type: doc
+  url: https://www.ipcc.ch/site/assets/uploads/sites/2/2022/06/SPM_version_report_LR.pdf
+  title: "IPCC Special Report on Global Warming of 1.5°C (SR1.5) — Summary for Policymakers"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [1.5C, pathways]
+  lang: en
+  published: 2018-10-08
+
+- id: ipcc-sr15-spm-fr
+  type: doc
+  url: https://www.ipcc.ch/site/assets/uploads/sites/2/2019/09/IPCC-Special-Report-1.5-SPM_fr.pdf
+  title: "GIEC — Réchauffement planétaire de 1,5 °C (SR1.5) — Résumé à l'intention des décideurs"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [1.5C, pathways]
+  lang: fr
+  published: 2018-10-08
+
+- id: ipcc-srccl-spm-en
+  type: doc
+  url: https://www.ipcc.ch/site/assets/uploads/sites/4/2022/11/SRCCL_SPM.pdf
+  title: "IPCC Special Report on Climate Change and Land (SRCCL) — Summary for Policymakers"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [land, agriculture, forests]
+  lang: en
+  published: 2019-08-08
+
+- id: ipcc-srocc-spm-en
+  type: doc
+  url: https://www.ipcc.ch/site/assets/uploads/sites/3/2022/03/01_SROCC_SPM_FINAL.pdf
+  title: "IPCC Special Report on the Ocean and Cryosphere (SROCC) — Summary for Policymakers"
+  level: 3
+  org: GIEC / IPCC
+  doc_type: rapport_scientifique
+  topics: [ocean, cryosphere, sea_level]
+  lang: en
+  published: 2019-09-25
+
+# --- PNUE / UNEP -------------------------------------------------------------------------
+- id: unep-egr-2026-page
+  type: doc
+  # à confirmer — bloqué anti-bot : www.unep.org renvoie 403 Cloudflare challenge (cf-mitigated: challenge).
+  # Publié le 21/10/2026 selon la presse (« The Point of Return ») — chiffres (ex. 58,4 GtCO2e en 2025) non vérifiés à la source.
+  url: https://www.unep.org/resources/emissions-gap-report-2026
+  title: "UNEP Emissions Gap Report 2026 — The Point of Return"
+  level: 3
+  org: PNUE / UNEP
+  doc_type: rapport_scientifique
+  session: COP31
+  topics: [emissions_gap, ndc, 1.5C, overshoot]
+  lang: en
+  published: 2026-10-21
+
+- id: unep-egr-2025-pdf
+  type: doc
+  # à confirmer — bloqué anti-bot : wedocs.unep.org renvoie 403 Cloudflare challenge.
+  # Lien relevé sur https://unepccc.org/emissions-gap-reports/ (accessible).
+  url: https://wedocs.unep.org/bitstream/handle/20.500.11822/48854/EGR2025.pdf?sequence=3&isAllowed=y
+  title: "UNEP Emissions Gap Report 2025"
+  level: 3
+  org: PNUE / UNEP
+  doc_type: rapport_scientifique
+  session: COP30
+  topics: [emissions_gap, ndc]
+  lang: en
+  published: 2025-11-04
+
+- id: unep-egr-2025-page
+  type: doc
+  # à confirmer — bloqué anti-bot (Cloudflare 403)
+  url: https://www.unep.org/resources/emissions-gap-report-2025
+  title: "UNEP Emissions Gap Report 2025 — resource page"
+  level: 3
+  org: PNUE / UNEP
+  doc_type: rapport_scientifique
+  session: COP30
+  topics: [emissions_gap]
+  lang: en
+
+- id: unep-agr-2025-page
+  type: doc
+  # à confirmer — bloqué anti-bot (Cloudflare 403)
+  url: https://www.unep.org/resources/adaptation-gap-report-2025
+  title: "UNEP Adaptation Gap Report 2025"
+  level: 3
+  org: PNUE / UNEP
+  doc_type: rapport_scientifique
+  topics: [adaptation, adaptation_finance]
+  lang: en
+
+- id: unep-agr-2026-page
+  type: doc
+  # à confirmer — bloqué anti-bot (Cloudflare 403) ; existence de l'édition 2026 non vérifiée
+  url: https://www.unep.org/resources/adaptation-gap-report-2026
+  title: "UNEP Adaptation Gap Report 2026"
+  level: 3
+  org: PNUE / UNEP
+  doc_type: rapport_scientifique
+  session: COP31
+  topics: [adaptation, adaptation_finance]
+  lang: en
+
+- id: unepccc-egr-archive-crawl
+  type: crawl
+  # Archive des EGR (accessible) ; les PDF récents pointent vers wedocs.unep.org (bloqué), les anciens vers unepccc.org.
+  start: [https://unepccc.org/emissions-gap-reports/]
+  follow: []
+  collect: ['^https://unepccc\.org/wp-content/uploads/20[0-9]{2}/[0-9]{2}/[^/]*(egr|emissions-gap)[^/]*\.pdf$']
+  max_depth: 1
+  max_docs: 20
+  level: 3
+  org: PNUE / UNEP-CCC
+  doc_type: rapport_scientifique
+  title_from: link_text
+  watch_minutes: 0
+
+- id: unepccc-climate-technology-progress-report-2026
+  type: doc
+  url: https://unepccc.org/wp-content/uploads/2026/10/the-climate-technology-progress-report-2026.pdf
+  title: "UNEP-CCC — The Climate Technology Progress Report 2026"
+  level: 3
+  org: PNUE / UNEP-CCC
+  doc_type: rapport_scientifique
+  topics: [technology]
+  lang: en
+
+# --- OMM / WMO ---------------------------------------------------------------------------
+- id: wmo-state-global-climate-2025
+  type: doc
+  url: https://library.wmo.int/viewer/69807/download?file=WMO-1391-2025_en.pdf&type=pdf&navigator=1
+  title: "WMO State of the Global Climate 2025 (WMO-No. 1391)"
+  level: 3
+  org: OMM / WMO
+  doc_type: rapport_scientifique
+  symbol: WMO-No. 1391
+  topics: [observations, temperature, extremes, energy_imbalance]
+  lang: en
+  published: 2026-03-23
+
+- id: wmo-state-global-climate-2025-record
+  type: doc
+  url: https://library.wmo.int/records/item/69807-state-of-the-global-climate-2025
+  title: "WMO State of the Global Climate 2025 — library record"
+  level: 3
+  org: OMM / WMO
+  doc_type: rapport_scientifique
+  topics: [observations]
+  lang: en
+  published: 2026-03-23
+
+# --- Global Carbon Project ---------------------------------------------------------------
+- id: gcb-2025-essd-paper
+  type: doc
+  url: https://essd.copernicus.org/articles/18/3211/2026/essd-18-3211-2026.pdf
+  title: "Friedlingstein et al. — Global Carbon Budget 2025 (Earth System Science Data, 18, 3211, 2026)"
+  level: 3
+  org: Global Carbon Project
+  doc_type: rapport_scientifique
+  topics: [carbon_budget, fossil_co2, sinks]
+  lang: en
+
+- id: gcb-2025-latest-data-page
+  type: doc
+  url: https://globalcarbonbudget.org/data-hub/the-latest-gcb-data-2025/
+  title: "Global Carbon Budget 2025 — latest data page"
+  level: 3
+  org: Global Carbon Project
+  doc_type: rapport_scientifique
+  topics: [carbon_budget]
+  lang: en
+
+- id: gcb-2025-faqs
+  type: doc
+  url: https://globalcarbonbudget.org/gcb-2025/the-global-carbon-budget-faqs-2025/
+  title: "Global Carbon Budget 2025 — FAQs"
+  level: 3
+  org: Global Carbon Project
+  doc_type: rapport_scientifique
+  topics: [carbon_budget, remaining_budget]
+  lang: en
+
+- id: gcb-site-watch
+  type: crawl
+  # Le GCB 2026 n'est pas publié au 06/11/2026 (https://globalcarbonbudget.org/gcb-2026/ → 404) ;
+  # publication habituellement pendant la COP. Surveille la page d'accueil.
+  start: [https://globalcarbonbudget.org/]
+  follow: []
+  collect: ['^https://globalcarbonbudget\.org/gcb-2026/.*', '^https://globalcarbonbudget\.org/data-hub/the-latest-gcb-data-2026/?$']
+  max_depth: 1
+  max_docs: 20
+  level: 3
+  org: Global Carbon Project
+  doc_type: rapport_scientifique
+  title_from: page_title
+  watch_minutes: 360
+
+# --- AIE / IEA ---------------------------------------------------------------------------
+- id: iea-weo-2025-executive-summary
+  type: doc
+  url: https://www.iea.org/reports/world-energy-outlook-2025/executive-summary
+  title: "IEA World Energy Outlook 2025 — Executive summary"
+  level: 3
+  org: AIE / IEA
+  doc_type: rapport_scientifique
+  topics: [energy, scenarios, fossil_fuels]
+  lang: en
+  published: 2025-11-12
+
+- id: iea-global-methane-tracker-2026
+  type: doc
+  url: https://www.iea.org/reports/global-methane-tracker-2026
+  title: "IEA Global Methane Tracker 2026"
+  level: 3
+  org: AIE / IEA
+  doc_type: rapport_scientifique
+  topics: [methane, energy]
+  lang: en
+
+- id: iea-global-energy-review-2026
+  type: doc
+  url: https://www.iea.org/reports/global-energy-review-2026
+  title: "IEA Global Energy Review 2026 (CO2 emissions in 2025)"
+  level: 3
+  org: AIE / IEA
+  doc_type: rapport_scientifique
+  topics: [energy, co2_emissions]
+  lang: en
+
+# --- Copernicus (C3S) --------------------------------------------------------------------
+- id: copernicus-global-climate-highlights-2025
+  type: doc
+  url: https://climate.copernicus.eu/global-climate-highlights-2025
+  title: "Copernicus C3S — Global Climate Highlights 2025"
+  level: 3
+  org: Copernicus Climate Change Service (ECMWF)
+  doc_type: rapport_scientifique
+  topics: [temperature, observations, 1.5C]
+  lang: en
+
+- id: copernicus-climate-bulletins-crawl
+  type: crawl
+  start: [https://climate.copernicus.eu/climate-bulletin]
+  follow: []
+  collect: ['^https://climate\.copernicus\.eu/(surface-air-temperature|copernicus)-[a-z0-9-]*2026[a-z0-9-]*$']
+  max_depth: 1
+  max_docs: 30
+  level: 3
+  org: Copernicus Climate Change Service (ECMWF)
+  doc_type: rapport_scientifique
+  title_from: page_title
+  watch_minutes: 1440
+
+# --- Agence européenne pour l'environnement ----------------------------------------------
+- id: eea-trends-projections-2025-pdf
+  type: doc
+  url: https://www.eea.europa.eu/en/analysis/publications/trends-and-projections-in-europe-2025/en-n_trends_and_projections_2025-th-01-25-028-en-n.pdf/@@download/file
+  title: "EEA — Trends and projections in Europe 2025"
+  level: 3
+  org: Agence européenne pour l'environnement (AEE)
+  doc_type: rapport_scientifique
+  parties: [EU]
+  topics: [emissions, projections, 2030_target]
+  lang: en
+
+- id: eea-trends-projections-2026
+  type: doc
+  # à confirmer — HTTP 401 au 06/11/2026 (page non encore publique ?). Surveiller.
+  url: https://www.eea.europa.eu/en/analysis/publications/trends-and-projections-in-europe-2026
+  title: "EEA — Trends and projections in Europe 2026"
+  level: 3
+  org: Agence européenne pour l'environnement (AEE)
+  doc_type: rapport_scientifique
+  parties: [EU]
+  topics: [emissions, projections]
+  lang: en
+
+- id: eea-trends-projections-reports-watch
+  type: crawl
+  start: [https://www.eea.europa.eu/en/topics/in-depth/climate-change-mitigation-reducing-emissions/trends-and-projections-in-europe-reports]
+  follow: ['^https://www\.eea\.europa\.eu/en/analysis/publications/trends-and-projections-in-europe-202[5-7]/?$']
+  collect: ['^https://www\.eea\.europa\.eu/en/analysis/publications/trends-and-projections-in-europe-202[6-7]/.*\.pdf/@@download/file$']
+  max_depth: 2
+  max_docs: 10
+  level: 3
+  org: Agence européenne pour l'environnement (AEE)
+  doc_type: rapport_scientifique
+  parties: [EU]
+  title_from: link_text
+  watch_minutes: 360
+
+- id: eea-indicator-total-ghg-trends
+  type: doc
+  url: https://www.eea.europa.eu/en/analysis/indicators/total-greenhouse-gas-emission-trends
+  title: "EEA indicator — Total net greenhouse gas emission trends and projections in Europe"
+  level: 3
+  org: Agence européenne pour l'environnement (AEE)
+  doc_type: donnees
+  parties: [EU]
+  topics: [emissions, projections]
+  lang: en
+
+- id: eea-indicator-national-progress
+  type: doc
+  url: https://www.eea.europa.eu/en/analysis/indicators/progress-towards-national-greenhouse-gas/greenhouse-gas-emissions-trends-and-projections
+  title: "EEA indicator — Progress towards national GHG targets (effort sharing)"
+  level: 3
+  org: Agence européenne pour l'environnement (AEE)
+  doc_type: donnees
+  parties: [EU]
+  topics: [effort_sharing, emissions]
+  lang: en

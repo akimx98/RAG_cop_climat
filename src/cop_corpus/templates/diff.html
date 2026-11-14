@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block body %}
+<div class="eyebrow">{{ L('Ce qui a changé', 'What changed') }}</div><h1>{{ doc.titre }}</h1>
+{% if not result %}<div class="card">{{ L('Pas de version antérieure connue.', 'No earlier version known.') }}</div>{% else %}
+<div class="card small">{{ L('Version comparée', 'Compared version') }} : <a href="/doc/{{ result.ancienne_version }}">#{{ result.ancienne_version }}</a> → <a href="/doc/{{ result.nouvelle_version }}">#{{ result.nouvelle_version }}</a><br>
+{{ L('Paragraphes', 'Paragraphs') }} {{ result.avant.paragraphes }} → {{ result.apres.paragraphes }} · {{ L('crochets', 'brackets') }} {{ result.avant.crochets }} → {{ result.apres.crochets }} · options {{ result.avant.options }} → {{ result.apres.options }} · {{ result.nb_changements }} {{ L('changement(s)', 'change(s)') }}</div>
+<div class="card">{% for c in result.changements %}<div class="item"><b>{{ c.paragraphe or '' }}</b> <span class="small muted">{{ {'ajouté': 'added', 'modifié': 'modified', 'supprimé': 'deleted'}.get(c.changement, c.changement) if lang == 'en' else c.changement }}{% if c.similarite %} ({{ L('similarité', 'similarity') }} {{ c.similarite }}){% endif %}</span>
+<div class="passage">{% if c.diff %}{{ c.diff|diffhtml }}{% else %}{{ c.texte }}{% endif %}</div></div>{% endfor %}</div>{% endif %}
+{% endblock %}

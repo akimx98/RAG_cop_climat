@@ -1,0 +1,150 @@
+# Organes subsidiaires (SBSTA/SBI) : projets de conclusions (documents L.) des sessions SB62 (Bonn, juin 2025),
+# SB63 (Belém, nov. 2025) et SB64 (Bonn, juin 2026), plus documents de session. Source : ODS (cotes vérifiées).
+# Les plages L. ont été calées sur les dates des documents (SB62 = 23–26 juin 2025 ; SB63 = 13–15 nov. 2025).
+# Les documents L. sont des projets de conclusions adoptés en séance : level 2.
+
+- id: unfccc-sb62-sbi-conclusions
+  type: ods
+  symbols: ['FCCC/SBI/2025/L.{n}', 'FCCC/SBI/2025/L.{n}/Add.{k}']
+  range: [1, 8]
+  add_range: [1, 2]
+  langs: [en, fr]
+  stop_after_misses: 3
+  title: 'SB62 (Bonn, juin 2025) — conclusions du SBI (L.1–L.8)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB62
+  topics: [subsidiary_bodies]
+  published: 2025-06-26
+  watch_minutes: 0
+
+- id: unfccc-sb62-sbsta-conclusions
+  type: ods
+  symbols: ['FCCC/SBSTA/2025/L.{n}', 'FCCC/SBSTA/2025/L.{n}/Add.{k}']
+  range: [1, 5]
+  add_range: [1, 2]
+  langs: [en, fr]
+  stop_after_misses: 3
+  title: 'SB62 (Bonn, juin 2025) — conclusions du SBSTA (L.1–L.5)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB62
+  topics: [subsidiary_bodies]
+  published: 2025-06-26
+  watch_minutes: 0
+
+- id: unfccc-sb63-sbi-conclusions
+  type: ods
+  symbols: ['FCCC/SBI/2025/L.{n}', 'FCCC/SBI/2025/L.{n}/Add.{k}']
+  range: [9, 40]
+  add_range: [1, 2]
+  langs: [en, fr]
+  stop_after_misses: 3
+  title: 'SB63 (Belém, nov. 2025) — conclusions du SBI (L.9 et suivantes)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB63
+  topics: [subsidiary_bodies]
+  published: 2025-11-15
+  watch_minutes: 0
+
+- id: unfccc-sb63-sbsta-conclusions
+  type: ods
+  symbols: ['FCCC/SBSTA/2025/L.{n}', 'FCCC/SBSTA/2025/L.{n}/Add.{k}']
+  range: [6, 40]
+  add_range: [1, 2]
+  langs: [en, fr]
+  stop_after_misses: 3
+  title: 'SB63 (Belém, nov. 2025) — conclusions du SBSTA (L.6 et suivantes)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB63
+  topics: [subsidiary_bodies]
+  published: 2025-11-15
+  watch_minutes: 0
+
+# L.1–L.12 vérifiés ; la numérotation reprend à L.13 pour SB65 (voir unfccc_cop31_live.yaml).
+- id: unfccc-sb64-sbi-conclusions
+  type: ods
+  symbols: ['FCCC/SBI/2026/L.{n}', 'FCCC/SBI/2026/L.{n}/Add.{k}']
+  range: [1, 12]
+  add_range: [1, 2]
+  langs: [en, fr]
+  stop_after_misses: 3
+  title: 'SB64 (Bonn, juin 2026) — conclusions du SBI (L.1–L.12)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB64
+  topics: [subsidiary_bodies]
+  published: 2026-06-18
+  watch_minutes: 0
+
+- id: unfccc-sb64-sbsta-conclusions
+  type: ods
+  symbols: ['FCCC/SBSTA/2026/L.{n}', 'FCCC/SBSTA/2026/L.{n}/Add.{k}']
+  range: [1, 5]
+  add_range: [1, 2]
+  langs: [en, fr]
+  stop_after_misses: 3
+  title: 'SB64 (Bonn, juin 2026) — conclusions du SBSTA (L.1–L.5)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB64
+  topics: [subsidiary_bodies]
+  published: 2026-06-18
+  watch_minutes: 0
+
+# Cotes vérifiées : SBI/2025/1–20, INF.1–14 ; SBI/2026/1–25, INF.1–12. Les rapports de session (conclusions
+# adoptées) sont parmi ces numéros ; SB65 (Antalya) ajoutera de nouveaux numéros en 2026.
+- id: unfccc-sbi-2025-documents
+  type: ods
+  symbols: ['FCCC/SBI/{year}/{n}', 'FCCC/SBI/{year}/{n}/Add.{k}', 'FCCC/SBI/{year}/INF.{n}']
+  years: [2025, 2026]
+  range: [1, 40]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'Documents de session du SBI 2025–2026 (ordres du jour, rapports de session SB62/SB63/SB64, rapports de synthèse)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  topics: [subsidiary_bodies, session_report]
+  watch_minutes: 0
+
+- id: unfccc-sbsta-2025-documents
+  type: ods
+  symbols: ['FCCC/SBSTA/{year}/{n}', 'FCCC/SBSTA/{year}/{n}/Add.{k}', 'FCCC/SBSTA/{year}/INF.{n}']
+  years: [2025, 2026]
+  range: [1, 30]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'Documents de session du SBSTA 2025–2026 (ordres du jour, rapports de session SB62/SB63/SB64)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  topics: [subsidiary_bodies, session_report]
+  watch_minutes: 0
+
+# Vérifié : SB/2024/1–10, SB/2025/1–11, SB/2026/1–4, 8, 9 (5–7 pas encore en ligne). 2022–2023 : voir unfccc_reports.yaml.
+- id: unfccc-sb-joint-documents
+  type: ods
+  symbols: ['FCCC/SB/{year}/{n}', 'FCCC/SB/{year}/{n}/Add.{k}', 'FCCC/SB/{year}/INF.{n}']
+  years: [2024, 2026]
+  range: [1, 20]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'Documents conjoints SBSTA/SBI 2024–2026 : rapports du Comité de l''adaptation, du WIM/réseau de Santiago, TEC/CTCN, GGA, MWP, programme de transition juste, forum des mesures de riposte'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  topics: [subsidiary_bodies, adaptation, loss_and_damage, mitigation, just_transition]
+  watch_minutes: 0
+

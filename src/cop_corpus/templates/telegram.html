@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block body %}
+<h1>{{ L('Alertes Telegram', 'Telegram alerts') }}</h1>
+<div class="card">
+{% if user.telegram_chat_id %}<p class="banner">{{ L('Votre compte Telegram est lié.', 'Your Telegram account is linked.') }}</p>{% endif %}
+<ol>
+<li>{{ L('Ouvrez', 'Open') }} {% if BOT %}<a href="https://t.me/{{ BOT }}?start={{ user.telegram_code }}">@{{ BOT }}</a>{% else %}{{ L('le bot', 'the bot') }}{% endif %} {{ L('dans Telegram.', 'in Telegram.') }}</li>
+<li>{{ L('Envoyez', 'Send') }} : <code>/start {{ user.telegram_code }}</code></li>
+<li>{{ L('Suivez des sujets ici', 'Follow topics here') }} (<a href="/sujets">{{ L('Mes sujets', 'My topics') }}</a>) {{ L('ou dans Telegram', 'or in Telegram') }} : <code>/suivre fossil fuels, combustibles fossiles</code></li>
+</ol>
+<p>{{ L('Dans Telegram', 'In Telegram') }} : <code>/cherche …</code>, <code>/nouveau</code>, <code>/sujets</code>, <code>/dossiers</code>, <code>/suivi GGA</code>, <code>/brief</code>.{% if can_contribute(user) %} <b>{{ L('Transférez un PDF ou un Word', 'Forward a PDF or Word file') }}</b> {{ L("au bot pour l'ajouter au corpus interne (ajoutez", 'to the bot to add it to the internal corpus (add') }} <code>#public</code> {{ L("en légende s'il est public).", 'as the caption if it is public).') }}{% endif %}</p>
+<p class="small muted">{{ L("Telegram n'est pas chiffré de bout en bout : les alertes sur des documents internes n'affichent ni titre ni extrait.", 'Telegram is not end-to-end encrypted: alerts about internal documents show neither title nor excerpt.') }}</p>
+</div>{% endblock %}

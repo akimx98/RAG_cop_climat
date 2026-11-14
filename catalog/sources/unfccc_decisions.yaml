@@ -1,0 +1,620 @@
+# Décisions COP/CMP/CMA de la COP21 (2015) à la COP30 (Belém, 2025) : addenda « Partie 2 : mesures prises »
+# des rapports de session, récupérés par cote sur l'ODS (documents.un.org/api/symbol/access ; inexistant -> /error).
+# Toutes les cotes listées ont été vérifiées en EN (200 application/pdf) le 2026-11-06 ; FR disponible pour toutes
+# sauf FCCC/CP/2023/11 et /Add.1 (FR non encore en ligne à cette date).
+# Pas de COP en 2020 (COVID). Les décisions 1/CP.21 + Accord de Paris sont dans unfccc_core.yaml.
+
+- id: unfccc-dec-cma1-katowice-rulebook-1
+  type: ods
+  symbols: [FCCC/PA/CMA/2018/3/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Paquet climat de Katowice (règles de l''Accord de Paris) — décisions 3/CMA.1 à 12/CMA.1 : CDN (4/CMA.1), registres, calendriers communs, Article 6, communications d''adaptation (9/CMA.1)…'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA1
+  symbol: FCCC/PA/CMA/2018/3/Add.1
+  topics: [paris_rulebook, ndc, adaptation, article6]
+  published: 2019-03-19
+  watch_minutes: 0
+
+- id: unfccc-dec-cma1-katowice-rulebook-2
+  type: ods
+  symbols: [FCCC/PA/CMA/2018/3/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Paquet climat de Katowice (suite) — décisions 13/CMA.1 à 20/CMA.1 : nouvel objectif financier (14/CMA.1), cadre technologique, cadre de transparence renforcée MPG (18/CMA.1), bilan mondial (19/CMA.1), comité de conformité (20/CMA.1)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA1
+  symbol: FCCC/PA/CMA/2018/3/Add.2
+  topics: [paris_rulebook, transparency, global_stocktake, finance, compliance]
+  published: 2019-03-19
+  watch_minutes: 0
+
+- id: unfccc-dec-cp24-katowice
+  type: ods
+  symbols: [FCCC/CP/2018/10/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP24 (Katowice) — partie 1 (dont 1/CP.24)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP24
+  symbol: FCCC/CP/2018/10/Add.1
+  topics: [paris_rulebook]
+  published: 2019-03-19
+  watch_minutes: 0
+
+- id: unfccc-dec-cma3-glasgow-pact
+  type: ods
+  symbols: [FCCC/PA/CMA/2021/10/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Pacte de Glasgow pour le climat (1/CMA.3) et règles de l''Article 6 (2/CMA.3 approches coopératives, 3/CMA.3 mécanisme 6.4, 4/CMA.3 approches non marchandes)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA3
+  symbol: FCCC/PA/CMA/2021/10/Add.1
+  topics: [glasgow_pact, article6, carbon_markets, temperature_goal, coal]
+  published: 2022-03-08
+  watch_minutes: 0
+
+- id: unfccc-dec-cp26-glasgow-pact
+  type: ods
+  symbols: [FCCC/CP/2021/12/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Pacte de Glasgow pour le climat (1/CP.26) et décisions 2/CP.26 à 11/CP.26'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP26
+  symbol: FCCC/CP/2021/12/Add.1
+  topics: [glasgow_pact, adaptation, finance]
+  published: 2022-03-08
+  watch_minutes: 0
+
+- id: unfccc-dec-cma4-sharm-implementation-plan
+  type: ods
+  symbols: [FCCC/PA/CMA/2022/10/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Plan de mise en œuvre de Charm el-Cheikh (1/CMA.4), arrangements de financement pertes et préjudices et fonds (2/CMA.4), programme GGA (3/CMA.4), programme d''atténuation MWP (4/CMA.4), NCQG (5/CMA.4)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA4
+  symbol: FCCC/PA/CMA/2022/10/Add.1
+  topics: [loss_and_damage, finance, mitigation, adaptation, ncqg]
+  published: 2023-03-17
+  watch_minutes: 0
+
+- id: unfccc-dec-cp27-sharm-loss-damage-fund
+  type: ods
+  symbols: [FCCC/CP/2022/10/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Plan de mise en œuvre de Charm el-Cheikh (1/CP.27), création du fonds pour les pertes et préjudices (2/CP.27), réseau de Santiago (11/CP.27)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP27
+  symbol: FCCC/CP/2022/10/Add.1
+  topics: [loss_and_damage, finance, agriculture]
+  published: 2023-03-17
+  watch_minutes: 0
+
+- id: unfccc-dec-cma5-global-stocktake
+  type: ods
+  symbols: [FCCC/PA/CMA/2023/16/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Résultat du premier bilan mondial (1/CMA.5 — transition hors des énergies fossiles, triplement des renouvelables), objectif mondial d''adaptation (2/CMA.5), programme de transition juste (3/CMA.5), MWP (4/CMA.5), fonds pertes et préjudices (5/CMA.5)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA5
+  symbol: FCCC/PA/CMA/2023/16/Add.1
+  topics: [global_stocktake, fossil_fuels, renewables, adaptation, just_transition, loss_and_damage]
+  published: 2024-03-15
+  watch_minutes: 0
+
+- id: unfccc-dec-cp28-loss-damage-fund
+  type: ods
+  symbols: [FCCC/CP/2023/11/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Opérationnalisation du fonds pour les pertes et préjudices (1/CP.28) et décisions 2/CP.28 à 9/CP.28'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP28
+  symbol: FCCC/CP/2023/11/Add.1
+  topics: [loss_and_damage, finance]
+  published: 2024-03-15
+  watch_minutes: 0
+
+- id: unfccc-dec-cma6-ncqg
+  type: ods
+  symbols: [FCCC/PA/CMA/2024/17/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Nouvel objectif collectif quantifié de financement climatique — NCQG (1/CMA.6), MWP (2/CMA.6), GGA (3/CMA.6), Article 6.2 (4/CMA.6), mécanisme 6.4 (5–6/CMA.6), approches non marchandes (7/CMA.6)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA6
+  symbol: FCCC/PA/CMA/2024/17/Add.1
+  topics: [ncqg, finance, article6, carbon_markets, adaptation]
+  published: 2025-03-27
+  watch_minutes: 0
+
+- id: unfccc-dec-cma7-belem-mutirao
+  type: ods
+  symbols: [FCCC/PA/CMA/2025/19/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: '« Mutirão mondial » (1/CMA.7), programme de transition juste des EAU (2/CMA.7), bilan mondial (3/CMA.7), SCF, FVC, FEM, fonds pertes et préjudices, Fonds d''adaptation, dialogue Article 2.1(c) (4–11/CMA.7)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA7
+  symbol: FCCC/PA/CMA/2025/19/Add.1
+  topics: [global_mutirao, just_transition, global_stocktake, finance, loss_and_damage]
+  published: 2026-03-30
+  watch_minutes: 0
+
+- id: unfccc-dec-cma7-belem-adaptation-mitigation
+  type: ods
+  symbols: [FCCC/PA/CMA/2025/19/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de Belém 12/CMA.7 à 18/CMA.7 : objectif mondial d''adaptation et indicateurs de Belém (12/CMA.7), MWP (13/CMA.7), mesures de riposte, CGE, CTCN, programme de Belém de mise en œuvre technologique (18/CMA.7)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA7
+  symbol: FCCC/PA/CMA/2025/19/Add.2
+  topics: [adaptation, gga_indicators, mitigation, technology]
+  published: 2026-03-30
+  watch_minutes: 0
+
+- id: unfccc-dec-cma7-belem-article6-loss-damage
+  type: ods
+  symbols: [FCCC/PA/CMA/2025/19/Add.3]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de Belém 19/CMA.7 à 27/CMA.7 : Article 6.2 et 6.4, approches non marchandes, revue du Mécanisme de Varsovie, renforcement des capacités, PMA, ACE'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA7
+  symbol: FCCC/PA/CMA/2025/19/Add.3
+  topics: [article6, carbon_markets, loss_and_damage, capacity_building]
+  published: 2026-03-30
+  watch_minutes: 0
+
+- id: unfccc-dec-cp30-belem-finance-gender
+  type: ods
+  symbols: [FCCC/CP/2025/12/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP30 (Belém) 1/CP.30 à 10/CP.30 : SCF, FVC, FEM, fonds pertes et préjudices, plan d''action genre de Belém (7/CP.30), PNA (8/CP.30), CTCN'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP30
+  symbol: FCCC/CP/2025/12/Add.1
+  topics: [finance, loss_and_damage, gender, adaptation]
+  published: 2026-03-30
+  watch_minutes: 0
+
+- id: unfccc-dec-cop21-add2-add3
+  type: ods
+  symbols: [FCCC/CP/2015/10/Add.2, FCCC/CP/2015/10/Add.3]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions 2/CP.21 à 23/CP.21 (Paris) — 1/CP.21 dans unfccc_core.yaml'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP21
+  symbol: FCCC/CP/2015/10
+  topics: [convention]
+  published: 2016-01-29
+  watch_minutes: 0
+
+- id: unfccc-dec-cop22-add1-add2
+  type: ods
+  symbols: [FCCC/CP/2016/10/Add.1, FCCC/CP/2016/10/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP22 (Marrakech)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP22
+  symbol: FCCC/CP/2016/10
+  topics: [convention]
+  published: 2017-01-31
+  watch_minutes: 0
+
+- id: unfccc-dec-cop23-add1-add2
+  type: ods
+  symbols: [FCCC/CP/2017/11/Add.1, FCCC/CP/2017/11/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP23 (Bonn/Fidji) — dont dialogue de Talanoa (1/CP.23)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP23
+  symbol: FCCC/CP/2017/11
+  topics: [convention]
+  published: 2018-02-08
+  watch_minutes: 0
+
+- id: unfccc-dec-cop24-add2
+  type: ods
+  symbols: [FCCC/CP/2018/10/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP24 (Katowice) — partie 2'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP24
+  symbol: FCCC/CP/2018/10
+  topics: [convention]
+  published: 2019-03-19
+  watch_minutes: 0
+
+- id: unfccc-dec-cop25-add1-add2
+  type: ods
+  symbols: [FCCC/CP/2019/13/Add.1, FCCC/CP/2019/13/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP25 (Madrid) — dont Chile Madrid Time for Action (1/CP.25)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP25
+  symbol: FCCC/CP/2019/13
+  topics: [convention]
+  published: 2020-03-16
+  watch_minutes: 0
+
+- id: unfccc-dec-cop26-add2
+  type: ods
+  symbols: [FCCC/CP/2021/12/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP26 (Glasgow) — partie 2'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP26
+  symbol: FCCC/CP/2021/12
+  topics: [convention]
+  published: 2022-03-08
+  watch_minutes: 0
+
+- id: unfccc-dec-cop27-add2-add3
+  type: ods
+  symbols: [FCCC/CP/2022/10/Add.2, FCCC/CP/2022/10/Add.3]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP27 (Charm el-Cheikh) 13/CP.27 à 27/CP.27'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP27
+  symbol: FCCC/CP/2022/10
+  topics: [convention]
+  published: 2023-03-17
+  watch_minutes: 0
+
+- id: unfccc-dec-cop28-add2
+  type: ods
+  symbols: [FCCC/CP/2023/11/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP28 (Dubaï) 10/CP.28 à 19/CP.28'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP28
+  symbol: FCCC/CP/2023/11
+  topics: [convention]
+  published: 2024-03-15
+  watch_minutes: 0
+
+- id: unfccc-dec-cop29-add1-add2
+  type: ods
+  symbols: [FCCC/CP/2024/11/Add.1, FCCC/CP/2024/11/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP29 (Bakou)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP29
+  symbol: FCCC/CP/2024/11
+  topics: [convention]
+  published: 2025-03-27
+  watch_minutes: 0
+
+- id: unfccc-dec-cop30-add2
+  type: ods
+  symbols: [FCCC/CP/2025/12/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la COP30 (Belém) 11/CP.30 à 20/CP.30'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP30
+  symbol: FCCC/CP/2025/12
+  topics: [convention]
+  published: 2026-03-30
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp11-add1-add2
+  type: ods
+  symbols: [FCCC/KP/CMP/2015/8/Add.1, FCCC/KP/CMP/2015/8/Add.2]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP11 (Paris)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP11
+  symbol: FCCC/KP/CMP/2015/8
+  topics: [kyoto_protocol]
+  published: 2016-01-29
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp12-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2016/8/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP12 (Marrakech)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP12
+  symbol: FCCC/KP/CMP/2016/8
+  topics: [kyoto_protocol]
+  published: 2017-01-31
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp13-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2017/7/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP13 (Bonn)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP13
+  symbol: FCCC/KP/CMP/2017/7
+  topics: [kyoto_protocol]
+  published: 2018-02-08
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp14-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2018/8/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP14 (Katowice)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP14
+  symbol: FCCC/KP/CMP/2018/8
+  topics: [kyoto_protocol]
+  published: 2019-03-19
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp15-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2019/8/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP15 (Madrid)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP15
+  symbol: FCCC/KP/CMP/2019/8
+  topics: [kyoto_protocol]
+  published: 2020-03-16
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp16-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2021/8/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP16 (Glasgow)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP16
+  symbol: FCCC/KP/CMP/2021/8
+  topics: [kyoto_protocol]
+  published: 2022-03-08
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp17-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2022/9/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP17 (Charm el-Cheikh)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP17
+  symbol: FCCC/KP/CMP/2022/9
+  topics: [kyoto_protocol]
+  published: 2023-03-17
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp18-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2023/9/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP18 (Dubaï)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP18
+  symbol: FCCC/KP/CMP/2023/9
+  topics: [kyoto_protocol]
+  published: 2024-03-15
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp19-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2024/7/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP19 (Bakou)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP19
+  symbol: FCCC/KP/CMP/2024/7
+  topics: [kyoto_protocol]
+  published: 2025-03-27
+  watch_minutes: 0
+
+- id: unfccc-dec-cmp20-add1
+  type: ods
+  symbols: [FCCC/KP/CMP/2025/7/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMP20 (Belém)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP20
+  symbol: FCCC/KP/CMP/2025/7
+  topics: [kyoto_protocol]
+  published: 2026-03-30
+  watch_minutes: 0
+
+- id: unfccc-dec-cma1-add1
+  type: ods
+  symbols: [FCCC/PA/CMA/2016/3/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMA1, première partie (Marrakech) — 1/CMA.1, 2/CMA.1'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA1
+  symbol: FCCC/PA/CMA/2016/3
+  topics: [paris_agreement]
+  published: 2017-01-31
+  watch_minutes: 0
+
+- id: unfccc-dec-cma2-add1
+  type: ods
+  symbols: [FCCC/PA/CMA/2019/6/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMA2 (Madrid)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA2
+  symbol: FCCC/PA/CMA/2019/6
+  topics: [paris_agreement]
+  published: 2020-03-16
+  watch_minutes: 0
+
+- id: unfccc-dec-cma3-add2-add3
+  type: ods
+  symbols: [FCCC/PA/CMA/2021/10/Add.2, FCCC/PA/CMA/2021/10/Add.3]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMA3 (Glasgow) 5/CMA.3 et suivantes — dont tableaux de transparence (5/CMA.3)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA3
+  symbol: FCCC/PA/CMA/2021/10
+  topics: [paris_agreement]
+  published: 2022-03-08
+  watch_minutes: 0
+
+- id: unfccc-dec-cma4-add2-add3
+  type: ods
+  symbols: [FCCC/PA/CMA/2022/10/Add.2, FCCC/PA/CMA/2022/10/Add.3]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMA4 (Charm el-Cheikh) 6/CMA.4 à 24/CMA.4 — dont Article 6'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA4
+  symbol: FCCC/PA/CMA/2022/10
+  topics: [paris_agreement]
+  published: 2023-03-17
+  watch_minutes: 0
+
+- id: unfccc-dec-cma5-add2-add3
+  type: ods
+  symbols: [FCCC/PA/CMA/2023/16/Add.2, FCCC/PA/CMA/2023/16/Add.3]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMA5 (Dubaï) 6/CMA.5 à 21/CMA.5 — dont Article 6, financement, transparence'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA5
+  symbol: FCCC/PA/CMA/2023/16
+  topics: [paris_agreement]
+  published: 2024-03-15
+  watch_minutes: 0
+
+- id: unfccc-dec-cma6-add2-add3
+  type: ods
+  symbols: [FCCC/PA/CMA/2024/17/Add.2, FCCC/PA/CMA/2024/17/Add.3]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Décisions de la CMA6 (Bakou) 8/CMA.6 à 23/CMA.6'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMA6
+  symbol: FCCC/PA/CMA/2024/17
+  topics: [paris_agreement]
+  published: 2025-03-27
+  watch_minutes: 0
+
+# Partie 1 des rapports de session (déroulement) ; les décisions sont dans les addenda ci-dessus.
+# FCCC/PA/CMA/2017/2 = CMA1.2 (Bonn 2017), sans addendum de décisions.
+- id: unfccc-session-reports-proceedings
+  type: ods
+  symbols: [FCCC/CP/2015/10, FCCC/CP/2016/10, FCCC/CP/2017/11, FCCC/CP/2018/10, FCCC/CP/2019/13, FCCC/CP/2021/12, FCCC/CP/2022/10, FCCC/CP/2023/11, FCCC/CP/2024/11, FCCC/CP/2025/12, FCCC/KP/CMP/2015/8, FCCC/KP/CMP/2016/8, FCCC/KP/CMP/2017/7, FCCC/KP/CMP/2018/8, FCCC/KP/CMP/2019/8, FCCC/KP/CMP/2021/8, FCCC/KP/CMP/2022/9, FCCC/KP/CMP/2023/9, FCCC/KP/CMP/2024/7, FCCC/KP/CMP/2025/7, FCCC/PA/CMA/2016/3, FCCC/PA/CMA/2017/2, FCCC/PA/CMA/2018/3, FCCC/PA/CMA/2019/6, FCCC/PA/CMA/2021/10, FCCC/PA/CMA/2022/10, FCCC/PA/CMA/2023/16, FCCC/PA/CMA/2024/17, FCCC/PA/CMA/2025/19]
+  langs: [en, fr]
+  stop_after_misses: 2
+  title: 'Rapports de session COP/CMP/CMA 2015–2025, partie 1 (déroulement des travaux)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  topics: [session_report]
+  watch_minutes: 0
+

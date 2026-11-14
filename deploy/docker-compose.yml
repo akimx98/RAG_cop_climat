@@ -1,0 +1,58 @@
+# Service COP31 sur le VPS partagé. Conventions (cf. RAG_programmes_Maths/docs/conventions-vps.md) :
+# nom de projet explicite et distinct, alias réseau propre, plafond mémoire. Seul port publié : 25
+# (courrier entrant, service `mail`). L'edge Caddy partagé termine le TLS HTTP et route le
+# sous-domaine vers l'alias `cop31-app`.
+name: cop31
+
+x-common: &common
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  env_file: .env
+  volumes:
+    - ../data:/app/data
+    - ../catalog:/app/catalog:ro
+  restart: unless-stopped
+
+services:
+  app:
+    <<: *common
+    command: ["cop", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      web:
+        aliases: [cop31-app]
+    mem_limit: 700m
+
+  worker:
+    <<: *common
+    command: ["cop", "worker"]
+    healthcheck:
+      disable: true
+    networks: [default]
+    mem_limit: 600m
+
+  # Réception du courrier (veille@ et depot-…@cop31.akimx.fr) : SEUL port publié par ce projet,
+  # le 25. Le serveur ne fait que trier les destinataires et déposer les messages dans data/mail ;
+  # le worker les traite. STARTTLS avec le certificat que Caddy obtient pour le sous-domaine (lecture seule).
+  mail:
+    <<: *common
+    command: ["cop", "mail-server", "--port", "2525"]
+    ports:
+      - "25:2525"
+    volumes:
+      - ../data:/app/data
+      - ../catalog:/app/catalog:ro
+      - caddy_data:/caddy:ro
+    healthcheck:
+      disable: true
+    networks: [default]
+    mem_limit: 150m
+
+volumes:
+  caddy_data:
+    external: true
+    name: edge_caddy_data
+
+networks:
+  web:
+    external: true

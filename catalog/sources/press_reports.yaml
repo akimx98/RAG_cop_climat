@@ -1,0 +1,342 @@
+# Comptes rendus de référence et presse spécialisée — vérifié le 2026-11-06
+# (User-Agent "cop-corpus/0.1 (veille documentaire)").
+# BLOQUÉ : enb.iisd.org et www.iisd.org → HTTP 403 Cloudflare ("cf-mitigated: challenge") sur
+# toutes les URLs (pages, PDF, flux). Aucune alternative officielle accessible trouvée pour l'ENB.
+# Flux écartés car les articles pointés renvoient 403 : insideclimatenews.org, dialogue.earth,
+# euractiv (403 dès le flux) ; sdg.iisd.org/feed/ ne contient qu'un article factice.
+
+# --- Earth Negotiations Bulletin (IISD) --------------------------------------------------
+- id: enb-cop30-belem
+  type: doc
+  # à confirmer — bloqué anti-bot (Cloudflare 403) ; slug relevé par recherche, non vérifiable
+  url: https://enb.iisd.org/belem-un-climate-change-conference-cop30
+  title: "Earth Negotiations Bulletin — Belém UN Climate Change Conference (COP30) coverage and summary"
+  level: 4
+  org: IISD — Earth Negotiations Bulletin
+  doc_type: compte_rendu
+  session: COP30
+  topics: [negotiations_summary]
+  lang: en
+
+- id: enb-cop30-daily-1-fr
+  type: doc
+  # à confirmer — bloqué anti-bot (Cloudflare 403) ; URL relevée par recherche (bulletin n°1 COP30, en français)
+  url: https://enb.iisd.org/sites/default/files/2025-11/enb12878f.pdf
+  title: "Bulletin des Négociations de la Terre — COP30 #1 (10 novembre 2025)"
+  level: 4
+  org: IISD — Earth Negotiations Bulletin
+  doc_type: compte_rendu
+  session: COP30
+  topics: [negotiations_summary]
+  lang: fr
+  published: 2025-11-10
+
+- id: enb-sb64-daily-8jun2026-fr
+  type: doc
+  # à confirmer — bloqué anti-bot (Cloudflare 403) ; URL relevée par recherche
+  url: https://enb.iisd.org/fr/bonn-climate-change-conference-sb64-sbi64-sbsta64-daily-report-8jun2026
+  title: "ENB — Conférence de Bonn SB64, compte rendu quotidien du 8 juin 2026"
+  level: 4
+  org: IISD — Earth Negotiations Bulletin
+  doc_type: compte_rendu
+  session: SB64
+  topics: [negotiations_summary]
+  lang: fr
+  published: 2026-06-08
+
+- id: enb-cop31-antalya
+  type: doc
+  # à confirmer — bloqué anti-bot (Cloudflare 403) ; slug supposé par analogie avec COP30, NON vérifié
+  url: https://enb.iisd.org/antalya-un-climate-change-conference-cop31
+  title: "Earth Negotiations Bulletin — Antalya UN Climate Change Conference (COP31) coverage"
+  level: 4
+  org: IISD — Earth Negotiations Bulletin
+  doc_type: compte_rendu
+  session: COP31
+  topics: [negotiations_summary]
+  lang: en
+
+# --- Carbon Brief ------------------------------------------------------------------------
+- id: carbonbrief-rss
+  type: rss
+  url: https://www.carbonbrief.org/feed/
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, COP30, Belém, UNFCCC, climate talks, negotiat, NDC, Paris Agreement, climate finance, fossil fuel roadmap, Bowen, Kurum]
+  watch_minutes: 30
+
+- id: carbonbrief-cop31-topic-rss
+  type: rss
+  url: https://www.carbonbrief.org/topics/cop31-antalya/feed/
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  watch_minutes: 30
+
+- id: carbonbrief-un-climate-talks-rss
+  type: rss
+  url: https://www.carbonbrief.org/topics/un-climate-talks/feed/
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  watch_minutes: 60
+
+- id: carbonbrief-cop31-topic-crawl
+  type: crawl
+  start: [https://www.carbonbrief.org/topics/cop31-antalya]
+  follow: []
+  collect: ['^https://www\.carbonbrief\.org/(qa|interactive|analysis|cop31|experts|interview|bonn|debriefed|daily-briefing)[a-z0-9-]*$']
+  max_depth: 1
+  max_docs: 60
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  session: COP31
+  title_from: page_title
+  watch_minutes: 60
+
+- id: carbonbrief-interactive-who-wants-what-cop31
+  type: doc
+  url: https://www.carbonbrief.org/interactive-who-wants-what-at-the-cop31-climate-change-summit
+  title: "Carbon Brief interactive — Who wants what at the COP31 climate change summit"
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  session: COP31
+  topics: [party_positions, negotiating_groups]
+  lang: en
+
+- id: carbonbrief-interactive-negotiating-texts-cop31
+  type: doc
+  url: https://www.carbonbrief.org/interactive-tracking-negotiating-texts-at-the-cop31-climate-summit
+  title: "Carbon Brief interactive — Tracking negotiating texts at the COP31 climate summit"
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  session: COP31
+  topics: [negotiating_texts]
+  lang: en
+
+- id: carbonbrief-qa-fossil-transition-roadmap
+  type: doc
+  url: https://www.carbonbrief.org/qa-what-is-in-the-global-roadmap-for-transitioning-away-from-fossil-fuels
+  title: "Carbon Brief Q&A — What is in the global roadmap for transitioning away from fossil fuels?"
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  session: COP31
+  topics: [fossil_fuels, transition_away]
+  lang: en
+
+- id: carbonbrief-experts-china-cop31
+  type: doc
+  url: https://www.carbonbrief.org/experts-what-china-wants-from-the-cop31-climate-talks
+  title: "Carbon Brief — Experts: what China wants from the COP31 climate talks"
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  session: COP31
+  parties: [CHN]
+  topics: [party_positions]
+  lang: en
+
+- id: carbonbrief-interview-cop31-president
+  type: doc
+  url: https://www.carbonbrief.org/interview-cop31-president-says-electrification-is-surest-way-to-protect-citizens
+  title: "Carbon Brief interview — COP31 president says electrification is surest way to protect citizens"
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  session: COP31
+  parties: [TUR]
+  topics: [presidency, electrification]
+  lang: en
+
+- id: carbonbrief-bonn-sb64-key-outcomes
+  type: doc
+  url: https://www.carbonbrief.org/bonn-climate-talks-key-outcomes-from-the-june-2026-un-climate-conference
+  title: "Carbon Brief — Bonn climate talks: key outcomes from the June 2026 UN climate conference (SB64)"
+  level: 4
+  org: Carbon Brief
+  doc_type: compte_rendu
+  session: SB64
+  topics: [negotiations_summary]
+  lang: en
+
+- id: carbonbrief-cop30-key-outcomes
+  type: doc
+  url: https://www.carbonbrief.org/cop30-key-outcomes-agreed-at-the-un-climate-talks-in-belem/
+  title: "Carbon Brief — COP30: Key outcomes agreed at the UN climate talks in Belém"
+  level: 4
+  org: Carbon Brief
+  doc_type: compte_rendu
+  session: COP30
+  topics: [negotiations_summary, mutirao, adaptation, finance]
+  lang: en
+
+- id: carbonbrief-cop30-topic-rss
+  type: rss
+  url: https://www.carbonbrief.org/topics/cop30-belem/feed/
+  level: 4
+  org: Carbon Brief
+  doc_type: analyse
+  watch_minutes: 0
+
+# --- Climate Home News -------------------------------------------------------------------
+- id: climatehome-rss
+  type: rss
+  url: https://www.climatechangenews.com/feed/
+  level: 4
+  org: Climate Home News
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, Türkiye, Turkey, Bowen, Kurum, UNFCCC, negotiat, NDC, climate finance, Paris Agreement, fossil, G77, AOSIS, LMDC, BASIC, EU]
+  watch_minutes: 30
+
+- id: climatehome-cop31-tag-rss
+  type: rss
+  url: https://www.climatechangenews.com/tag/cop31/feed/
+  level: 4
+  org: Climate Home News
+  doc_type: analyse
+  watch_minutes: 30
+
+# --- Presse générale / francophone -------------------------------------------------------
+- id: lemonde-climat-rss
+  type: rss
+  url: https://www.lemonde.fr/climat/rss_full.xml
+  level: 4
+  org: Le Monde
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, négociations, climat, CCNUCC, accord de Paris, Barbut]
+  watch_minutes: 60
+
+- id: lemonde-planete-rss
+  type: rss
+  url: https://www.lemonde.fr/planete/rss_full.xml
+  level: 4
+  org: Le Monde
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, négociations climatiques, CCNUCC, accord de Paris]
+  watch_minutes: 60
+
+- id: guardian-cop31-rss
+  type: rss
+  url: https://www.theguardian.com/environment/cop31/rss
+  level: 4
+  org: The Guardian
+  doc_type: analyse
+  watch_minutes: 60
+
+- id: guardian-climate-crisis-rss
+  type: rss
+  url: https://www.theguardian.com/environment/climate-crisis/rss
+  level: 4
+  org: The Guardian
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, climate talks, UN climate, negotiat]
+  watch_minutes: 60
+
+- id: connaissancedesenergies-rss
+  type: rss
+  # Reprend de nombreuses dépêches AFP en français.
+  url: https://www.connaissancedesenergies.org/rss.xml
+  level: 4
+  org: Connaissance des Énergies (dépêches AFP)
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, climat, négociations, CCNUCC, électrification, Barbut]
+  watch_minutes: 60
+
+# --- Think tanks (analyses) --------------------------------------------------------------
+- id: c2es-cop30-outcomes
+  type: doc
+  url: https://www.c2es.org/document/key-negotiations-related-outcomes-of-the-un-climate-conference-in-belem/
+  title: "C2ES — Key negotiations-related outcomes of the UN climate conference in Belém (COP30)"
+  level: 4
+  org: Center for Climate and Energy Solutions (C2ES)
+  doc_type: compte_rendu
+  session: COP30
+  topics: [negotiations_summary]
+  lang: en
+
+- id: c2es-rss
+  type: rss
+  url: https://www.c2es.org/feed/
+  level: 4
+  org: Center for Climate and Energy Solutions (C2ES)
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, UNFCCC, climate talks, outcomes]
+  watch_minutes: 120
+
+- id: ifri-cop31-antalya-note
+  type: doc
+  url: https://www.ifri.org/fr/la-cop31-antalya-etat-de-la-gouvernance-climatique-mondiale-enjeux-et-perspectives
+  title: "IFRI — La COP31 à Antalya : état de la gouvernance climatique mondiale, enjeux et perspectives"
+  level: 4
+  org: IFRI
+  doc_type: analyse
+  session: COP31
+  topics: [climate_governance]
+  lang: fr
+
+- id: iddri-rss-fr
+  type: rss
+  url: https://www.iddri.org/fr/rss.xml
+  level: 4
+  org: IDDRI
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, CCNUCC, négociations, accord de Paris, climat]
+  watch_minutes: 120
+
+- id: iddri-rss-en
+  type: rss
+  url: https://www.iddri.org/en/rss.xml
+  level: 4
+  org: IDDRI
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, UNFCCC, negotiations, Paris Agreement]
+  watch_minutes: 120
+
+- id: e3g-rss
+  type: rss
+  url: https://www.e3g.org/feed/
+  level: 4
+  org: E3G
+  doc_type: analyse
+  keywords: [COP31, COP 31, Antalya, UNFCCC, climate diplomacy, EU]
+  watch_minutes: 120
+
+# --- Lectures militantes, utiles pour anticiper les positions (ajout 07/11/2026) -------------------
+- id: can-eco-newsletter
+  type: rss
+  # ECO paraît chaque matin pendant les sessions, uniquement en ligne (pas de liste de diffusion).
+  # Le flux de la catégorie renvoie vers une page par numéro, dont le texte complet est extrait.
+  url: https://climatenetwork.org/resource_type/eco-newsletter/feed/
+  level: 5
+  org: Climate Action Network (ECO, ONG)
+  doc_type: analyse
+  watch_minutes: 30
+
+- id: twn-climate-info
+  type: crawl
+  # Third World Network : notes « Info Service on Climate Change » et comptes rendus quotidiens de
+  # session. Les pages <ville>.news.NN.htm ne sont que des index : on les suit pour collecter les PDF
+  # « TWN update N » (news/Bonn27/, news/Belem01/…). Attendu pour la COP31 : antalya.news.01.htm et
+  # news/Antalya01/ (nom deviné : vérifier le 10/11 sur https://twn.my/ et ajuster au besoin).
+  # Lecture G77 / LMDC, engagée.
+  start:
+    - https://twn.my/
+    - https://twn.my/title2/climate/climate.new.htm
+    - https://twn.my/title2/climate/climate_updates-briefings.htm
+  follow:
+    - '^https://twn\.my/title2/climate/(bonn\.news\.27|belem\.news\.01|(antalya|cop31|turkiye|turkey)[a-z]*\.?news\.?[0-9]*)\.htm$'
+  collect:
+    - '^https://twn\.my/title2/climate/info\.service/202[56]/cc[0-9]+\.htm$'
+    - '^https://twn\.my/title2/climate/news/(Bonn27|Belem01|Antalya|COP31|Turkiye|Turkey)[^/]*/.+\.pdf$'
+  max_depth: 1
+  max_docs: 200
+  level: 4
+  org: Third World Network (lecture G77 / LMDC)
+  doc_type: compte_rendu
+  title_from: link_text
+  watch_minutes: 60

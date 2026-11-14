@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% from "_doc.html" import lvl, when with context %}{% block title %}{{ doc.titre }}{% endblock %}{% block body %}
+<div class="card doc-head">
+{{ lvl(doc.niveau, doc.acces) }}<span class="small muted">{{ LEVELS.get((doc.niveau or ('R' if doc.acces == 'restreint' else '?'))|string, 'unclassified') if lang == 'en' else doc.niveau_sens }}</span>
+<div class="title-xl">{{ doc.titre }}</div>
+{% if doc.acces == 'restreint' %}<p class="banner warn">{{ L('Document interne — ne pas diffuser.', 'Internal document — do not share.') }}</p>{% endif %}
+<div class="facts">
+{% if doc.organisation %}<div><span>{{ L('Émetteur', 'Issued by') }}</span>{{ doc.organisation }}</div>{% endif %}
+{% if doc.cote %}<div><span>{{ L('Cote', 'Symbol') }}</span><span class="mono" style="text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink)">{{ doc.cote }}</span></div>{% endif %}
+{% if doc.type %}<div><span>Type</span>{{ doc.type|replace('_', ' ') }}{% if doc.langue %} · {{ doc.langue }}{% endif %}</div>{% endif %}
+<div><span>{{ L('Publié', 'Published') }}</span>{{ doc.publie_le or '—' }}</div>
+<div><span>{{ L('Récupéré', 'Retrieved') }}</span>{{ when(doc.recupere_le) }} UTC</div>
+<div><span>{{ L('Taille', 'Size') }}</span>{{ doc.nb_pages or '?' }} p. · {{ doc.nb_passages or 0 }} passages</div>
+</div>
+{% if doc.note %}<p>{{ doc.note }}</p>{% endif %}
+<div class="row"><a class="btn" href="/fichier/{{ doc.doc_id }}" target="_blank" rel="noopener">{{ L('Ouvrir le fichier', 'Open the file') }}</a>{% if doc.url_source %}<a class="btn secondary" href="{{ doc.url_source }}" target="_blank" rel="noopener">{{ L('Source originale', 'Original source') }} ↗</a>{% endif %}</div>
+{% if doc.versions|length > 1 %}<h2>Versions</h2><div class="table-wrap"><table><tr><th></th><th>{{ L('Titre', 'Title') }}</th><th>{{ L('Récupérée', 'Retrieved') }}</th><th></th></tr>{% for v in doc.versions %}<tr><td><span class="tag">v{{ v.version }}</span></td><td><a href="/doc/{{ v.doc_id }}">{{ v.titre }}</a></td><td class="small muted">{{ when(v.recupere_le) }}</td>
+<td>{% if v.doc_id != doc.doc_id %}<a href="/diff/{{ doc.doc_id }}?avec={{ v.doc_id }}">{{ L('comparer', 'compare') }}</a>{% endif %}</td></tr>{% endfor %}</table></div>{% endif %}
+</div>
+<div class="card">
+{% for x in passages %}<div class="passage {{ 'hl' if highlight == x.id }}" id="p{{ x.id }}"><div class="meta">{% if x.para %}<span class="tag">{{ x.para }}</span>{% endif %}<span class="tag">p. {{ x.page or 1 }}</span>
+{% if x.lien_source %}<a href="{{ x.lien_source }}" target="_blank" rel="noopener">original ↗</a>{% endif %}{% if x.lien_page %}<a href="{{ x.lien_page }}" target="_blank" rel="noopener">{{ L('copie', 'copy') }} p. {{ x.page or 1 }}</a>{% endif %}<a href="{{ x.lien_passage }}" class="muted">{{ L('lien', 'link') }}</a></div>{{ x.text|reflow }}</div>{% endfor %}
+<div class="pager small">{% if p > 1 %}<a href="?p={{ p-1 }}">← {{ L('passages précédents', 'previous passages') }}</a>{% else %}<span></span>{% endif %}<span class="muted">{{ p }} / {{ n_pages or 1 }}</span>{% if p < n_pages %}<a href="?p={{ p+1 }}">{{ L('passages suivants', 'next passages') }} →</a>{% else %}<span></span>{% endif %}</div>
+</div>
+{% endblock %}

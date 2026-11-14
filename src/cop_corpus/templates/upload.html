@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block body %}
+<h1>Déposer des documents</h1>
+{% for r in results %}<p class="banner">{{ r.name }} : {% if r.error %}{{ r.error }}{% else %}{{ 'ajouté' if r.new else 'déjà présent' }} ({{ r.status }}) — <a href="/doc/{{ r.doc_id }}">voir</a>{% endif %}</p>{% endfor %}
+<div class="grid"><form class="card" method="post" enctype="multipart/form-data">
+<p><input type="file" name="files" multiple accept=".pdf,.docx,.txt,.html,.md"></p>
+<p><input type="url" name="url" placeholder="… ou une URL (page ou PDF en ligne)"></p>
+<p><input type="text" name="title" placeholder="Titre (facultatif, un seul fichier)"></p>
+<div class="row"><select name="access" style="flex:1"><option value="restreint">Interne (restreint)</option><option value="public">Public</option></select>
+<select name="level" style="flex:1"><option value="">Niveau…</option><option value="2">2 — officiel non adopté</option><option value="4">4 — compte rendu</option><option value="5">5 — position d'un acteur</option></select></div>
+<p><select name="doc_type"><option value="">Type…</option>{% for t in DOC_TYPES %}<option>{{ t }}</option>{% endfor %}</select></p>
+<p><input type="text" name="org" placeholder="Émetteur (ex. Présidence COP31, coordination UE)"></p>
+<p><textarea name="note" rows="2" placeholder="Note (contexte, provenance)"></textarea></p>
+<button>Déposer</button>
+<p class="small muted">Les documents restreints ne sont visibles que des membres accrédités et ne sont pas envoyés à l'API d'embeddings. Le plus rapide sur téléphone : transférer le PDF au bot Telegram.</p>
+</form>
+<div>
+<div class="card"><h2>Par mail</h2>
+<p>Transférez un mail (pièces jointes et texte) à votre adresse personnelle de dépôt :</p>
+<p><code style="font-size:15px">{{ mail_address }}</code></p>
+<ul class="small">
+<li>Enregistrez-la dans vos contacts (« COP31 dépôt ») et faites <b>Transférer</b> depuis votre messagerie habituelle.</li>
+<li>Documents <b>internes</b> par défaut. Mettez <code>[public]</code> dans l'objet pour un document public.</li>
+<li>PDF et Word sont indexés ; le texte du mail aussi, s'il est substantiel (compte rendu, note).</li>
+<li>Accusé de réception sur Telegram si votre compte est lié.</li>
+</ul>
+<p class="small muted">Cette adresse vaut clé : ne la mettez jamais en copie d'un fil de discussion (seulement en transfert ou en Cci).</p>
+<form method="post" onsubmit="return confirm('L\'adresse actuelle cessera de fonctionner. Continuer ?')"><input type="hidden" name="new_mail_code" value="1"><button class="secondary">Changer d'adresse</button></form>
+</div>
+<div class="card"><h2>Mes dépôts</h2>{% for d in mine %}<div class="item"><a href="/doc/{{ d.id }}">{{ d.title or '#' ~ d.id }}</a> <span class="small muted">{{ d.access }} · {{ d.status }} · {{ d.fetched_at[:16]|replace('T',' ') }}</span></div>{% else %}<p class="muted">Aucun.</p>{% endfor %}</div></div></div>
+{% endblock %}

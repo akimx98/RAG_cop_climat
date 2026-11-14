@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% from "_doc.html" import lvl, docline with context %}{% block body %}
+<h1>{{ L('Mes sujets suivis', 'My followed topics') }}</h1>
+{% if message %}<p class="banner">{{ L('Sujet ajouté.', 'Topic added.') if message == 'added' else message }}</p>{% endif %}
+<div class="grid">
+<section class="card">
+<h2>{{ L('Nouveau sujet', 'New topic') }}</h2>
+<form method="post">
+<p><input type="text" name="label" placeholder="{{ L('Nom du sujet (ex. Sortie des fossiles)', 'Topic name (e.g. Fossil fuel phase-out)') }}" value="{{ form.get('label','') }}"></p>
+<p><textarea name="query" rows="3" placeholder="{{ L('Mots-clés séparés par des virgules, en anglais ET en français : fossil fuels, combustibles fossiles, transition away', 'Keywords separated by commas, in English AND French: fossil fuels, combustibles fossiles, transition away') }}">{{ form.get('query','') }}</textarea></p>
+<p class="small muted">{{ L('Laisser vide + choisir des types = être alerté de', 'Leave empty + pick types = be alerted to') }} <b>{{ L('tout', 'every') }}</b> {{ L('nouveau document de ces types (ex. tous les projets de texte).', 'new document of those types (e.g. all draft texts).') }}</p>
+<p class="small">{{ L('Niveaux (vide = tous)', 'Levels (empty = all)') }}</p>
+<div class="row chips">{% for l in ['1','2','3','4','5'] + (['R'] if user.can_restricted else []) %}<label><input type="checkbox" name="levels" value="{{ l }}"> {{ lvl(l) }}</label>{% endfor %}</div>
+<p class="small">{{ L('Types (vide = tous)', 'Types (empty = all)') }}</p>
+<div class="row chips">{% for t in ['projet_texte','decision','conclusions_sb','ordre_du_jour','ndc','conclusions_conseil','communique','compte_rendu','analyse','programme'] + (['note_interne'] if user.can_restricted else []) %}<label><input type="checkbox" name="types" value="{{ t }}"> {{ t|replace('_', ' ') }}</label>{% endfor %}</div>
+<p><label><input type="checkbox" name="telegram" value="1" checked> {{ L('Alerte Telegram', 'Telegram alert') }}</label></p>
+<div class="row"><button name="action" value="ajouter">{{ L('Suivre', 'Follow') }}</button><button class="secondary" name="action" value="apercu">{{ L('Aperçu (14 jours)', 'Preview (14 days)') }}</button></div>
+</form>
+</section>
+<section>
+<div class="card flush">
+{% for s in subs %}
+<div class="item row" style="justify-content:space-between">
+<div><div class="title">{{ s.libelle }}</div><div class="small muted mono">{{ s.requete }}</div>
+<div class="small muted">{% if s.niveaux %}{{ L('niveaux', 'levels') }} {{ s.niveaux|join(', ') }} · {% endif %}{% if s.types %}types {{ s.types|join(', ') }} · {% endif %}{{ 'Telegram' if s.telegram else L('tableau de bord seul', 'dashboard only') }}</div></div>
+<form method="post" action="/sujets/{{ s.id }}/supprimer"><button class="secondary">{{ L('Arrêter', 'Stop') }}</button></form>
+</div>
+{% else %}<p class="muted">{{ L('Aucun sujet.', 'No topics.') }}</p>{% endfor %}
+</div>
+{% if preview is not none %}<h2>{{ L('Aperçu', 'Preview') }} : {{ preview|length }} document(s)</h2><div class="card flush">
+{% for d in preview %}<div class="item">{{ docline(d) }}{% if d.extrait %}<blockquote>{{ d.extrait }}</blockquote>{% endif %}</div>{% else %}<p class="muted">{{ L('Rien sur la période.', 'Nothing in that period.') }}</p>{% endfor %}</div>{% endif %}
+</section></div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% block title %}COP31 · {{ L('Connexion', 'Sign in') }}{% endblock %}{% block body %}
+<div class="center">
+<form class="card" method="post" action="/connexion" style="padding:32px 28px;text-align:left">
+<h1 style="margin-bottom:10px">{{ L('Veille COP31', 'COP31 tracker') }}</h1>
+<p class="muted" style="margin-top:0">{{ L('Veille indépendante des négociations de la COP31 · Antalya, 9–20 novembre 2026', 'Independent COP31 negotiation tracker · Antalya, 9–20 November 2026') }}</p>
+{% if error %}<p class="banner warn">{{ error }}</p>{% endif %}
+{% if sent %}<p class="banner">{{ L('Code envoyé', 'Code sent') }} {{ sent }} {{ L('à', 'to') }} <b>{{ email }}</b>. {{ L('Pensez aux indésirables.', 'Check your spam folder too.') }}</p>{% endif %}
+<input type="hidden" name="next" value="{{ next or '/' }}">
+{% if step == 'email' or not step %}
+<p><label class="small" for="email">E-mail</label>
+<input type="email" id="email" name="email" value="{{ email or '' }}" autocomplete="username" required autofocus></p>
+<p style="margin-top:18px"><button>{{ L('Continuer', 'Continue') }}</button></p>
+{% else %}
+<input type="hidden" name="email" value="{{ email }}">
+<p class="small">{{ email }} · <a href="/connexion">{{ L('changer', 'change') }}</a></p>
+{% if step == 'password' %}
+<p><label class="small" for="password">{{ L('Mot de passe', 'Password') }}</label>
+<input type="password" id="password" name="password" autocomplete="current-password" required autofocus></p>
+<div class="row" style="margin-top:18px"><button>{{ L('Se connecter', 'Sign in') }}</button>
+<button class="secondary" name="action" value="forgot" formnovalidate>{{ L('Mot de passe oublié ? Recevoir un code', 'Forgot password? Get a code') }}</button></div>
+{% else %}
+<p><label class="small" for="code">{{ L('Code à 6 chiffres', '6-digit code') }}</label>
+<input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus
+ style="font:600 22px/1.2 var(--mono);letter-spacing:.3em"></p>
+<div class="row" style="margin-top:18px"><button>{{ L('Se connecter', 'Sign in') }}</button>
+<button class="secondary" name="action" value="resend" formnovalidate>{{ L('Renvoyer un code', 'Send a new code') }}</button></div>
+{% endif %}
+{% endif %}
+<p class="muted small" style="margin:16px 0 0">{{ L('Pas encore de compte ?', 'No account yet?') }} <a href="/#signup">{{ L('Créer un compte gratuit', 'Create a free account') }}</a>.</p>
+</form></div>
+{% endblock %}

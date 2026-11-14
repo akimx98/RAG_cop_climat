@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% block body %}
+<h1>{{ L('Connecter Claude ou ChatGPT', 'Connect your AI assistant') }}</h1>
+<div class="card">
+{% if token %}
+<p>{{ L('Votre adresse personnelle de connecteur MCP', 'Your personal MCP connector address') }}{% if regenerated %} (<b>{{ L('nouvelle', 'new') }}</b> : {{ L("l'ancienne est révoquée, mettez à jour vos connecteurs", 'the old one is revoked, update your connectors') }}){% endif %} :</p>
+<p><code>{{ base }}/u/{{ token }}/mcp</code></p>
+<p class="small muted">{{ L('Elle vaut mot de passe : ne la partagez pas. Si elle a fuité :', 'Treat it like a password: do not share it. If it has leaked:') }}</p>
+<form method="post" data-q="{{ L('L\'adresse actuelle cessera de fonctionner dans Claude et ChatGPT. Continuer ?', 'The current address will stop working in Claude and ChatGPT. Continue?') }}" onsubmit="return confirm(this.dataset.q)"><button class="secondary">{{ L('Révoquer et générer une nouvelle adresse', 'Revoke and generate a new address') }}</button></form>
+{% else %}<p>{{ L("Votre adresse n'a pas encore été générée :", 'Your address has not been generated yet:') }}</p>
+<form method="post"><button>{{ L('Générer mon adresse', 'Generate my address') }}</button></form>{% endif %}
+<h2>Claude ({{ L('application web, bureau ou mobile', 'web, desktop or mobile app') }})</h2>
+<ol><li>{{ L('Paramètres → Connecteurs → Ajouter un connecteur personnalisé.', 'Settings → Connectors → Add custom connector.') }}</li><li>{{ L('Nom', 'Name') }} : <code>COP31</code> ; URL : {{ L("l'adresse ci-dessus ; pas d'authentification OAuth.", 'the address above; no OAuth authentication.') }}</li>
+<li>{{ L('Dans une conversation, activer le connecteur COP31.', 'In a chat, turn on the COP31 connector.') }}</li></ol>
+<h3>Skills ({{ L('méthodes de travail', 'working methods') }})</h3>
+<p>{{ L('Elles apprennent à Claude à se servir du corpus : vérifier une affirmation, brief novice, point de négociation, position de l\'UE…', 'They teach Claude how to use the corpus: fact-checking a claim, a beginner\'s brief, the state of a negotiation item, the EU position…') }}
+{{ L('Commencez par', 'Start with') }} <code>protocole-cop31</code> ({{ L('règles de citation', 'citation rules') }}), {{ L("les autres s'appuient dessus.", 'the others build on it.') }}</p>
+<ul>
+<li><a href="/telechargements/cop31-plugin.zip">{{ L('Plugin complet (8 skills)', 'Full plugin (8 skills)') }}</a> — {{ L('Claude Code ou distribution par un administrateur Claude Entreprise.', 'Claude Code, or distribution by a Claude Enterprise administrator.') }}</li>
+<li>Claude.ai ({{ L('Paramètres → Capacités → Skills → Importer', 'Settings → Capabilities → Skills → Upload') }}), {{ L('un fichier par skill', 'one file per skill') }} :
+{% for s in SKILLS() %}<a href="/telechargements/skill-{{ s }}.zip">{{ s }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</li>
+</ul>
+<p class="small muted">{{ L('Organisation Claude Entreprise : un administrateur doit autoriser les connecteurs personnalisés.', 'Claude Enterprise organisation: an administrator must allow custom connectors.') }}</p>
+<h2>ChatGPT</h2>
+<ol><li>{{ L('Paramètres → Applications et connecteurs → Paramètres avancés → activer le mode développeur.', 'Settings → Apps & Connectors → Advanced settings → turn on Developer mode.') }}</li><li>{{ L('Créer un connecteur : URL ci-dessus, sans authentification.', 'Create a connector: the address above, no authentication.') }}</li><li>{{ L('Coller', 'Paste') }} <a href="/telechargements/chatgpt-instructions.txt">{{ L('ces instructions', 'these instructions') }}</a> {{ L('dans un projet ChatGPT ou un GPT personnalisé.', 'into a ChatGPT project or a custom GPT.') }}</li></ol>
+<h2>Le Chat (Mistral) {{ L('et autres', 'and others') }}</h2>
+<p>{{ L('Tout assistant qui accepte un connecteur MCP distant (« HTTP ») : coller l\'adresse ci-dessus, sans authentification.', 'Any assistant that accepts a remote (“HTTP”) MCP connector: paste the address above, no authentication.') }}</p>
+<p class="small muted">{{ L('Les connecteurs personnalisés dépendent de votre offre (souvent payante chez ChatGPT). Sans assistant IA, le site et le bot Telegram suffisent.', 'Custom connectors depend on your plan (often a paid one for ChatGPT). Without an AI assistant, the website and the Telegram bot are enough.') }}</p>
+</div>{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% from "_doc.html" import lvl, docline, links with context %}{% block title %}{{ q ~ ' · ' if q }}{{ L('Recherche', 'Search') }} · COP31{% endblock %}{% block body %}
+<section class="hero">
+<h1>{{ L('Recherche', 'Search') }}</h1>
+<p>{{ L('Mots et sens à la fois. Pour une citation onusienne, la formule anglaise exacte donne le texte de référence en tête.', 'Keywords and meaning at once. For a UN quote, the exact English wording brings the reference text to the top.') }}</p>
+<form method="get">
+<div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+<input type="search" name="q" value="{{ q }}" placeholder="{{ L('transitioning away from fossil fuels · objectif 2040 de l\'UE · CDN Türkiye', 'transitioning away from fossil fuels · EU 2040 target · Türkiye NDC') }}" autofocus><button>{{ L('Chercher', 'Search') }}</button></div>
+<div class="row chips" style="margin-top:12px">{% for l in ['1','2','3','4','5'] %}<label><input type="checkbox" name="niveau" value="{{ l }}" {{ 'checked' if l in levels }}>{{ lvl(l) }}</label>{% endfor %}
+{% if user.can_restricted %}<label><input type="checkbox" name="acces" value="restreint" {{ 'checked' if access=='restreint' }}>{{ lvl('R') }} {{ L('seulement', 'only') }}</label>{% endif %}</div>
+</form>
+</section>
+{% if q %}
+<h2>{{ hits|length }} {% if lang == 'en' %}result{{ 's' if hits|length != 1 }}{% else %}résultat{{ 's' if hits|length > 1 }}{% endif %}</h2>
+<div class="card flush">
+{% for h in hits %}<div class="item">{{ docline(h) }}
+<div class="meta" style="margin-top:8px">{% if h.cote %}<span class="tag">{{ h.cote }}</span>{% endif %}{% if h.paragraphe %}<span class="tag">{{ h.paragraphe }}</span>{% endif %}<span class="tag">p. {{ h.page or 1 }}</span></div>
+<blockquote>{{ h.extrait }}</blockquote>
+{{ links(h) }}</div>
+{% else %}<p class="empty">{{ L("Rien trouvé. Essayez d'autres mots, ou la formule anglaise du texte.", 'Nothing found. Try other words, or the English wording of the text.') }}</p>{% endfor %}</div>
+{% endif %}
+{% endblock %}

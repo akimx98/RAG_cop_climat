@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% from "_live.html" import when with context %}{% block title %}{{ L('Dossiers', 'Negotiations') }} · COP31{% endblock %}{% block body %}
+<section class="hero">
+<div class="eyebrow">{{ L('Négociations en direct', 'Live negotiations') }}</div>
+<h1>{{ L('Dossiers', 'Negotiations') }}</h1>
+<p>{{ L('Un dossier par sujet de négociation : état du texte, versions et crochets, qui veut quoi,', 'One page per negotiation item: state of the text, versions and brackets, who wants what,') }}{% if user.can_restricted %} {{ L('notes de terrain (contributeurs),', 'field notes (contributors),') }}{% endif %} {{ L('brief matin et soir. Suivez-en un pour recevoir ses alertes et ses briefs sur Telegram.', 'morning and evening brief. Follow one to get its alerts and briefs on Telegram.') }}</p>
+</section>
+<div class="dgrid">
+{% for d in rows %}
+<a class="card dcard" href="/dossiers/{{ d.slug }}">
+<div class="spread"><span class="eyebrow">{{ d.alias[0]|upper }}</span>{% if d.suivi %}<span class="pill ok">✓ {{ L('suivi', 'following') }}</span>{% endif %}</div>
+<div class="title">{{ DN(d) }}</div>
+<div class="small muted">{{ DN(d, 'enjeu') }}</div>
+<div class="row">
+{% for e in d.etat %}<span class="pill">{{ e }}</span>{% endfor %}
+<span class="pill">{{ d.nb_textes }} {% if lang == 'en' %}text{{ 's' if d.nb_textes != 1 }}{% else %}texte{{ 's' if d.nb_textes > 1 }}{% endif %}</span>
+{% if d.a_recuperer %}<span class="pill warn">{{ d.a_recuperer }} ⏳</span>{% endif %}
+<span class="pill">{{ d.nb_positions }} positions</span>
+{% if d.nb_notes %}<span class="pill">{{ d.nb_notes }} {{ L('notes (accès restreint)', 'notes (restricted)') }}</span>{% endif %}
+</div>
+{% if d.dernier %}<div class="small muted">{{ L('Dernier', 'Latest') }} : {{ d.dernier.symbol or '' }} {{ (d.dernier.title or '')[:80] }} · {{ when(d.dernier.published) }}{% if d.dernier.brackets is not none %} · {{ d.dernier.brackets }} {{ L('crochets', 'brackets') }}{% endif %}</div>{% endif %}
+</a>
+{% endfor %}
+</div>
+<p class="small muted" style="margin-top:20px">{{ L('Index des textes et positions de référence', 'Index of texts and reference positions') }} : <a href="{{ cb_page }}">{{ credit }}</a> ({{ L('cité', 'credited') }}). {{ L("Textes récupérés sur l'ODS de l'ONU ou déposés par les contributeurs.", 'Texts retrieved from the UN ODS or uploaded by contributors.') }}</p>
+{% if usage %}<p class="small muted">{{ L('Dépense IA', 'AI spend') }} : {{ '%.2f'|format(usage.depense_usd) }} $ {{ L('sur un plafond de', 'of a cap of') }} {{ usage.plafond_usd|int }} $.</p>{% endif %}
+{% endblock %}

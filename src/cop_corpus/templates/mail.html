@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% block body %}
+<p class="eyebrow"><a href="/admin">Admin</a></p>
+<h1>Courrier</h1>
+{% if flash %}<p class="banner">{{ flash }}</p>{% endif %}
+<div class="grid">
+<div class="card"><h2>Adresse de veille</h2>
+<p><code style="font-size:15px">{{ veille }}</code></p>
+<p class="small">À utiliser pour s'abonner aux lettres d'information. Les mails des expéditeurs autorisés entrent au corpus
+(public, niveau 4) ; les autres attendent ci-dessous, notamment les <b>confirmations d'abonnement</b> : ouvrez-les et cliquez vous-même le lien.</p>
+</div>
+<form class="card" method="post"><h2>Expéditeurs autorisés</h2>
+{% if allowed %}<p class="small mono">{{ allowed|join(' · ') }}</p>{% else %}<p class="small muted">Aucun pour l'instant.</p>{% endif %}
+<p><input type="text" name="allow_new" placeholder="adresse ou domaine (ex. iisd.org)"></p><button class="secondary">Autoriser</button>
+</form></div>
+{% if detail %}<div class="card"><h2>{{ detail.row.subject }}</h2>
+<p class="small muted">{{ detail.row.sender }} · {{ detail.row.received_at|replace('T',' ') }}</p>
+{% if detail.links %}<h3>Liens</h3><p class="small muted">Liens fournis par l'expéditeur : n'ouvrez que ceux que vous attendez (confirmation d'abonnement).</p>
+<ul class="small">{% for label, href in detail.links %}<li><a href="{{ href }}" target="_blank" rel="noopener noreferrer">{{ label }}</a> <span class="muted mono">{{ href[:70] }}</span></li>{% endfor %}</ul>{% endif %}
+<h3>Texte</h3><blockquote style="white-space:pre-wrap;max-height:420px;overflow:auto">{{ detail.text }}</blockquote>
+</div>{% endif %}
+<div class="card flush"><div class="table-wrap"><table>
+<tr><th>reçu</th><th>boîte</th><th>de</th><th>objet</th><th>état</th><th></th></tr>
+{% for m in items %}<tr>
+<td class="small">{{ m.received_at[5:16]|replace('T',' ') }}</td>
+<td class="small">{{ 'veille' if m.mailbox == 'veille' else 'dépôt ' ~ (m.user_email or '') }}</td>
+<td class="small mono">{{ m.sender }}</td>
+<td>{% if m.mailbox == 'veille' %}<a href="?voir={{ m.id }}">{{ m.subject }}</a>{% else %}<span class="muted">(document interne)</span>{% endif %}</td>
+<td class="small">{{ {'ingere':'ajouté','attente':'en attente','ignore':'ignoré','vide':'sans contenu','erreur':'erreur'}.get(m.status, m.status) }}{% if m.detail %}<br><span class="muted">{{ m.detail }}</span>{% endif %}</td>
+<td>{% if m.mailbox == 'veille' and m.status == 'attente' %}<form method="post" style="display:flex;gap:6px;flex-wrap:wrap"><input type="hidden" name="id" value="{{ m.id }}">
+<button name="action" value="allow">Ajouter + autoriser</button><button class="secondary" name="action" value="ingest">Ajouter</button><button class="secondary" name="action" value="ignore">Ignorer</button></form>{% endif %}</td>
+</tr>{% else %}<tr><td colspan="6" class="muted">Aucun mail reçu.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

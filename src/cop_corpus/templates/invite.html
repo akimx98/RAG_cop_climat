@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% block title %}COP Tracker · {{ L('Inviter', 'Invite') }}{% endblock %}{% block body %}
+<style>
+.inv{max-width:880px;margin:2vh auto 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:center}
+@media(max-width:760px){.inv{grid-template-columns:minmax(0,1fr);gap:20px;text-align:center}}
+.inv h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 12px}
+.inv .url{font:700 clamp(20px,2.8vw,30px)/1.25 var(--mono);word-break:break-all;margin:18px 0 6px;color:var(--ink)}
+.inv .qr{width:100%;max-width:380px;padding:16px}
+</style>
+<div class="inv">
+<div>
+<div class="eyebrow">COP31 · Antalya</div>
+<h1>{{ L('Créez votre compte COP Tracker', 'Create your COP Tracker account') }}</h1>
+<p class="muted" style="margin:0">{{ L('Suivre les négociations à partir des textes, sources à l\'appui. Gratuit, indépendant. Une adresse e-mail suffit : pas de mot de passe.', 'Follow the negotiations from the texts, with the sources. Free and independent. Just an e-mail address, no password.') }}</p>
+{% if invite.open %}
+<p class="url" id="invite-url">{{ invite.url.split('://')[-1] }}</p>
+<p class="row" style="justify-content:inherit">
+<button type="button" class="secondary" data-done="{{ L('Lien copié', 'Link copied') }}" onclick="navigator.clipboard.writeText('{{ invite.url }}').then(()=>{this.textContent=this.dataset.done})">{{ L('Copier le lien', 'Copy the link') }}</button>
+<a class="btn secondary" href="/a-propos">{{ L('Qu\'est-ce que COP Tracker ?', 'What is COP Tracker?') }}</a></p>
+{% if user and user.is_admin %}<p class="small muted">{{ invite.used }} / {{ invite.max }} {{ L('places utilisées', 'places used') }} · <a href="/admin#invitations">{{ L('changer le plafond', 'change the cap') }}</a></p>{% endif %}
+{% else %}<p class="banner warn" style="margin-top:16px">{{ L('Les inscriptions sont fermées pour le moment.', 'Sign-ups are closed for now.') }}</p>{% endif %}
+</div>
+{% if invite.open %}<div style="text-align:center"><div class="qr">{{ QR(invite.url, 8) }}</div></div>{% endif %}
+</div>
+{% endblock %}

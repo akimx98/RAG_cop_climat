@@ -1,0 +1,8 @@
+{# Photo réelle (licence CC, crédit obligatoire). Fichiers servis par /static/<nom>-800.jpg et -1600.jpg. #}
+{% macro photo(name, alt, caption, flickr, focus='50% 50%', height='clamp(190px,30vw,330px)') %}
+<figure class="photo">
+<img src="/static/{{ name }}-1600.jpg" srcset="/static/{{ name }}-800.jpg 800w, /static/{{ name }}-1600.jpg 1600w" sizes="(max-width:1080px) 100vw, 1040px" width="1600" height="1067" alt="{{ alt }}" style="object-position:{{ focus }};height:{{ height }}">
+<figcaption><details><summary title="{{ caption }}" aria-label="Crédit photo">©</summary>
+<span>{{ caption }} <a href="{{ flickr }}" rel="noopener">© UN Climate Change – Kiara Worth</a>, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="license noopener">CC BY-NC-SA 4.0</a></span></details></figcaption>
+</figure>
+{% endmacro %}

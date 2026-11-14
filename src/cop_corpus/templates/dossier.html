@@ -1,0 +1,76 @@
+{% extends "base.html" %}{% from "_live.html" import stance, when, textstate with context %}{% from "_doc.html" import docline with context %}{% block title %}{{ DN(d) }} · COP31{% endblock %}{% block body %}
+{% if message == 'note' %}<p class="banner">{{ L('Note enregistrée (interne).', 'Note saved (internal).') }}</p>{% elif message == 'brief' %}<p class="banner">{{ L('Brief régénéré.', 'Brief regenerated.') }}</p>{% elif message == 'plafond' %}<p class="banner warn">{{ L('Plafond de dépense IA atteint.', 'AI spending cap reached.') }}</p>{% endif %}
+<section class="hero">
+<div class="eyebrow"><a href="/dossiers">{{ L('Dossiers', 'Negotiations') }}</a> · {{ d.alias|join(', ') }}</div>
+<h1>{{ DN(d) }}</h1>
+<p>{{ DN(d, 'enjeu') }}</p>
+<div class="row">
+{% for e in etat %}<span class="pill">{{ e.status }}</span>{% endfor %}
+<form method="post" action="/dossiers/{{ d.slug }}/suivre"><button class="star {{ 'on' if suivi }}">{{ L('✓ Suivi', '✓ Following') if suivi else L('Suivre ce dossier', 'Follow this negotiation') }}</button></form>
+<a class="small" href="/recherche?q={{ d.requete|urlencode }}">{{ L('Rechercher dans le corpus', 'Search the corpus') }} →</a>
+</div>
+</section>
+
+<div class="grid wide">
+<section>
+<div class="spread"><h2>Brief</h2>{% if brief %}<span class="small muted">{{ when(brief.created_at) }} UTC · {{ L('depuis', 'since') }} {{ when(brief.period_start) }}</span>{% endif %}</div>
+<div class="card">
+{% if brief %}
+<p style="margin-top:0;font:16px/1.6 var(--serif)">{{ brief.body.essentiel|briefclean }}</p>
+{% set src = brief.sources %}
+<ul style="padding-left:18px;margin:0">{% for p in brief.body.points %}<li style="margin-bottom:8px">{{ p.texte|briefclean }}
+{% for n in p.sources %}{% set s = src[n-1] if n <= src|length else none %}{% if s and s.url %} <a class="small" href="{{ s.url }}" target="_blank" rel="noopener" title="{{ s.label }}">[{{ n }}]</a>{% endif %}{% endfor %}</li>{% endfor %}</ul>
+{% if brief.body.a_surveiller %}<p class="small" style="margin-bottom:0"><b>{{ L('À surveiller :', 'To watch:') }}</b> {{ brief.body.a_surveiller|map('briefclean')|join(' · ') }}</p>{% endif %}
+<details class="small muted" style="margin-top:10px"><summary>{{ L('Sources du brief', 'Brief sources') }}</summary><ol>{% for s in src %}<li>{% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.label }}</a>{% else %}{{ s.label }}{% endif %}</li>{% endfor %}</ol></details>
+{% else %}<p class="muted" style="margin:0">{{ L("Pas encore de brief : il est rédigé à 7 h et 19 h (heure d'Antalya) dès qu'il y a du nouveau.", 'No brief yet: one is written at 7am and 7pm (Antalya time) whenever there is something new.') }}</p>{% endif %}
+{% if can_contribute(user) %}<form method="post" action="/dossiers/{{ d.slug }}/brief" style="margin-top:12px"><button class="secondary">{{ L('Rédiger le brief maintenant (24 h)', 'Write the brief now (last 24 h)') }}</button></form>{% endif %}
+<p class="small muted" style="margin-bottom:0">{{ L('Rédigé par IA à partir des seules sources publiques citées ; vérifiez avant de reprendre.', 'Written by AI from the cited public sources only; check before reusing.') }}</p>
+</div>
+
+<h2>{{ L('Textes de négociation', 'Negotiating texts') }}</h2>
+{% if spark %}<div class="card"><div class="small muted">{{ L('Crochets au fil des versions', 'Brackets across versions') }}</div>{{ spark|safe }}</div>{% endif %}
+<div class="card flush">
+{% for t in texts %}<div class="item">
+<div class="title">{% if t.doc_id %}<a href="/doc/{{ t.doc_id }}">{{ t.symbol or '' }} {{ t.title }}</a>{% else %}{{ t.symbol or '' }} {{ t.title }}{% endif %}</div>
+<div class="meta"><span>{{ t.body }}</span><span class="sep">·</span><span>{{ L('point', 'item') }} {{ t.agenda_item or '?' }}</span><span class="sep">·</span><span>{{ when(t.published) }}</span>
+{% if t.pages %}<span class="sep">·</span><span>{{ t.pages }} p.</span>{% endif %}{% if t.brackets is not none %}<span class="sep">·</span><span><b>{{ t.brackets }}</b> {{ L('crochets', 'brackets') }}</span>{% endif %}{% if t.options %}<span class="sep">·</span><span><b>{{ t.options }}</b> options</span>{% endif %}</div>
+<div class="actions">{{ textstate(t) }}
+{% if t.doc_id and t.version and t.version > 1 %}<a href="/diff/{{ t.doc_id }}">{{ L('Ce qui a changé', 'What changed') }} (v{{ t.version }})</a>{% endif %}
+{% if t.pdf_url %}<a href="{{ t.pdf_url }}" target="_blank" rel="noopener">unfccc.int ↗</a>{% endif %}
+{% if not t.doc_id and can_contribute(user) %}<a href="/textes?dossier={{ d.slug }}#t{{ t.id }}">{{ L('Déposer le PDF', 'Upload the PDF') }}</a>{% endif %}</div>
+{% if t.note %}<div class="small muted">{{ t.note }}</div>{% endif %}
+</div>{% else %}<p class="empty">{{ L("Aucun texte annoncé pour l'instant.", 'No text announced yet.') }}</p>{% endfor %}
+</div>
+
+<h2>Positions</h2>
+<div class="card flush">
+{% for p in extracted %}<div class="item">
+<div><b>{{ p.actor }}</b> {{ stance(p.stance) }} <span class="small muted">{{ p.issue }}</span></div>
+{% if p.summary %}<div class="small">{{ p.summary }}</div>{% endif %}
+{% if p.quote %}<blockquote>{{ L('« ', '“') }}{{ p.quote }}{{ L(' »', '”') }}</blockquote>{% endif %}
+<div class="meta"><span>{{ p.said_on or when(p.created_at) }}</span><span class="sep">·</span>{% if p.source_url %}<a href="{{ p.source_url }}" target="_blank" rel="noopener">{{ p.source_label }}</a>{% else %}<span>{{ p.source_label }}</span>{% endif %}</div>
+</div>{% else %}<p class="empty">{{ L("Aucune prise de position relevée pendant la COP pour l'instant.", 'No statements picked up during the COP yet.') }}</p>{% endfor %}
+</div>
+<details class="card"><summary><b>{{ L('Positions de référence avant la COP', 'Pre-COP reference positions') }}</b> <span class="small muted">— {{ credit }}, <a href="{{ cb_www }}">Who wants what</a></span></summary>
+<div class="table-wrap" style="margin-top:10px"><table>
+{% for actor, items in ref_actors %}<tr><td style="white-space:nowrap"><b>{{ actor }}</b></td><td>{% for p in items %}<div>{{ stance(p.stance) }}{% if p.source_url %}<a href="{{ p.source_url }}" target="_blank" rel="noopener">{{ p.issue }}</a>{% else %}{{ p.issue }}{% endif %}</div>{% endfor %}</td></tr>
+{% else %}<tr><td class="muted">{{ L('Aucune.', 'None.') }}</td></tr>{% endfor %}</table></div>
+</details>
+</section>
+
+<section>
+{% if restricted %}
+<h2 id="notes">{{ L('Notes de terrain', 'Field notes') }} <span class="pill">{{ L('accès restreint', 'restricted') }}</span></h2>
+<div class="card">
+<form method="post" action="/dossiers/{{ d.slug }}/note"><p><textarea name="text" rows="3" placeholder="{{ L('Ce que vous avez entendu en salle : qui a dit quoi, sur quel paragraphe…', 'What you heard in the room: who said what, on which paragraph…') }}"></textarea></p><button>{{ L('Ajouter la note', 'Add note') }}</button></form>
+<p class="small muted">{{ L("Interne (contributeurs seulement), jamais envoyée à un service d'IA. Sur téléphone :", 'Internal (contributors only), never sent to an AI service. On your phone:') }} <code>/note {{ d.alias[0] }} …</code> {{ L('au bot.', 'to the bot.') }}</p>
+</div>
+<div class="card flush">{% for n in notes %}<div class="item"><div class="meta" style="margin:0 0 4px"><span>{{ n.auteur or n.email }}</span><span class="sep">·</span><span>{{ when(n.created_at) }} UTC</span><span class="sep">·</span><span>{{ n.via }}</span></div><div style="white-space:pre-wrap">{{ n.text }}</div></div>{% else %}<p class="empty">{{ L('Aucune note.', 'No notes.') }}</p>{% endfor %}</div>
+{% endif %}
+<h2>{{ L('Dans le corpus (7 jours)', 'In the corpus (7 days)') }}</h2>
+<div class="card flush">{% for h in hits %}<div class="item">{{ docline(h) }}<blockquote>{{ h.extrait[:300] }}</blockquote></div>{% else %}<p class="empty">{{ L('Rien de récent.', 'Nothing recent.') }}</p>{% endfor %}</div>
+<h2>{{ L('Sur Bluesky', 'On Bluesky') }}</h2>
+<div class="card flush">{% for s in social %}<div class="item"><div class="meta" style="margin:0 0 4px"><b>{{ s.author }}</b><span class="sep">·</span><span>{{ when(s.created_at) }} UTC</span></div><div class="small" style="white-space:pre-wrap">{{ s.text }}</div><div class="actions"><a href="{{ s.url }}" target="_blank" rel="noopener">{{ L('Voir', 'View') }} ↗</a></div></div>{% else %}<p class="empty">{{ L('Rien sur ce dossier ces derniers jours.', 'Nothing on this negotiation in recent days.') }}</p>{% endfor %}</div>
+</section>
+</div>
+{% endblock %}

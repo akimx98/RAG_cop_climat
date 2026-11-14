@@ -1,0 +1,297 @@
+# Positions de l'UE pour la COP31 (Conseil, Commission) — vérifié le 2026-11-06 avec
+# User-Agent "cop-corpus/0.1 (veille documentaire)".
+# NB : www.consilium.europa.eu renvoie 403 (pages HTML : communiqués, réunions) à un client
+# non-navigateur ; seuls le flux RSS et le registre data.consilium.europa.eu (PDF) répondent 200.
+
+# --- Conclusions du Conseil -------------------------------------------------------------
+- id: eu-council-conclusions-cop31-2026-en
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-14250-2026-INIT/en/pdf
+  title: "Council conclusions — Preparations for COP31 (Antalya, 9-20 November 2026), approved 12 October 2026"
+  level: 2
+  org: Conseil de l'UE
+  doc_type: conclusions_conseil
+  session: COP31
+  symbol: ST 14250/26
+  parties: [EU]
+  topics: [eu_position, mitigation, adaptation, finance, ndc]
+  lang: en
+  published: 2026-10-12
+
+- id: eu-council-conclusions-cop31-2026-fr
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-14250-2026-INIT/fr/pdf
+  title: "Conclusions du Conseil — Préparation de la COP31 (Antalya, 9-20 novembre 2026), approuvées le 12 octobre 2026"
+  level: 2
+  org: Conseil de l'UE
+  doc_type: conclusions_conseil
+  session: COP31
+  symbol: ST 14250/26
+  parties: [EU]
+  topics: [eu_position, mitigation, adaptation, finance, ndc]
+  lang: fr
+  published: 2026-10-12
+
+- id: eu-ecofin-climate-finance-conclusions-cop31-2026-en
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-14090-2026-INIT/en/pdf
+  title: "Council (ECOFIN) conclusions on climate finance in view of COP31 (9 October 2026)"
+  level: 2
+  org: Conseil de l'UE (ECOFIN)
+  doc_type: conclusions_conseil
+  session: COP31
+  symbol: ST 14090/26
+  parties: [EU]
+  topics: [climate_finance, ncqg, eu_position]
+  lang: en
+  published: 2026-10-09
+
+- id: eu-ecofin-climate-finance-conclusions-cop31-2026-fr
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-14090-2026-INIT/fr/pdf
+  title: "Conclusions du Conseil (ECOFIN) sur le financement climatique en vue de la COP31 (9 octobre 2026)"
+  level: 2
+  org: Conseil de l'UE (ECOFIN)
+  doc_type: conclusions_conseil
+  session: COP31
+  symbol: ST 14090/26
+  parties: [EU]
+  topics: [climate_finance, ncqg, eu_position]
+  lang: fr
+  published: 2026-10-09
+
+# Contexte COP30 (finance climat ; addendum avec le chiffre 2024)
+- id: eu-ecofin-climate-finance-conclusions-cop30-2025-en
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-13732-2025-INIT/en/pdf
+  title: "Council conclusions on climate finance in view of COP30 (10 October 2025)"
+  level: 2
+  org: Conseil de l'UE (ECOFIN)
+  doc_type: conclusions_conseil
+  session: COP30
+  symbol: ST 13732/25
+  parties: [EU]
+  topics: [climate_finance]
+  lang: en
+  published: 2025-10-10
+
+- id: eu-ecofin-climate-finance-cop30-para16-2025-en
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-14484-2025-REV-1/en/pdf
+  title: "Council conclusions on climate finance (COP30): new paragraph 16 — EU 2024 climate finance figure (27 October 2025)"
+  level: 2
+  org: Conseil de l'UE (ECOFIN)
+  doc_type: conclusions_conseil
+  session: COP30
+  symbol: ST 14484/25 REV 1
+  parties: [EU]
+  topics: [climate_finance]
+  lang: en
+  published: 2025-10-27
+
+# --- CDN de l'UE (2035) : texte approuvé par le Conseil ---------------------------------
+# Le dépôt sur le registre NDC de la CCNUCC relève de l'autre agent ; ici la version Conseil.
+- id: eu-ndc-2035-council-approval-en
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-14929-2025-INIT/en/pdf
+  title: "EU submission of an updated NDC (2035 indicative target 66.25-72.5% net GHG reduction vs 1990) — Council approval, 5 November 2025"
+  level: 2
+  org: Conseil de l'UE
+  doc_type: ndc
+  session: COP30
+  symbol: ST 14929/25
+  parties: [EU]
+  topics: [ndc, 2035_target, mitigation]
+  lang: en
+  published: 2025-11-05
+
+- id: eu-ndc-2035-council-approval-fr
+  type: doc
+  url: https://data.consilium.europa.eu/doc/document/ST-14929-2025-INIT/fr/pdf
+  title: "Contribution déterminée au niveau national actualisée de l'UE (objectif indicatif 2035 : -66,25 à -72,5 %) — approbation du Conseil, 5 novembre 2025"
+  level: 2
+  org: Conseil de l'UE
+  doc_type: ndc
+  session: COP30
+  symbol: ST 14929/25
+  parties: [EU]
+  topics: [ndc, 2035_target, mitigation]
+  lang: fr
+  published: 2025-11-05
+
+# --- Commission européenne (DG CLIMA) ----------------------------------------------------
+- id: eu-commission-eu-at-cop31-page
+  type: doc
+  url: https://climate.ec.europa.eu/areas-action/international-action-climate-change/global-climate-action/eu-cop31_en
+  title: "EU at COP31 — Commission (DG CLIMA) page"
+  level: 2
+  org: Commission européenne (DG CLIMA)
+  doc_type: communique
+  session: COP31
+  parties: [EU]
+  topics: [eu_position]
+  lang: en
+
+- id: eu-commission-eu-at-cop-hub-fr
+  type: doc
+  url: https://commission.europa.eu/topics/climate-action/eu-cop_fr
+  title: "L'UE aux conférences des Nations unies sur le climat (COP) — Commission"
+  level: 2
+  org: Commission européenne
+  doc_type: communique
+  parties: [EU]
+  topics: [eu_position]
+  lang: fr
+
+- id: eu-commission-eu-at-cop30-page
+  type: doc
+  url: https://commission.europa.eu/topics/climate-action/eu-cop/eu-cop30_en
+  title: "EU at COP30 — Commission page"
+  level: 2
+  org: Commission européenne
+  doc_type: communique
+  session: COP30
+  parties: [EU]
+  topics: [eu_position]
+  lang: en
+
+- id: eu-commission-2040-target-page
+  type: doc
+  url: https://climate.ec.europa.eu/areas-action/climate-strategies-targets/2040-climate-target_en
+  title: "2040 climate target — DG CLIMA page"
+  level: 2
+  org: Commission européenne (DG CLIMA)
+  doc_type: autre
+  parties: [EU]
+  topics: [2040_target]
+  lang: en
+
+- id: eu-commission-climate-law-page
+  type: doc
+  url: https://climate.ec.europa.eu/areas-action/european-climate-law_en
+  title: "European Climate Law — DG CLIMA page"
+  level: 2
+  org: Commission européenne (DG CLIMA)
+  doc_type: autre
+  parties: [EU]
+  topics: [climate_neutrality, 2040_target]
+  lang: en
+
+- id: eu-commission-international-action-page
+  type: doc
+  url: https://climate.ec.europa.eu/areas-action/international-action-climate-change_en
+  title: "International action on climate change — DG CLIMA page"
+  level: 2
+  org: Commission européenne (DG CLIMA)
+  doc_type: autre
+  parties: [EU]
+  topics: [eu_position, climate_diplomacy]
+  lang: en
+
+# Évaluation de la PNIEC française par la Commission (CIRCABC : l'URL .../details renvoie
+# directement le PDF à un client non-navigateur ; .../download aussi)
+- id: eu-commission-assessment-necp-france-2025
+  type: doc
+  url: https://webgate.ec.europa.eu/circabc-ewpp/d/d/workspace/SpacesStore/fd7fd10c-e877-485a-b5e3-c3072615be85/download
+  title: "Commission assessment of the final updated National Energy and Climate Plan of France (SWD(2025) 140 extract)"
+  level: 2
+  org: Commission européenne
+  doc_type: rapport_synthese
+  symbol: SWD(2025) 140
+  parties: [EU, FRA]
+  topics: [necp, energy, mitigation]
+  lang: en
+
+# --- Veille pendant la COP ---------------------------------------------------------------
+- id: eu-council-press-rss
+  type: rss
+  # Flux OK (200). Les pages d'articles pointées (www.consilium.europa.eu/.../press-releases/...)
+  # renvoient 403 à un client non-navigateur : seul titre + résumé du flux seront exploitables.
+  url: https://www.consilium.europa.eu/en/rss/pressreleases.ashx
+  level: 2
+  org: Conseil de l'UE
+  doc_type: communique
+  parties: [EU]
+  keywords: [climate, COP31, COP 31, UNFCCC, Paris Agreement, emissions, ETS, CBAM, methane, climate finance, Antalya, 2040]
+  watch_minutes: 30
+
+- id: eu-commission-presscorner-rss
+  type: rss
+  # Flux OK. Les pages presscorner/detail/... sont une appli JS (HTML partiel) ; le texte
+  # intégral est servi en JSON par https://ec.europa.eu/commission/presscorner/api/documents?reference=IP/26/NNNN&language=en
+  url: https://ec.europa.eu/commission/presscorner/api/rss?language=en
+  level: 2
+  org: Commission européenne
+  doc_type: communique
+  parties: [EU]
+  keywords: [climate, COP31, COP 31, Hoekstra, UNFCCC, Paris Agreement, emissions, carbon, ETS, CBAM, methane, climate finance, Antalya]
+  watch_minutes: 30
+
+- id: eu-commission-presscorner-rss-fr
+  type: rss
+  url: https://ec.europa.eu/commission/presscorner/api/rss?language=fr
+  level: 2
+  org: Commission européenne
+  doc_type: communique
+  parties: [EU]
+  keywords: [climat, COP31, COP 31, Hoekstra, CCNUCC, accord de Paris, émissions, carbone, SEQE, MACF, méthane, financement climatique, Antalya]
+  watch_minutes: 30
+
+- id: eu-dgclima-news-crawl
+  type: crawl
+  start:
+    - https://climate.ec.europa.eu/news-other-reads/news_en
+    - https://climate.ec.europa.eu/areas-action/international-action-climate-change/global-climate-action/eu-cop31_en
+  follow: ['^https://climate\.ec\.europa\.eu/news-other-reads/news_en\?page=[0-9]$']
+  collect: ['^https://climate\.ec\.europa\.eu/news-other-reads/news/[a-z0-9-]+-202[56]-[0-9]{2}-[0-9]{2}_en$']
+  max_depth: 2
+  max_docs: 120
+  level: 2
+  org: Commission européenne (DG CLIMA)
+  doc_type: communique
+  parties: [EU]
+  title_from: page_title
+  watch_minutes: 30
+
+- id: eu-council-press-climate-finance-figures-2026-10-29
+  type: doc
+  # Document fourni pour mémoire : addendum attendu des conclusions finance (chiffres 2025 :
+  # 32,3 Md€ publics + 9,3 Md€ privés mobilisés, communiqué du Conseil du 29/10/2026) — cote non identifiée.
+  # à confirmer — page HTML du communiqué en 403 (anti-bot consilium)
+  url: https://www.consilium.europa.eu/en/press/press-releases/2026/10/29/council-publishes-2025-international-climate-finance-figures/
+  title: "Council publishes 2025 international climate finance figures (29 October 2026)"
+  level: 2
+  org: Conseil de l'UE
+  doc_type: communique
+  session: COP31
+  parties: [EU]
+  topics: [climate_finance]
+  lang: en
+  published: 2026-10-29
+
+- id: eu-council-press-cop31-position-2026-10-12
+  type: doc
+  # à confirmer — bloqué anti-bot (403 sur www.consilium.europa.eu, pages HTML)
+  url: https://www.consilium.europa.eu/en/press/press-releases/2026/10/12/multilateralism-council-sets-eu-position-ahead-of-climate-change-and-biodiversity-summits/
+  title: "Multilateralism: Council sets EU position ahead of climate change and biodiversity summits (12 October 2026)"
+  level: 2
+  org: Conseil de l'UE
+  doc_type: communique
+  session: COP31
+  parties: [EU]
+  topics: [eu_position]
+  lang: en
+  published: 2026-10-12
+
+- id: eu-council-press-methane-postponement-2026-11-06
+  type: doc
+  # à confirmer — bloqué anti-bot (403 sur www.consilium.europa.eu, pages HTML)
+  url: https://www.consilium.europa.eu/en/press/press-releases/2026/11/06/methane-regulation-council-agrees-to-postpone-monitoring-rules-for-one-year/
+  title: "Methane regulation: Council agrees to postpone monitoring rules for one year (6 November 2026)"
+  level: 2
+  org: Conseil de l'UE
+  doc_type: communique
+  parties: [EU]
+  topics: [methane]
+  lang: en
+  published: 2026-11-06

@@ -1,0 +1,9 @@
+{% macro stance(s) -%}
+{%- set cls = 'st-pos' if s in ['priorité','soutient','propose'] else ('st-neg' if s in ["s'oppose",'ligne rouge'] else ('st-mid' if s in ['ne soutient pas','réserve'] else '')) -%}
+{%- set en = {'priorité': 'priority', 'soutient': 'supports', 'propose': 'proposes', "s'oppose": 'opposes', 'ligne rouge': 'red line', 'ne soutient pas': 'does not support', 'réserve': 'reservations'} -%}
+<span class="stance {{ cls }}">{{ en.get(s, s) if lang == 'en' else s }}</span>
+{%- endmacro %}
+{% macro when(s) -%}{{ (s or '')[:16]|replace('T', ' ') }}{%- endmacro %}
+{% macro textstate(t) -%}
+{% if t.doc_id %}<span class="pill ok">✓ {{ L('récupéré', 'retrieved') }}</span>{% else %}<span class="pill warn">⏳ {{ L('à récupérer', 'to retrieve') }}</span>{% endif %}
+{%- endmacro %}

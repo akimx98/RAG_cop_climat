@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% block body %}
+<h1>{{ L('Mon compte', 'My account') }}</h1>
+<div class="grid">
+<form class="card" method="post">
+<h2>{{ L('Changer de mot de passe', 'Change password') if user.password_hash else L('Choisir un mot de passe', 'Choose a password') }}</h2>
+{% if forgot %}<p class="banner">{{ L('Vous êtes connecté avec le code. Choisissez un nouveau mot de passe ci-dessous (ou gardez l\'ancien si vous l\'avez retrouvé).', 'You are signed in with the code. Choose a new password below (or keep the old one if you remembered it).') }}</p>{% endif %}
+{% if done %}<p class="banner">{{ L('Mot de passe enregistré. Connectez-vous désormais sur', 'Password saved. From now on, sign in at') }} <b>{{ base }}</b> {{ L('avec', 'with') }} <b>{{ user.email }}</b>.</p>
+{% elif not user.password_hash %}<p class="small muted" style="margin-top:0">{{ L("Facultatif. Sans mot de passe, vous vous connectez sur un autre appareil avec un code reçu par e-mail. Avec un mot de passe, c'est lui qui sert ; en cas d'oubli, un code par e-mail permet d'en choisir un nouveau.", 'Optional. Without a password, you sign in on another device with a code sent by e-mail. Once you set a password, it is used instead; if you forget it, a code by e-mail lets you choose a new one.') }}</p>{% endif %}
+{% if error %}<p class="banner warn">{% if error == 'short' %}{{ L('Au moins {min} caractères.', 'At least {min} characters.').replace('{min}', min|string) }}{% elif error == 'mismatch' %}{{ L('Les deux saisies ne correspondent pas.', 'The two entries do not match.') }}{% else %}{{ error }}{% endif %}</p>{% endif %}
+<input type="email" name="email" value="{{ user.email }}" autocomplete="username" hidden>
+<p><label class="small" for="pw">{{ L('Nouveau mot de passe', 'New password') }} ({{ min }} {{ L('caractères minimum', 'characters minimum') }})</label>
+<input type="password" id="pw" name="password" autocomplete="new-password" minlength="{{ min }}" required></p>
+<p><label class="small" for="pw2">{{ L('Confirmer', 'Confirm') }}</label>
+<input type="password" id="pw2" name="password2" autocomplete="new-password" minlength="{{ min }}" required></p>
+<button>{{ L('Enregistrer', 'Save') }}</button>
+<p class="small muted" style="margin-top:12px">{{ L('Votre navigateur ou gestionnaire de mots de passe peut le retenir.', 'Your browser or password manager can remember it.') }}</p>
+</form>
+<div class="card"><h2>{{ L('Identité', 'Profile') }}</h2>
+<p><b>{{ user.name or user.email }}</b><br><span class="muted">{{ user.email }}</span></p>
+<p class="small">{% if user.can_restricted %}{{ L('Documents internes : accès autorisé', 'Internal documents: access granted') }} · {% endif %}Telegram : {{ L('lié', 'linked') if user.telegram_chat_id else L('non lié', 'not linked') }}</p>
+<p class="small">{{ L('Adresse du connecteur Claude / ChatGPT', 'Claude / ChatGPT connector address') }} : <a href="/connecteur">{{ L('page Connecteur', 'Connector page') }}</a>.</p>
+<p class="small">{{ L('Prise en main : vos sujets, votre assistant IA, Telegram', 'Getting started: your topics, your AI assistant, Telegram') }} : <a href="/bienvenue">Guide</a>.</p>
+</div></div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% macro lvl(level, access=None) -%}
+{%- set l = level or ('R' if access == 'restreint' else '?') -%}
+<span class="lvl lvl-{{ l }}" title="{{ LEVELS.get(l|string, L('non classé', 'unclassified')) }}">{{ L('interne', 'internal') if l == 'R' else L('niv. ', 'lvl ') ~ l }}</span>
+{%- endmacro %}
+{% macro when(s) -%}{{ (s or '')[:16]|replace('T', ' ') }}{%- endmacro %}
+{% macro docline(d) -%}
+<div class="title">{{ lvl(d.niveau, d.acces) }}<a href="/doc/{{ d.doc_id }}">{{ d.titre or L('Sans titre', 'Untitled') }}</a></div>
+<div class="meta">{% if d.organisation %}<span>{{ d.organisation }}</span>{% endif %}{% if d.type %}<span class="sep">·</span><span>{{ d.type|replace('_', ' ') }}</span>{% endif %}{% if d.version and d.version > 1 %}<span class="sep">·</span><span>version {{ d.version }}</span>{% endif %}<span class="sep">·</span><span>{{ when(d.publie_le or d.recupere_le) }}</span></div>
+{%- endmacro %}
+{% macro links(h) -%}
+<div class="actions">
+<a href="{{ h.lien_passage or '/doc/' ~ h.doc_id }}">{{ L('Passage surligné', 'Highlighted passage') }}</a>
+{% if h.lien_source %}<a href="{{ h.lien_source }}" target="_blank" rel="noopener">Original{% if h.lien_page %} · p. {{ h.page or 1 }}{% else %} · {{ L('paragraphe', 'paragraph') }}{% endif %} ↗</a>{% endif %}
+{% if h.lien_page %}<a href="{{ h.lien_page }}" target="_blank" rel="noopener">{{ L('Copie archivée', 'Archived copy') }} · p. {{ h.page or 1 }}</a>{% endif %}
+</div>
+{%- endmacro %}

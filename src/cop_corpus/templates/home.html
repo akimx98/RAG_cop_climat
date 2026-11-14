@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% from "_doc.html" import lvl, docline, when with context %}{% block body %}
+{% if onboarding %}<a class="banner" href="/bienvenue" style="text-decoration:none"><b>{{ L('Bien démarrer', 'Getting started') }}</b> : {{ L('choisissez vos dossiers, branchez Claude ou ChatGPT, reliez Telegram', 'pick your topics, connect Claude or ChatGPT, link Telegram') }} →</a>{% endif %}
+<a id="fresh" class="banner" href="/" style="display:none;text-decoration:none" data-msg="{{ L(' nouvelle(s) alerte(s) — rafraîchir', ' new alert(s) — refresh') }}" data-title="{{ L('COP31 · veille', 'COP31 · tracker') }}">{{ L('Nouvelles alertes — rafraîchir', 'New alerts — refresh') }}</a>
+<section class="hero">
+<div class="eyebrow">{{ L('Bonjour', 'Hello') }} {{ (user.name or '').split(' ')[0] }}</div>
+<h1>{{ L('Que faut-il vérifier ?', 'What do you need to check?') }}</h1>
+<form action="/recherche" method="get">
+<div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+<input type="search" name="q" placeholder="{{ L('Une affirmation, une formule, une cote : « tripling renewable energy capacity », FCCC/PA/CMA/2026/L.3…', 'A claim, a phrase, a document symbol: “tripling renewable energy capacity”, FCCC/PA/CMA/2026/L.3…') }}"><button>{{ L('Chercher', 'Search') }}</button></div>
+</form>
+<div class="stats">
+<div class="stat"><b>{{ '{:,}'.format(stats.documents).replace(',', ' ') }}</b><span>documents</span></div>
+<div class="stat"><b>{{ '{:,}'.format(stats.passages).replace(',', ' ') }}</b><span>{{ L('passages citables', 'quotable passages') }}</span></div>
+<div class="stat"><b>{{ subs|length }}</b><span>{% if lang == 'en' %}topic{{ 's' if subs|length != 1 }} followed{% else %}sujet{{ 's' if subs|length > 1 }} suivi{{ 's' if subs|length > 1 }}{% endif %}</span></div>
+<div class="stat"><b>{{ when(stats.dernier_ajout)[11:] or '—' }}</b><span>{{ L('dernier ajout (UTC)', 'last added (UTC)') }}</span></div>
+</div>
+</section>
+<div class="grid wide">
+<section>
+<div class="spread"><h2>{{ L('Derniers documents', 'Latest documents') }}</h2></div>
+<div class="row chips" style="margin:-2px 0 12px">
+<a href="/" class="{{ 'on' if not level }}">{{ L('Tous', 'All') }}</a>
+{% for l in ['1','2','3','4','5'] + (['R'] if user.can_restricted else []) %}<a href="/?niveau={{ l }}" class="{{ 'on' if level==l }}">{{ lvl(l) }}</a>{% endfor %}
+</div>
+<div class="card flush">
+{% for d in latest %}<div class="item">{{ docline(d) }}</div>{% else %}<p class="empty">{{ L('Aucun document.', 'No documents.') }}</p>{% endfor %}
+</div>
+</section>
+<section>
+<div class="spread"><h2>{{ L('Mes alertes', 'My alerts') }}</h2><a class="small" href="/sujets">{{ L('Gérer mes sujets', 'Manage my topics') }} →</a></div>
+{% if not subs %}<div class="card"><p style="margin:0 0 12px">{{ L("Suivez un sujet pour être alerté ici et sur Telegram dès qu'un document le mentionne.", 'Follow a topic to be alerted here and on Telegram as soon as a document mentions it.') }}</p><a class="btn" href="/sujets">{{ L('Ajouter un sujet', 'Add a topic') }}</a></div>{% endif %}
+<div class="card flush">
+{% for n in notes %}
+<div class="item">
+<div class="meta" style="margin:0 0 4px"><span>{{ n.label or L('Suivi', 'Followed') }}</span><span class="sep">·</span><span>{{ when(n.created_at) }} UTC</span></div>
+<div class="title">{{ lvl(n.level, n.access) }}<a href="/doc/{{ n.doc_id }}">{{ n.title or L('Sans titre', 'Untitled') }}</a></div>
+<div class="meta">{% if n.org %}<span>{{ n.org }}</span>{% endif %}{% if n.version and n.version > 1 %}<span class="sep">·</span><span>version {{ n.version }}</span><span class="sep">·</span><a href="/diff/{{ n.doc_id }}">{{ L('ce qui a changé', 'what changed') }}</a>{% endif %}</div>
+{% if n.snippet %}<blockquote>{{ n.snippet }}</blockquote>{% endif %}
+</div>
+{% else %}<p class="empty">{{ L("Pas encore d'alerte.", 'No alerts yet.') }}</p>{% endfor %}
+</div>
+</section>
+</div>
+<script>
+const last={{ last_id }};
+setInterval(async()=>{try{const r=await fetch('/api/feed?after='+last);const j=await r.json();
+if(j.nouvelles>0){const b=document.getElementById('fresh');b.style.display='block';b.textContent=j.nouvelles+b.dataset.msg;document.title='('+j.nouvelles+') '+b.dataset.title;}}catch(e){}},60000);
+</script>
+{% endblock %}

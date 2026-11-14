@@ -1,0 +1,426 @@
+# Autres États et groupes de négociation — positions publiques (à lire avec mesure : ce sont
+# des communiqués/déclarations de parties, pas des textes négociés). Vérifié le 2026-11-06
+# (User-Agent "cop-corpus/0.1 (veille documentaire)").
+# NB : cop31-antalya.com n'est PAS le site officiel (blog d'un cabinet de conseil) — écarté.
+# Le site officiel de la présidence est https://cop31.tr (réinitialisations de connexion
+# intermittentes observées : prévoir des retries). www.dcceew.gov.au (Australie) : timeout / erreur
+# HTTP/2 pour un client non-navigateur ; le sous-site unfccc-cop.dcceew.gov.au répond 200.
+
+# --- Présidence COP31 (Türkiye) ----------------------------------------------------------
+- id: tr-cop31-presidency-letters-crawl
+  type: crawl
+  start: [https://cop31.tr/letters, https://cop31.tr/press-releases]
+  follow: ['^https://cop31\.tr/letter-detail/[a-z0-9-]+$']
+  collect:
+    - '^https://cop31\.tr/letter-detail/[a-z0-9-]+$'
+    - '^https://cop31\.tr/api/media/file/[a-z0-9-]+(?<!-tr)\.pdf$'
+  max_depth: 2
+  max_docs: 80
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  title_from: page_title
+  watch_minutes: 30
+
+- id: tr-cop31-third-letter-to-parties
+  type: doc
+  url: https://cop31.tr/api/media/file/3rd-presidency-2026-en.pdf
+  title: "COP31 Presidency's Third Letter to Parties"
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [presidency, vision, priorities]
+  lang: en
+
+- id: tr-au-cop31-joint-letter
+  type: doc
+  url: https://cop31.tr/api/media/file/2nd-presidency-2026-en.pdf
+  title: "COP31 Joint Letter: The Türkiye-Australia Partnership (President-Designate and President of Negotiations)"
+  level: 5
+  org: Présidence COP31 (Türkiye) et Présidence des négociations (Australie)
+  doc_type: communique
+  session: COP31
+  parties: [TUR, AUS]
+  topics: [presidency, negotiations_organisation]
+  lang: en
+
+- id: tr-cop31-first-letter-to-parties
+  type: doc
+  url: https://cop31.tr/letter-detail/parties-2026
+  title: "COP31 Presidency's First Letter to Parties"
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [presidency, vision]
+  lang: en
+
+- id: tr-cop31-belem-mission-letter
+  type: doc
+  url: https://cop31.tr/letter-detail/belem-mission-2026
+  title: "Belém Mission to 1.5: A Joint COP Presidencies Letter"
+  level: 5
+  org: Présidences COP30/COP31
+  doc_type: communique
+  session: COP31
+  parties: [TUR, BRA]
+  topics: [1.5C, ndc, presidency]
+  lang: en
+
+- id: tr-cop31-presidency-priorities
+  type: doc
+  url: https://cop31.tr/presidency-priorities
+  title: "COP31 Presidency Priorities"
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [presidency, priorities]
+  lang: en
+
+- id: tr-cop31-vision
+  type: doc
+  url: https://cop31.tr/cop31-vision
+  title: "COP31 Vision for Success"
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [presidency, vision]
+  lang: en
+
+- id: tr-cop31-action-agenda
+  type: doc
+  url: https://cop31.tr/action-plan
+  title: "COP31 Action Agenda (électrification, zéro déchet et méthane, villes résilientes, industrie verte…)"
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [action_agenda, electrification, methane]
+  lang: en
+
+- id: tr-cop31-action-agenda-pages-crawl
+  type: crawl
+  start: [https://cop31.tr/action-plan]
+  follow: []
+  collect: ['^https://cop31\.tr/action-plan/[a-z0-9-]+$']
+  max_depth: 1
+  max_docs: 15
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  title_from: page_title
+  watch_minutes: 0
+
+- id: tr-cop31-action-agenda-press-release
+  type: doc
+  url: https://cop31.tr/api/media/file/cop31-action-agenda-press-release-2026.pdf
+  title: "COP31 Action Agenda — press release"
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [action_agenda]
+  lang: en
+
+- id: tr-cop31-speeches
+  type: doc
+  url: https://cop31.tr/speeches
+  title: "COP31 Presidency — keynote speeches"
+  level: 5
+  org: Présidence COP31 (Türkiye)
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [presidency]
+  lang: en
+
+- id: tr-iklim-news-crawl
+  type: crawl
+  # Direction du changement climatique (ministère turc de l'Environnement) : actualités COP31.
+  start: [https://iklim.gov.tr/en/news, https://iklim.gov.tr/en/]
+  follow: []
+  collect: ['^https://(www\.)?iklim\.gov\.tr/en/[a-z0-9-]*(cop31|cop-31|kurum|presiden|antalya|ndc|emissions-trading)[a-z0-9-]*-news-[0-9]+$']
+  max_depth: 1
+  max_docs: 60
+  level: 5
+  org: Türkiye — Directorate of Climate Change
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  title_from: page_title
+  watch_minutes: 60
+
+- id: tr-kurum-first-letter-news
+  type: doc
+  url: https://iklim.gov.tr/en/cop31-president-designate-kurum-sends-first-official-letter-to-un-secretariat-and-states-parties-news-4905
+  title: "COP31 President-Designate Kurum sends first official letter to UN Secretariat and States Parties"
+  level: 5
+  org: Türkiye — Directorate of Climate Change
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [presidency]
+  lang: en
+
+- id: tr-conciliatory-role-news
+  type: doc
+  url: https://iklim.gov.tr/en/turkiye-holds-a-conciliatory-role-not-just-a-participant-at-cop31-news-6017
+  title: "« Türkiye holds a conciliatory role, not just a participant at COP31 »"
+  level: 5
+  org: Türkiye — Directorate of Climate Change
+  doc_type: communique
+  session: COP31
+  parties: [TUR]
+  topics: [presidency]
+  lang: en
+
+# --- Présidence des négociations (Australie) ---------------------------------------------
+- id: au-cop31-president-of-negotiations-page
+  type: doc
+  url: https://unfccc-cop.dcceew.gov.au/cop31
+  title: "Australia will be President of Negotiations for COP31 (DCCEEW)"
+  level: 5
+  org: Australie — DCCEEW
+  doc_type: communique
+  session: COP31
+  parties: [AUS]
+  topics: [presidency, negotiations_organisation]
+  lang: en
+
+- id: au-dcceew-cop-site-crawl
+  type: crawl
+  start: [https://unfccc-cop.dcceew.gov.au/]
+  follow: []
+  collect: ['^https://unfccc-cop\.dcceew\.gov\.au/(cop31[a-z0-9-]*|page/faqs-resources|unfccc-stakeholder-briefing-series|-?australia-at-cop30)$']
+  max_depth: 1
+  max_docs: 30
+  level: 5
+  org: Australie — DCCEEW
+  doc_type: communique
+  session: COP31
+  parties: [AUS]
+  title_from: page_title
+  watch_minutes: 60
+
+- id: au-pm-cop31-hosting-arrangement
+  type: doc
+  url: https://www.pm.gov.au/media/cop-be-hosted-turkiye-australia-leading-negotiations
+  title: "COP to be hosted by Türkiye with Australia leading negotiations (Prime Minister of Australia)"
+  level: 5
+  org: Australie — Prime Minister
+  doc_type: communique
+  session: COP31
+  parties: [AUS, TUR]
+  topics: [presidency, negotiations_organisation]
+  lang: en
+
+- id: au-dcceew-cop31-main
+  type: doc
+  # à confirmer — www.dcceew.gov.au : timeout (HTTP/1.1) / erreur HTTP/2 INTERNAL_ERROR pour un client non-navigateur
+  url: https://www.dcceew.gov.au/climate-change/international-climate-action/cop31
+  title: "DCCEEW — COP31 (page principale du ministère australien)"
+  level: 5
+  org: Australie — DCCEEW
+  doc_type: communique
+  session: COP31
+  parties: [AUS]
+  topics: [presidency]
+  lang: en
+
+# --- G77 et Chine (présidence 2026 : Uruguay) --------------------------------------------
+- id: g77-statement-unga-pre-cop31-2026-10
+  type: doc
+  url: https://www.g77.org/statement/getstatement.php?id=261016b
+  title: "G77 and China (Uruguay) — statement at the PGA special event ahead of COP31 (October 2026)"
+  level: 5
+  org: G77 et Chine
+  doc_type: communique
+  session: COP31
+  parties: [G77]
+  topics: [party_positions, finance, adaptation]
+  lang: en
+  published: 2026-10-16
+
+- id: g77-statement-sb64-closing
+  type: doc
+  url: https://www.g77.org/statement/getstatement.php?id=260618
+  title: "G77 and China (Uruguay) — statement at the closing of SB64 (Bonn, 18 June 2026)"
+  level: 5
+  org: G77 et Chine
+  doc_type: communique
+  session: SB64
+  parties: [G77]
+  topics: [party_positions]
+  lang: en
+  published: 2026-06-18
+
+- id: g77-statement-sb64-opening
+  type: doc
+  url: https://www.g77.org/statement/getstatement.php?id=260608a
+  title: "G77 and China (Uruguay) — statement at the opening plenaries of SB64 (Bonn, June 2026)"
+  level: 5
+  org: G77 et Chine
+  doc_type: communique
+  session: SB64
+  parties: [G77]
+  topics: [party_positions]
+  lang: en
+  published: 2026-06-08
+
+- id: g77-statement-sb64-trade-dialogue
+  type: doc
+  url: https://www.g77.org/statement/getstatement.php?id=260613
+  title: "G77 and China — SB64 Dialogue on Trade and Climate Change (Bonn, 13 June 2026)"
+  level: 5
+  org: G77 et Chine
+  doc_type: communique
+  session: SB64
+  parties: [G77]
+  topics: [trade, unilateral_measures, cbam]
+  lang: en
+  published: 2026-06-13
+
+- id: g77-statement-copenhagen-ministerial-2026
+  type: doc
+  url: https://www.g77.org/statement/getstatement.php?id=260520
+  title: "G77 and China — « Transitioning to implementation: how can COP31 deliver? » (Copenhagen Climate Ministerial, 20 May 2026)"
+  level: 5
+  org: G77 et Chine
+  doc_type: communique
+  session: COP31
+  parties: [G77]
+  topics: [party_positions, implementation]
+  lang: en
+  published: 2026-05-20
+
+- id: g77-statements-2026-crawl
+  type: crawl
+  # Page annuelle des déclarations (liens en guillemets simples, href='/statement/getstatement.php?id=AAMMJJ').
+  # Le filtre par URL ne peut pas distinguer le climat : max_docs élevé, filtrage à l'indexation conseillé.
+  start: [https://www.g77.org/statement/]
+  follow: []
+  collect: ['^https://www\.g77\.org/statement/getstatement\.php\?id=26(0[6-9]|1[0-2])[0-9]{2}[a-z]?$']
+  max_depth: 1
+  max_docs: 150
+  level: 5
+  org: G77 et Chine
+  doc_type: communique
+  parties: [G77]
+  title_from: link_text
+  watch_minutes: 60
+
+# --- AOSIS -------------------------------------------------------------------------------
+- id: aosis-climate-documents-crawl
+  type: crawl
+  # Le flux RSS aosis.org/feed/ est inexploitable (article factice) ; on parcourt la liste des documents « Climate ».
+  start: ['https://aosis.org/documents/?topic=Climate', 'https://aosis.org/media/']
+  follow: []
+  collect: ['^https://aosis\.org/document/[a-z0-9-]+/$']
+  max_depth: 1
+  max_docs: 60
+  level: 5
+  org: AOSIS
+  doc_type: communique
+  parties: [AOSIS]
+  title_from: page_title
+  watch_minutes: 60
+
+- id: aosis-statement-cop31-action-agenda-event
+  type: doc
+  url: https://aosis.org/document/aosis-statement-at-the-cop31-event-from-ambition-to-implementation-introducing-the-cop31-action-agenda/
+  title: "AOSIS statement at the COP31 event « From ambition to implementation: introducing the COP31 Action Agenda » (21 Sep 2026)"
+  level: 5
+  org: AOSIS
+  doc_type: communique
+  session: COP31
+  parties: [AOSIS]
+  topics: [party_positions, 1.5C]
+  lang: en
+  published: 2026-09-21
+
+- id: aosis-statement-hlm-just-transition
+  type: doc
+  url: https://aosis.org/document/statement-at-at-the-high-level-meeting-on-climate-action-and-the-just-transition/
+  title: "AOSIS statement at the High-Level Meeting on climate action and the just transition (23 Sep 2026)"
+  level: 5
+  org: AOSIS
+  doc_type: communique
+  parties: [AOSIS]
+  topics: [just_transition]
+  lang: en
+  published: 2026-09-23
+
+- id: aosis-statement-icj-report
+  type: doc
+  url: https://aosis.org/document/statement-on-the-report-of-the-international-court-of-justice/
+  title: "AOSIS statement on the report of the International Court of Justice (29 Oct 2026)"
+  level: 5
+  org: AOSIS
+  doc_type: communique
+  parties: [AOSIS]
+  topics: [icj_advisory_opinion, legal]
+  lang: en
+  published: 2026-10-29
+
+# --- PMA / LDC ---------------------------------------------------------------------------
+- id: ldc-climate-rss
+  type: rss
+  url: https://www.ldc-climate.org/feed/
+  level: 5
+  org: Groupe des PMA (LDC Chair)
+  doc_type: communique
+  parties: [LDC]
+  watch_minutes: 60
+
+# --- BASIC -------------------------------------------------------------------------------
+# Aucune déclaration ministérielle BASIC 2026 trouvée en ligne au 06/11/2026 ; références récentes :
+- id: za-basic-statement-sb64-2026
+  type: doc
+  url: https://www.gov.za/news/media-statements/south-africa-reaffirms-call-climate-finance-just-transitions-adaptation-and
+  title: "South Africa reaffirms call for climate finance, just transitions and adaptation (SB64 — mentions BASIC statement)"
+  level: 5
+  org: Afrique du Sud — gouvernement (DFFE)
+  doc_type: communique
+  session: SB64
+  parties: [ZAF, BASIC]
+  topics: [party_positions, finance, just_transition]
+  lang: en
+
+- id: br-basic-ministerial-joint-statement
+  type: doc
+  # Date de la réunion non vérifiée (page MRE Brésil)
+  url: https://www.gov.br/mre/en/contact-us/press-area/press-releases/basic-ministerial-joint-statement-on-climate-change
+  title: "BASIC Ministerial Joint Statement on Climate Change (Brazil MRE)"
+  level: 5
+  org: Brésil — Ministère des Relations extérieures
+  doc_type: communique
+  parties: [BRA, BASIC]
+  topics: [party_positions]
+  lang: en
+
+- id: za-media-statements-crawl
+  type: crawl
+  start: [https://www.gov.za/news/media-statements]
+  follow: ['^https://www\.gov\.za/news/media-statements\?page=[0-3]$']
+  collect: ['^https://www\.gov\.za/news/media-statements/[a-z0-9-]*(basic|cop31|cop-31|unfccc|climate)[a-z0-9-]*$']
+  max_depth: 2
+  max_docs: 40
+  level: 5
+  org: Afrique du Sud — gouvernement
+  doc_type: communique
+  parties: [ZAF, BASIC]
+  title_from: page_title
+  watch_minutes: 120

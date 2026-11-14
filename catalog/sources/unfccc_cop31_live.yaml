@@ -1,0 +1,340 @@
+# COP31 / CMP21 / CMA8 / SB65 — Antalya, 9–20 novembre 2026 (présidence turque, négociations présidées par l'Australie).
+# 1) Ordres du jour vérifiés sur l'ODS (EN+FR) ; 2) entrées ods surveillées (watch 15 min) pour les projets de texte L.
+#    et les documents de session ; 3) pages unfccc.int (AUV, Daily Programme, outcomes) : bloquées par Imperva, URLs à confirmer.
+
+- id: unfccc-cop31-agenda-cop31-en
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/2026/1&l=en&t=pdf'
+  title: 'COP31 — Ordre du jour provisoire et annotations. Note du Secrétaire exécutif'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: COP31
+  symbol: FCCC/CP/2026/1
+  topics: [agenda]
+  lang: en
+
+- id: unfccc-cop31-agenda-cop31-fr
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/2026/1&l=fr&t=pdf'
+  title: 'COP31 — Ordre du jour provisoire et annotations (FR)'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: COP31
+  symbol: FCCC/CP/2026/1
+  topics: [agenda]
+  lang: fr
+
+- id: unfccc-cop31-agenda-cop31-supplementary-en
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/2026/1/Add.1&l=en&t=pdf'
+  title: 'COP31 — Ordre du jour provisoire supplémentaire (demande reçue le 21 octobre 2026)'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: COP31
+  symbol: FCCC/CP/2026/1/Add.1
+  topics: [agenda]
+  lang: en
+
+- id: unfccc-cop31-agenda-cma8-en
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2026/1&l=en&t=pdf'
+  title: 'CMA8 — Ordre du jour provisoire et annotations'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: CMA8
+  symbol: FCCC/PA/CMA/2026/1
+  topics: [agenda]
+  lang: en
+
+- id: unfccc-cop31-agenda-cma8-supplementary-en
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2026/1/Add.1&l=en&t=pdf'
+  title: 'CMA8 — Ordre du jour provisoire supplémentaire'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: CMA8
+  symbol: FCCC/PA/CMA/2026/1/Add.1
+  topics: [agenda]
+  lang: en
+
+- id: unfccc-cop31-agenda-cmp21-en
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/KP/CMP/2026/1&l=en&t=pdf'
+  title: 'CMP21 — Ordre du jour provisoire et annotations'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: CMP21
+  symbol: FCCC/KP/CMP/2026/1
+  topics: [agenda]
+  lang: en
+
+- id: unfccc-cop31-agenda-cop31-supplementary-fr
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/2026/1/Add.1&l=fr&t=pdf'
+  title: 'COP31 — Ordre du jour provisoire supplémentaire (demande reçue le 21 octobre 2026)'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: COP31
+  symbol: FCCC/CP/2026/1/Add.1
+  topics: [agenda]
+  lang: fr
+
+- id: unfccc-cop31-agenda-cma8-fr
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2026/1&l=fr&t=pdf'
+  title: 'CMA8 — Ordre du jour provisoire et annotations'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: CMA8
+  symbol: FCCC/PA/CMA/2026/1
+  topics: [agenda]
+  lang: fr
+
+- id: unfccc-cop31-agenda-cma8-supplementary-fr
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2026/1/Add.1&l=fr&t=pdf'
+  title: 'CMA8 — Ordre du jour provisoire supplémentaire'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: CMA8
+  symbol: FCCC/PA/CMA/2026/1/Add.1
+  topics: [agenda]
+  lang: fr
+
+- id: unfccc-cop31-agenda-cmp21-fr
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/KP/CMP/2026/1&l=fr&t=pdf'
+  title: 'CMP21 — Ordre du jour provisoire et annotations'
+  level: 2
+  org: UNFCCC
+  doc_type: ordre_du_jour
+  session: CMP21
+  symbol: FCCC/KP/CMP/2026/1
+  topics: [agenda]
+  lang: fr
+
+# Aucun document L. 2026 encore publié au 2026-11-06 (vérifié L.1–L.3 : absents) — entrée prête pour le live.
+- id: unfccc-cop31-live-cop31-draft-decisions
+  type: ods
+  symbols: ['FCCC/CP/2026/L.{n}', 'FCCC/CP/2026/L.{n}/Rev.{k}', 'FCCC/CP/2026/L.{n}/Add.{k}']
+  range: [1, 60]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'COP31 — projets de décision (documents L.) publiés pendant la session'
+  level: 2
+  org: UNFCCC
+  doc_type: projet_texte
+  session: COP31
+  topics: [draft_decision]
+  watch_minutes: 15
+
+# Aucun document L. 2026 encore publié au 2026-11-06 (vérifié L.1–L.3 : absents) — entrée prête pour le live.
+- id: unfccc-cop31-live-cma8-draft-decisions
+  type: ods
+  symbols: ['FCCC/PA/CMA/2026/L.{n}', 'FCCC/PA/CMA/2026/L.{n}/Rev.{k}', 'FCCC/PA/CMA/2026/L.{n}/Add.{k}']
+  range: [1, 60]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'CMA8 — projets de décision (documents L.) publiés pendant la session'
+  level: 2
+  org: UNFCCC
+  doc_type: projet_texte
+  session: CMA8
+  topics: [draft_decision]
+  watch_minutes: 15
+
+# Aucun document L. 2026 encore publié au 2026-11-06 (vérifié L.1–L.3 : absents) — entrée prête pour le live.
+- id: unfccc-cop31-live-cmp21-draft-decisions
+  type: ods
+  symbols: ['FCCC/KP/CMP/2026/L.{n}', 'FCCC/KP/CMP/2026/L.{n}/Rev.{k}', 'FCCC/KP/CMP/2026/L.{n}/Add.{k}']
+  range: [1, 60]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'CMP21 — projets de décision (documents L.) publiés pendant la session'
+  level: 2
+  org: UNFCCC
+  doc_type: projet_texte
+  session: CMP21
+  topics: [draft_decision]
+  watch_minutes: 15
+
+# SB64 a utilisé L.1–L.12 ; SB65 reprend la numérotation de l'année à L.13 (à confirmer dès les premiers documents).
+- id: unfccc-cop31-live-sbi65-draft-conclusions
+  type: ods
+  symbols: ['FCCC/SBI/2026/L.{n}', 'FCCC/SBI/2026/L.{n}/Add.{k}', 'FCCC/SBI/2026/L.{n}/Rev.{k}']
+  range: [13, 70]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'SBI65 (Antalya, 9–14 nov. 2026) — projets de conclusions (L.13 et suivants)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB65
+  topics: [subsidiary_bodies, draft_conclusions]
+  watch_minutes: 15
+
+# SB64 a utilisé L.1–L.5 ; SB65 reprend la numérotation de l'année à L.6 (à confirmer dès les premiers documents).
+- id: unfccc-cop31-live-sbsta65-draft-conclusions
+  type: ods
+  symbols: ['FCCC/SBSTA/2026/L.{n}', 'FCCC/SBSTA/2026/L.{n}/Add.{k}', 'FCCC/SBSTA/2026/L.{n}/Rev.{k}']
+  range: [6, 70]
+  add_range: [1, 3]
+  langs: [en, fr]
+  stop_after_misses: 5
+  title: 'SBSTA65 (Antalya, 9–14 nov. 2026) — projets de conclusions (L.6 et suivants)'
+  level: 2
+  org: UNFCCC
+  doc_type: conclusions_sb
+  session: SB65
+  topics: [subsidiary_bodies, draft_conclusions]
+  watch_minutes: 15
+
+# vérifié : 2–6, 10/Add.1–3, INF.1 (7 = cote conjointe avec CMA/2026/12, non résolue par l'API)
+- id: unfccc-cop31-session-documents-cop31
+  type: ods
+  symbols: ['FCCC/CP/2026/{n}', 'FCCC/CP/2026/{n}/Add.{k}', 'FCCC/CP/2026/{n}/Corr.{k}', 'FCCC/CP/2026/INF.{n}', 'FCCC/CP/2026/MISC.{n}']
+  range: [2, 40]
+  add_range: [1, 4]
+  langs: [en, fr]
+  stop_after_misses: 6
+  title: 'COP31 — documents de session (rapports, notes du secrétariat et de la présidence, documents INF/MISC)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  session: COP31
+  topics: [session_documents]
+  watch_minutes: 15
+
+# vérifié : 2, 3, 6, 8, 9 (synthèse CDN 2026, aussi dans unfccc_ndc.yaml), 10, 11/Add.1–3, INF.1–3
+- id: unfccc-cop31-session-documents-cma8
+  type: ods
+  symbols: ['FCCC/PA/CMA/2026/{n}', 'FCCC/PA/CMA/2026/{n}/Add.{k}', 'FCCC/PA/CMA/2026/{n}/Corr.{k}', 'FCCC/PA/CMA/2026/INF.{n}', 'FCCC/PA/CMA/2026/MISC.{n}']
+  range: [2, 40]
+  add_range: [1, 4]
+  langs: [en, fr]
+  stop_after_misses: 6
+  title: 'CMA8 — documents de session (rapports, notes du secrétariat et de la présidence, documents INF/MISC)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  session: CMA8
+  topics: [session_documents]
+  watch_minutes: 15
+
+# vérifié : 4 (conseil exécutif du MDP) ; 3 = cote conjointe avec CMA/2026/13
+- id: unfccc-cop31-session-documents-cmp21
+  type: ods
+  symbols: ['FCCC/KP/CMP/2026/{n}', 'FCCC/KP/CMP/2026/{n}/Add.{k}', 'FCCC/KP/CMP/2026/{n}/Corr.{k}', 'FCCC/KP/CMP/2026/INF.{n}', 'FCCC/KP/CMP/2026/MISC.{n}']
+  range: [2, 20]
+  add_range: [1, 4]
+  langs: [en, fr]
+  stop_after_misses: 6
+  title: 'CMP21 — documents de session (rapports, notes du secrétariat et de la présidence, documents INF/MISC)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  session: CMP21
+  topics: [session_documents]
+  watch_minutes: 15
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# Structure relevée sur l'archive Wayback (22–27 oct. 2026) : les pages /event/* listent des liens /documents/NNNNNN
+# (pagination Drupal ?page=N) ; chaque page /documents/NNNNNN pointe vers « /sites/default/files/resource/<cote>{A,C,E,F,R,S}.pdf »
+# (ex. cp2026_01E.pdf, attention : href avec espace initial). Équivalent accessible : entrées ods ci-dessus.
+- id: unfccc-cop31-session-pages
+  type: crawl
+  start: ['https://unfccc.int/cop31', 'https://unfccc.int/event/cop-31', 'https://unfccc.int/event/cma-8', 'https://unfccc.int/event/cmp-21', 'https://unfccc.int/event/sbi-65', 'https://unfccc.int/event/sbsta-65']
+  follow: ['^https://unfccc\.int/documents/\d+$', '^https://unfccc\.int/event/(cop-31|cma-8|cmp-21|sbi-65|sbsta-65)(\?page=\d+)?$']
+  collect:
+    - '^https://unfccc\.int/sites/default/files/resource/[^/]+[EF]?\.pdf$'
+  max_depth: 2
+  max_docs: 400
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  session: COP31
+  title_from: page_title
+  watch_minutes: 15
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# à confirmer — URL devinée par analogie : COP29 = https://unfccc.int/cop29/auvs (archivée), COP30 sans page /auv(s) archivée.
+# Sur /cop29/auvs, les liens sont absolus « https://unfccc.int/documents/64xxxx » puis PDF sous /sites/default/files/resource/.
+# Pas d'équivalent ODS : les AUV (advance unedited versions) ne reçoivent pas de cote ; les documents L. (ods ci-dessus) en sont la version officielle.
+- id: unfccc-cop31-auv-draft-texts
+  type: crawl
+  start: ['https://unfccc.int/cop31/auvs']
+  follow: ['^https://unfccc\.int/documents/\d+$']
+  collect: ['^https://unfccc\.int/sites/default/files/resource/.+\.pdf$']
+  max_depth: 2
+  max_docs: 300
+  level: 2
+  org: UNFCCC
+  doc_type: projet_texte
+  session: COP31
+  title_from: link_text
+  watch_minutes: 10
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# à confirmer — URL devinée par analogie avec https://unfccc.int/cop29/outcomes et /cop28/outcomes (page des décisions adoptées, AUV finales).
+- id: unfccc-cop31-outcomes
+  type: crawl
+  start: ['https://unfccc.int/cop31/outcomes']
+  follow: ['^https://unfccc\.int/documents/\d+$']
+  collect: ['^https://unfccc\.int/sites/default/files/resource/.+\.pdf$']
+  max_depth: 2
+  max_docs: 200
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP31
+  title_from: link_text
+  watch_minutes: 15
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# /cop31/meetings-at-a-glance et /cop31/schedule figurent sur la page /cop31 archivée (oct. 2026).
+# à confirmer — /cop31/daily-programme et /cop31/DP-<j>-nov-2026 devinés par analogie avec /cop29/daily-programme et /cop29/DP-11-nov-2024.
+- id: unfccc-cop31-daily-programme
+  type: crawl
+  start: ['https://unfccc.int/cop31/daily-programme', 'https://unfccc.int/cop31/meetings-at-a-glance', 'https://unfccc.int/cop31/schedule']
+  follow:
+    - '^https://unfccc\.int/cop31/(DP-\d{1,2}-nov-2026|meetings-at-a-glance\?date=2026-11-\d{2})$'
+  collect: ['^https://unfccc\.int/cop31/DP-\d{1,2}-nov-2026$', '^https://unfccc\.int/sites/default/files/resource/.*(DP|daily|programme).*\.pdf$']
+  max_depth: 2
+  max_docs: 60
+  level: 4
+  org: UNFCCC
+  doc_type: programme
+  session: COP31
+  title_from: page_title
+  watch_minutes: 10
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# à confirmer — URL devinée par analogie avec /cop29/cop-29-cmp-19-cma-6-presidency-consultations (notes et textes de la présidence).
+- id: unfccc-cop31-presidency-consultations
+  type: crawl
+  start:
+    - 'https://unfccc.int/cop31/cop-31-cmp-21-cma-8-presidency-consultations'
+  follow: ['^https://unfccc\.int/documents/\d+$']
+  collect: ['^https://unfccc\.int/sites/default/files/resource/.+\.pdf$']
+  max_depth: 2
+  max_docs: 100
+  level: 2
+  org: 'Présidence COP31'
+  doc_type: projet_texte
+  session: COP31
+  title_from: link_text
+  watch_minutes: 15
+

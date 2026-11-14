@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% from "_live.html" import when, textstate with context %}{% block title %}{{ L('Textes', 'Draft texts') }} · COP31{% endblock %}{% block body %}
+<section class="hero">
+<div class="eyebrow">{{ L('Négociations en direct', 'Live negotiations') }}</div>
+<h1>{{ L('Textes de négociation', 'Negotiating texts') }}</h1>
+{% if can_contribute(user) %}<p>{{ L('Chaque document de session annoncé, avec ses crochets et options. unfccc.int bloque les robots : un texte', 'Every session document announced, with its brackets and options. unfccc.int blocks robots: a text marked') }} <span class="pill warn">⏳ {{ L('à récupérer', 'to retrieve') }}</span> {{ L("s'ouvre dans votre navigateur, puis se dépose ici (ou se transfère au bot Telegram). La version précédente, les différences et l'alerte suivent automatiquement.", 'opens in your browser, then gets uploaded here (or forwarded to the Telegram bot). The previous version, the differences and the alert follow automatically.') }}</p>
+{% else %}<p>{{ L('Chaque document de session annoncé, avec ses crochets et options. Un texte', 'Every session document announced, with its brackets and options. A text marked') }} <span class="pill warn">⏳ {{ L('à récupérer', 'to retrieve') }}</span> {{ L("n'est pas encore dans le corpus : il s'ouvre sur unfccc.int.", 'is not in the corpus yet: it opens on unfccc.int.') }}</p>{% endif %}
+<div class="row chips"><a href="/textes" class="{{ 'on' if not pending }}">{{ L('Tous', 'All') }}</a><a href="/textes?a_recuperer=1" class="{{ 'on' if pending }}">⏳ {{ L('À récupérer', 'To retrieve') }}</a></div>
+</section>
+<div class="card flush">
+{% for t in texts %}<div class="item" id="t{{ t.id }}">
+<div class="title">{% if t.doc_id %}<a href="/doc/{{ t.doc_id }}">{{ t.symbol or '' }} {{ t.title }}</a>{% else %}{{ t.symbol or '' }} {{ t.title }}{% endif %}</div>
+<div class="meta"><a href="/dossiers/{{ t.dossier }}">{{ names.get(t.dossier, t.cb_topic) }}</a><span class="sep">·</span><span>{{ t.body }}, {{ L('point', 'item') }} {{ t.agenda_item or '?' }}</span><span class="sep">·</span><span>{{ t.cb_type }}</span><span class="sep">·</span><span>{{ when(t.published) }}</span>{% if t.brackets is not none %}<span class="sep">·</span><span><b>{{ t.brackets }}</b> {{ L('crochets', 'brackets') }}</span>{% endif %}{% if t.options %}<span class="sep">·</span><span><b>{{ t.options }}</b> options</span>{% endif %}</div>
+<div class="actions">{{ textstate(t) }}{% if t.pdf_url %}<a href="{{ t.pdf_url }}" target="_blank" rel="noopener">{{ L('Ouvrir sur unfccc.int', 'Open on unfccc.int') }} ↗</a>{% endif %}</div>
+{% if not t.doc_id and can_contribute(user) %}<form class="row" method="post" action="/textes/{{ t.id }}/deposer" enctype="multipart/form-data" style="margin-top:8px"><input type="file" name="file" accept=".pdf,.docx" required style="flex:1;min-width:200px"><button class="secondary">{{ L('Déposer ce texte', 'Upload this text') }}</button></form>
+{% if t.last_error %}<div class="small muted">{{ L('Tentative automatique', 'Automatic attempt') }} : {{ t.last_error }} ({{ t.attempts }}×)</div>{% endif %}{% endif %}
+</div>{% else %}<p class="empty">{{ L('Aucun texte.', 'No texts.') }}</p>{% endfor %}
+</div>
+<p class="small muted">Index : <a href="{{ cb_page }}">{{ credit }}</a> ({{ L('cité', 'credited') }}).</p>
+{% endblock %}

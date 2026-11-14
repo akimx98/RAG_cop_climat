@@ -1,0 +1,134 @@
+# Glossaire des négociations climat — pour les nouveaux venus.
+# Chaque entrée renvoie à un texte de référence à vérifier dans le corpus (outil `rechercher`).
+- terme: COP
+  alias: [Conference of the Parties, Conférence des Parties]
+  definition: "Organe suprême de la Convention-cadre des Nations unies sur les changements climatiques (CCNUCC), réunissant chaque année les 198 Parties. COP31 = 31e session, Antalya (Türkiye), 9–20 novembre 2026."
+  reference: "Convention-cadre, article 7"
+- terme: CMA
+  alias: [CMA8]
+  definition: "Conférence des Parties agissant comme réunion des Parties à l'Accord de Paris. C'est elle qui adopte les décisions d'application de l'Accord de Paris (notées « x/CMA.n »). CMA8 se tient pendant COP31."
+  reference: "Accord de Paris, article 16"
+- terme: CMP
+  definition: "Conférence des Parties agissant comme réunion des Parties au protocole de Kyoto (décisions « x/CMP.n »)."
+  reference: "Protocole de Kyoto, article 13"
+- terme: SBI / SBSTA
+  alias: [SBI, SBSTA, SB, organes subsidiaires]
+  definition: "Les deux organes subsidiaires permanents — mise en œuvre (SBI) et conseil scientifique et technologique (SBSTA). Ils se réunissent en juin à Bonn et pendant la COP ; leurs « conclusions » préparent les projets de décision."
+  reference: "Convention-cadre, articles 9 et 10"
+- terme: Accord de Paris
+  alias: [Paris Agreement, PA]
+  definition: "Traité adopté en 2015 (décision 1/CP.21), en vigueur depuis 2016. Objectif de température « bien en dessous de 2 °C » en poursuivant l'action pour limiter à 1,5 °C (art. 2.1.a) ; NDC renouvelées tous les 5 ans (art. 4.9) ; bilan mondial tous les 5 ans (art. 14)."
+  reference: "Accord de Paris, articles 2, 4, 14"
+- terme: NDC
+  alias: [contribution déterminée au niveau national, CDN, nationally determined contribution, NDC 3.0]
+  definition: "Engagement climatique que chaque Partie communique tous les 5 ans (art. 4.2 et 4.9). Chaque NDC doit représenter une progression par rapport à la précédente et refléter « la plus haute ambition possible » (art. 4.3). Les NDC dites « 3.0 », à horizon 2035, étaient attendues en 2025."
+  reference: "Accord de Paris, article 4 ; décision 1/CMA.5 (section sur les NDC)"
+- terme: Bilan mondial
+  alias: [GST, global stocktake]
+  definition: "Évaluation quinquennale des progrès collectifs vers les objectifs de l'Accord (art. 14). Le premier bilan s'est conclu à Dubaï (COP28) par la décision 1/CMA.5, qui appelle notamment à « transitioning away from fossil fuels in energy systems » (§28.d), au triplement des capacités renouvelables et au doublement du rythme d'efficacité énergétique d'ici 2030 (§28.a). Le prochain bilan s'achève en 2028."
+  reference: "décision 1/CMA.5 (FCCC/PA/CMA/2023/16/Add.1)"
+- terme: Transition hors des combustibles fossiles
+  alias: [TAFF, transitioning away from fossil fuels, sortie des fossiles]
+  definition: "Formule du §28.d de la décision 1/CMA.5 — « transitioning away from fossil fuels in energy systems, in a just, orderly and equitable manner ». Le verbe introductif du §28 est « calls on Parties to contribute » (appel, pas obligation), et les Parties choisissent leurs contributions « in a nationally determined manner »."
+  reference: "décision 1/CMA.5 §28"
+- terme: NCQG
+  alias: [nouvel objectif chiffré collectif, new collective quantified goal, objectif de financement]
+  definition: "Nouvel objectif collectif de financement climat adopté à Bakou (COP29) pour succéder aux 100 milliards de dollars par an. Il fixe au moins 300 milliards de dollars par an d'ici 2035, avec les pays développés en tête, et appelle à porter l'ensemble des financements vers les pays en développement à 1 300 milliards de dollars par an d'ici 2035 (« feuille de route de Bakou à Belém »)."
+  reference: "décision 1/CMA.6"
+- terme: Article 2.1(c)
+  definition: "Objectif de l'Accord de Paris visant à rendre les flux financiers compatibles avec une trajectoire bas carbone et résiliente. Distinct de l'objectif de financement aux pays en développement (art. 9)."
+  reference: "Accord de Paris, article 2.1(c)"
+- terme: Article 9
+  definition: "Financement climat — les pays développés « shall provide » des ressources financières aux pays en développement (art. 9.1) ; les autres Parties sont « encouraged » à contribuer volontairement (art. 9.2). Cœur des débats sur la base de contributeurs."
+  reference: "Accord de Paris, article 9"
+- terme: Article 6
+  alias: [6.2, 6.4, marchés carbone, PACM, ITMO]
+  definition: "Coopération volontaire entre Parties. L'article 6.2 encadre les échanges bilatéraux de réductions d'émissions (ITMO, avec ajustements correspondants) ; l'article 6.4 crée un mécanisme de crédits supervisé par l'ONU (Paris Agreement Crediting Mechanism) ; l'article 6.8 couvre les approches non marchandes. Les règles ont été finalisées à Bakou (COP29)."
+  reference: "Accord de Paris, article 6 ; décisions 2/CMA.3, 3/CMA.3, puis COP29"
+- terme: GGA
+  alias: [objectif mondial d'adaptation, global goal on adaptation, indicateurs]
+  definition: "Objectif mondial en matière d'adaptation (art. 7.1). Le cadre « EAU pour la résilience climatique mondiale » adopté à Dubaï (décision 2/CMA.5) fixe des cibles thématiques ; une liste d'indicateurs a été travaillée jusqu'à Belém (COP30)."
+  reference: "Accord de Paris, article 7 ; décision 2/CMA.5"
+- terme: Pertes et préjudices
+  alias: [loss and damage, L&D, FRLD, fonds pertes et dommages]
+  definition: "Dommages liés au climat au-delà de ce que l'adaptation peut éviter (art. 8). Un fonds dédié (FRLD) a été créé à Charm el-Cheikh (COP27) et rendu opérationnel à Dubaï (COP28). L'Accord précise que l'article 8 ne fonde aucune responsabilité ni indemnisation (décision 1/CP.21 §51)."
+  reference: "Accord de Paris, article 8 ; décision 1/CP.21 §51 ; décisions 2/CP.27 et 1/CP.28"
+- terme: MWP
+  alias: [programme de travail sur l'atténuation, mitigation work programme]
+  definition: "Programme de travail de Charm el-Cheikh pour relever d'urgence l'ambition et la mise en œuvre en matière d'atténuation d'ici 2030 — dialogues annuels, sans objectifs ni cibles nouveaux imposés."
+  reference: "décision 4/CMA.4"
+- terme: JTWP
+  alias: [programme de travail sur la transition juste, just transition work programme]
+  definition: "Programme de travail sur les voies d'une transition juste, créé à Charm el-Cheikh (COP27). À Belém (COP30), les Parties ont décidé de développer un mécanisme pour la transition juste."
+  reference: "décision 1/CMA.4 (plan de mise en œuvre de Charm el-Cheikh) ; décisions de Belém"
+- terme: ETF
+  alias: [cadre de transparence renforcé, enhanced transparency framework, MPGs]
+  definition: "Cadre de transparence renforcé (art. 13) : règles communes de rapportage et d'examen des émissions et des progrès des NDC, applicables à toutes les Parties avec des flexibilités pour les pays en développement qui en ont besoin."
+  reference: "Accord de Paris, article 13 ; décision 18/CMA.1"
+- terme: BTR
+  alias: [rapport biennal de transparence, biennial transparency report]
+  definition: "Rapport remis tous les deux ans dans le cadre de l'ETF (premiers BTR fin 2024) : inventaire des émissions, suivi des progrès de la NDC, soutien fourni ou reçu."
+  reference: "décision 18/CMA.1"
+- terme: CBDR-RC
+  alias: [responsabilités communes mais différenciées, CBDR]
+  definition: "Principe des « responsabilités communes mais différenciées et des capacités respectives » (Convention art. 3.1), repris dans l'Accord de Paris « à la lumière des différentes situations nationales » (art. 2.2). Argument central des pays en développement, notamment du groupe LMDC."
+  reference: "Convention-cadre, article 3.1 ; Accord de Paris, article 2.2"
+- terme: Annexe I
+  alias: [Annex I, non-Annexe I]
+  definition: "Liste des pays industrialisés (1992) de la Convention, qui avaient des obligations différenciées. L'Accord de Paris ne reprend pas ces annexes ; leur usage dans les négociations actuelles est un enjeu politique (base des contributeurs financiers)."
+  reference: "Convention-cadre, annexe I"
+- terme: Groupes de négociation
+  alias: [G77, AOSIS, LDC, PMA, LMDC, AGN, AILAC, ALBA, BASIC, Groupe arabe, EIG, Umbrella Group, Groupe parapluie]
+  definition: "Les Parties négocient en coalitions. G77+Chine (plus de 130 pays en développement), AOSIS (petits États insulaires), PMA/LDC (pays les moins avancés), LMDC (pays en développement « like-minded », dont Chine, Inde, Arabie saoudite), Groupe africain (AGN), AILAC et ALBA (Amérique latine), BASIC (Brésil, Afrique du Sud, Inde, Chine), Groupe arabe, Groupe de l'intégrité environnementale (EIG : Suisse, Corée, Mexique…), Groupe parapluie (Australie, Canada, Japon, Norvège, Royaume-Uni…). L'UE négocie d'une seule voix (présidence du Conseil + Commission)."
+  reference: "pratique de la CCNUCC"
+- terme: Shall / should / urges / encourages
+  alias: [force normative, langage juridique]
+  definition: "« shall » crée une obligation juridique ; « should » une recommandation ; « urges », « calls on », « encourages », « invites » une incitation sans obligation ; « notes », « acknowledges », « recognizes » un simple constat. Dans les décisions de COP, la plupart des formules sont incitatives : les décisions interprètent ou mettent en œuvre l'Accord, sans pouvoir créer de nouvelles obligations de traité."
+  reference: "pratique rédactionnelle ; comparer Accord de Paris art. 4.2 (« shall ») et 4.4 (« should »)"
+- terme: Crochets
+  alias: [brackets, texte entre crochets, bracketed text]
+  definition: "Dans un projet de texte, les passages entre crochets [ ] ne sont pas agréés ; les « options » sont des alternatives concurrentes. Suivre le nombre de crochets d'une version à l'autre mesure l'avancée d'une négociation."
+  reference: "pratique de négociation (voir l'outil comparer_versions)"
+- terme: Non-paper
+  alias: [non papier, informal note, note informelle]
+  definition: "Document informel sans statut officiel (souvent des co-facilitateurs ou de la présidence) qui sert de base de discussion ; il n'a pas de cote FCCC et peut être remplacé à tout moment."
+  reference: "pratique de négociation"
+- terme: Document L
+  alias: [L document, L., limited distribution, projet de décision]
+  definition: "Document à distribution limitée (cote « …/L.n », ex. FCCC/PA/CMA/2026/L.3) qui contient un projet de conclusions ou de décision proposé pour adoption en plénière. C'est le texte quasi final."
+  reference: "règlement intérieur appliqué de la CCNUCC"
+- terme: Consensus
+  definition: "Les décisions de COP sont prises par consensus en pratique, faute d'accord sur la règle de vote (le projet de règlement intérieur de 1996 n'a jamais été adopté sur ce point). Une seule objection formelle peut bloquer l'adoption, mais la présidence apprécie l'existence du consensus."
+  reference: "FCCC/CP/1996/2 (projet de règlement intérieur appliqué, règle 42 non adoptée)"
+- terme: Mission 1.5 / Troïka
+  alias: [troïka des présidences, Roadmap to Mission 1.5]
+  definition: "Coopération entre les présidences successives (Émirats arabes unis, Azerbaïdjan, Brésil) lancée en 2024 pour maintenir l'objectif de 1,5 °C à portée et améliorer les NDC."
+  reference: "déclarations des présidences COP28–COP30 (à vérifier dans le corpus)"
+- terme: Présidence COP31
+  alias: [Türkiye, Turquie, Australie, présidence des négociations]
+  definition: "Arrangement inédit décidé fin 2025 — la Türkiye accueille la COP31 à Antalya et en assure la présidence ; l'Australie préside les négociations ; une pré-COP s'est tenue dans le Pacifique."
+  reference: "décision de la COP30 sur les lieux et dates des sessions futures (à vérifier dans le corpus)"
+- terme: Loi européenne sur le climat
+  alias: [European Climate Law, objectif 2040, neutralité climatique UE]
+  definition: "Règlement (UE) 2021/1119 — neutralité climatique de l'UE en 2050 et réduction nette des émissions d'au moins 55 % en 2030 par rapport à 1990. Une modification fixant un objectif pour 2040 (−90 % net, avec une part limitée de crédits internationaux) a été négociée en 2025–2026 ; vérifier son état d'adoption dans le corpus."
+  reference: "règlement (UE) 2021/1119"
+- terme: SEQE-UE / ETS2 / MACF
+  alias: [ETS, EU ETS, ETS2, CBAM, MACF, marché carbone européen]
+  definition: "SEQE-UE (ETS) — marché du carbone pour l'électricité, l'industrie, l'aviation et le maritime (directive 2003/87/CE) ; ETS2 — second marché pour les bâtiments et le transport routier ; MACF (CBAM) — ajustement carbone aux frontières (règlement (UE) 2023/956), en phase définitive depuis le 1er janvier 2026. Le MACF est souvent attaqué en négociation comme mesure commerciale unilatérale."
+  reference: "directive 2003/87/CE ; règlement (UE) 2023/956"
+- terme: NDC de l'UE
+  alias: [NDC UE, contribution de l'UE, 2035]
+  definition: "L'UE (27 États membres) soumet une NDC unique. Sa NDC 2035 a été adoptée par le Conseil Environnement fin 2025 sous forme de fourchette de réduction des émissions nettes par rapport à 1990 ; vérifier le texte exact dans le corpus avant toute citation."
+  reference: "NDC de l'UE (registre des NDC)"
+- terme: UTCATF
+  alias: [LULUCF, puits de carbone, absorptions]
+  definition: "Utilisation des terres, changement d'affectation des terres et foresterie. Les objectifs « nets » incluent les absorptions par les puits (forêts, sols), ce qui change sensiblement les chiffres comparés."
+  reference: "règlement (UE) 2018/841"
+- terme: Budget carbone
+  alias: [carbon budget, budget carbone restant]
+  definition: "Quantité cumulée de CO2 encore émissible pour limiter le réchauffement à un niveau donné avec une probabilité donnée. Le GIEC (AR6) l'évaluait à environ 500 GtCO2 à partir de 2020 pour 1,5 °C avec 50 % de chances ; les mises à jour récentes (Global Carbon Budget) l'estiment à quelques années d'émissions actuelles."
+  reference: "GIEC AR6 GT I, résumé pour décideurs, tableau SPM.2"
+- terme: Émissions cumulées vs actuelles
+  alias: [responsabilité historique, per capita, par habitant]
+  definition: "Trois façons de compter qui changent les classements — émissions annuelles (la Chine est premier émetteur), émissions par habitant (les pays du Golfe, l'Australie, les États-Unis en tête), émissions cumulées depuis 1850 (les États-Unis puis l'UE en tête). Toujours préciser laquelle est utilisée, avec ou sans UTCATF, et l'année."
+  reference: "outil `donnees` (Our World in Data / Global Carbon Project)"

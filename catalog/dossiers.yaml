@@ -1,0 +1,143 @@
+# Dossiers de négociation de la COP31.
+#   slug       identifiant stable (URL /dossiers/<slug>, commande Telegram /note <alias> …)
+#   nom        libellé affiché
+#   alias      mots reconnus en tête d'une note (/note GGA …) ; minuscules
+#   cb         thèmes Carbon Brief rattachés (feuilles « Texts », « agenda-status », « Who wants what »)
+#   requete    recherche dans le corpus pour le fil d'actualité du dossier (syntaxe des sujets suivis)
+#   enjeu      une phrase pour un novice
+- slug: couverture
+  nom: "Décision de couverture et textes politiques"
+  alias: [couverture, cover, politique, mutirao]
+  cb: [Cover text]
+  requete: "cover decision, cover text, décision de couverture, Antalya package, Mission 1.5"
+  enjeu: "Le texte politique de synthèse que les présidences veulent faire adopter à la fin, où se jouent les grands signaux (1,5 °C, fossiles, financement)."
+  nom_en: "Cover decision and political texts"
+  enjeu_en: "The overarching political text the presidencies want adopted at the end, where the big signals play out (1.5 °C, fossil fuels, finance)."
+- slug: attenuation
+  nom: "Atténuation (programme de travail, MWP)"
+  alias: [mwp, attenuation, atténuation, mitigation]
+  cb: [Mitigation work prog, Mitigation work programme]
+  requete: "mitigation work programme, programme de travail sur l'atténuation, MWP, transitioning away from fossil fuels, roadmap fossil fuels"
+  enjeu: "Comment relever l'ambition de réduction des émissions d'ici 2030-2035, et ce qu'on fait de la sortie des fossiles décidée à Dubaï."
+  nom_en: "Mitigation (work programme, MWP)"
+  enjeu_en: "How to raise emission-cutting ambition for 2030–2035, and what becomes of the transition away from fossil fuels agreed in Dubai."
+- slug: bilan-ndc
+  nom: "Bilan mondial et NDC"
+  alias: [gst, bilan, ndc, cdn, stocktake]
+  cb: [Report on Stocktake dialogue, Global stocktake, NDCs]
+  requete: "global stocktake, bilan mondial, NDC synthesis report, nationally determined contributions, UAE dialogue"
+  enjeu: "Le suivi du premier bilan mondial et l'écart entre les NDC 2035 remises et la trajectoire 1,5 °C."
+  nom_en: "Global stocktake and NDCs"
+  enjeu_en: "Follow-up of the first global stocktake and the gap between the 2035 NDCs submitted and a 1.5 °C pathway."
+- slug: adaptation
+  nom: "Adaptation (objectif mondial GGA, plans nationaux)"
+  alias: [gga, adaptation, pna, nap, bam]
+  cb: [Global goal on adaptation, Adaptation, National adaptation plans, Adaptation committee report, Adaptation Fund]
+  requete: "global goal on adaptation, objectif mondial en matière d'adaptation, GGA indicators, national adaptation plans, adaptation finance"
+  enjeu: "Les indicateurs de l'objectif mondial d'adaptation et l'argent pour s'adapter, priorité des pays vulnérables."
+  nom_en: "Adaptation (Global Goal GGA, national plans)"
+  enjeu_en: "Indicators for the global goal on adaptation and money to adapt, a priority for vulnerable countries."
+- slug: transition-juste
+  nom: "Transition juste (programme de travail, mécanisme)"
+  alias: [jtwp, tj, transition, transition-juste, juste]
+  cb: [Just transition work prog, Just transition]
+  requete: "just transition work programme, transition juste, just transition mechanism, Belém action mechanism"
+  enjeu: "Rendre opérationnel le mécanisme de transition juste créé à Belém : travailleurs, minerais, mesures commerciales."
+  nom_en: "Just transition (work programme, mechanism)"
+  enjeu_en: "Operationalising the just transition mechanism created in Belém: workers, critical minerals, trade measures."
+- slug: finance
+  nom: "Financement climat (art. 9, NCQG, feuille de route Bakou-Belém)"
+  alias: [finance, ncqg, art9, article9, financement]
+  cb: [Climate finance (Art 9), Finance (Art 9), Finance, Standing Committee on Finance, Green Climate Fund guidance, Green Climate Fund report, Global Environment Facility guidance, Provision of support]
+  requete: "Article 9, NCQG, new collective quantified goal, Baku to Belém Roadmap, 1.3T, climate finance, financement climat"
+  enjeu: "Qui paie, combien et comment : 300 milliards par an d'ici 2035, la feuille de route vers 1 300 milliards, l'art. 9.1."
+  nom_en: "Climate finance (Art. 9, NCQG, Baku–Belém roadmap)"
+  enjeu_en: "Who pays, how much and how: $300 billion a year by 2035, the roadmap to $1.3 trillion, Article 9.1."
+- slug: flux-financiers
+  nom: "Flux financiers (art. 2.1c)"
+  alias: [2.1c, flux, art2.1c, alignement]
+  cb: [Finance flows (Art 2.1c), Finance (Art 2.1c)]
+  requete: "Article 2, paragraph 1(c), 2.1(c), finance flows consistent, flux financiers compatibles, Sharm el-Sheikh dialogue"
+  enjeu: "Rendre l'ensemble des flux financiers (publics et privés) compatibles avec l'Accord de Paris, pas seulement l'aide climat."
+  nom_en: "Financial flows (Art. 2.1c)"
+  enjeu_en: "Making all financial flows (public and private) consistent with the Paris Agreement, not just climate aid."
+- slug: pertes-prejudices
+  nom: "Pertes et préjudices (WIM, Fonds)"
+  alias: [lnd, l&d, pertes, wim, prejudices, préjudices, fonds]
+  cb: [WIM for loss and damage, WIM/Santiago report, Loss and Damage Fund report]
+  requete: "loss and damage, pertes et préjudices, Warsaw International Mechanism, Fund for responding to Loss and Damage, Santiago network"
+  enjeu: "Aider les pays déjà frappés par des dégâts irréversibles : le Fonds, son argent, et la revue du mécanisme de Varsovie."
+  nom_en: "Loss and damage (WIM, Fund)"
+  enjeu_en: "Helping countries already hit by irreversible damage: the Fund, its money, and the review of the Warsaw Mechanism."
+- slug: article-6
+  nom: "Marchés carbone (art. 6)"
+  alias: [art6, a6, article6, marches, marchés, credits, crédits]
+  cb: [Bilateral trading (Art 6.2), Carbon markets (Art 6.4), Funding for bilateral trading (Art 6.2), Glasgow Committee on non-market approaches, Non-market approaches work prog review, Clean Development Mechanism]
+  requete: "Article 6, paragraph 2, Article 6.4 mechanism, Paris Agreement Crediting Mechanism, ITMO, marchés carbone, non-market approaches"
+  enjeu: "Les règles des échanges de crédits carbone entre pays et du mécanisme onusien, et leur intégrité."
+  nom_en: "Carbon markets (Art. 6)"
+  enjeu_en: "Rules for trading carbon credits between countries and under the UN mechanism, and their integrity."
+- slug: riposte-commerce
+  nom: "Mesures de riposte et commerce (mesures unilatérales)"
+  alias: [rm, riposte, commerce, trade, cbam, macf, umt]
+  cb: [Response measures, Trade]
+  requete: "response measures, mesures de riposte, unilateral trade measures, mesures commerciales unilatérales, CBAM, carbon border"
+  enjeu: "L'impact des politiques climat sur les autres pays ; c'est là que se loge l'attaque contre le MACF/CBAM européen."
+  nom_en: "Response measures and trade (unilateral measures)"
+  enjeu_en: "The impact of climate policies on other countries; this is where the attack on the EU's CBAM sits."
+- slug: transparence
+  nom: "Transparence (ETF, BTR) et conformité"
+  alias: [etf, btr, transparence, conformite, conformité]
+  cb: [Support for reporting, Report on Annex I inventories, Report of experts, Compliance committee]
+  requete: "enhanced transparency framework, biennial transparency report, cadre de transparence renforcé, compliance committee, technical expert review"
+  enjeu: "Comment chaque pays rend compte de ses émissions et de ses actions, et comment on le vérifie."
+  nom_en: "Transparency (ETF, BTR) and compliance"
+  enjeu_en: "How each country reports its emissions and actions, and how that is checked."
+- slug: technologie-capacites
+  nom: "Technologie, capacités et éducation (ACE)"
+  alias: [tech, technologie, ctcn, capacites, capacités, ace]
+  cb: [Climate Technology Centre host, Climate Technology Centre review, Report of technology bodies, Capacity building, Action for climate empowerment]
+  requete: "technology mechanism, Climate Technology Centre and Network, capacity-building, renforcement des capacités, Action for Climate Empowerment"
+  enjeu: "Les transferts de technologie et le renforcement des capacités des pays en développement, et l'éducation au climat et la participation du public (ACE)."
+  nom_en: "Technology, capacity-building and education (ACE)"
+  enjeu_en: "Technology transfer, capacity-building for developing countries, and climate education and public participation (Action for Climate Empowerment)."
+- slug: agriculture
+  nom: "Agriculture et sécurité alimentaire"
+  alias: [agri, agriculture, alimentation, sharm]
+  cb: [Agriculture and food security]
+  requete: "Sharm el-Sheikh joint work on implementation of climate action on agriculture and food security, agriculture, sécurité alimentaire"
+  enjeu: "Le travail commun sur l'agriculture et la sécurité alimentaire face au climat."
+  nom_en: "Agriculture and food security"
+  enjeu_en: "The joint work on agriculture and food security in a changing climate."
+- slug: genre
+  nom: "Genre et climat"
+  alias: [genre, gender, gap]
+  cb: [Gender and climate]
+  requete: "gender action plan, Lima work programme on gender, plan d'action pour l'égalité des sexes, gender"
+  enjeu: "Le plan d'action genre et la place des femmes dans la politique climatique."
+  nom_en: "Gender and climate"
+  enjeu_en: "The gender action plan and the place of women in climate policy."
+- slug: science-oceans
+  nom: "Science, recherche et océans"
+  alias: [science, giec, ipcc, oceans, océans, recherche]
+  cb: [Climate science, Oceans]
+  requete: "research and systematic observation, IPCC, GIEC, ocean and climate change dialogue, océan"
+  enjeu: "Comment les négociations prennent en compte la science (GIEC) et les océans."
+  nom_en: "Science, research and oceans"
+  enjeu_en: "How the negotiations take science (IPCC) and the oceans into account."
+- slug: pma-vulnerables
+  nom: "PMA et pays vulnérables"
+  alias: [pma, ldc, vulnerables, vulnérables, aosis]
+  cb: [LDC matters]
+  requete: "least developed countries, pays les moins avancés, LDC Expert Group, small island developing States, special needs"
+  enjeu: "Les besoins particuliers des pays les moins avancés et des petits États insulaires."
+  nom_en: "LDCs and vulnerable countries"
+  enjeu_en: "The specific needs of least developed countries and small island developing States."
+- slug: organisation
+  nom: "Organisation, ordre du jour et réforme des COP"
+  alias: [orga, organisation, agenda, procedure, procédure, reforme, réforme, budget]
+  cb: [CMA agenda adoption, COP agenda adoption, CMP agenda adoption, SBI agenda adoption, SBSTA agenda adoption, CMA other matters, Admission of observers, SBI administrative matters, Report of subsidiary bodies, Dates and venues of future sessions, COP reform, Action agenda]
+  requete: "adoption of the agenda, ordre du jour, arrangements for intergovernmental meetings, programme budget, dates and venues"
+  enjeu: "Les batailles de procédure (ordre du jour, budget, lieux des COP) qui conditionnent tout le reste."
+  nom_en: "Organisation, agenda and COP reform"
+  enjeu_en: "Procedural battles (agenda, budget, COP venues) that shape everything else."

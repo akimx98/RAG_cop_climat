@@ -1,0 +1,1039 @@
+# Droit et documents de l'UE — URLs Cellar (publications.europa.eu), car eur-lex.europa.eu
+# renvoie un challenge AWS WAF (HTTP 202, corps vide, en-tête x-amzn-waf-action: challenge) à tout client
+# non-navigateur (vérifié le 2026-11-06). Les URLs Cellar sont des manifestations stables (xhtml ou pdf)
+# obtenues par négociation de contenu sur http://publications.europa.eu/resource/celex/<CELEX>.
+# Lien EUR-Lex équivalent (pour l'humain) : https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:<CELEX>
+
+- id: eu-climate-law-2021-1119-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/365a2e8e-e04f-11eb-895a-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2021/1119 — loi européenne sur le climat (texte publié au JO)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32021R1119"
+  parties: [EU]
+  topics: [climate_neutrality, 2030_target, governance]
+  lang: fr
+  published: 2021-06-30
+
+- id: eu-climate-law-2021-1119-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/365a2e8e-e04f-11eb-895a-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2021/1119 — European Climate Law (OJ text)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32021R1119"
+  parties: [EU]
+  topics: [climate_neutrality, 2030_target, governance]
+  lang: en
+  published: 2021-06-30
+
+# Adopté le 11/03/2026 (JO). Art. 4(3) : -90 % émissions nettes 2040 vs 1990 ; art. 4(5)(a) : crédits internationaux art. 6 jusqu'à 5 % des émissions nettes 1990, à partir de 2036.
+- id: eu-climate-law-2040-amendment-2026-667-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/ea8d6d86-226e-11f1-8c3a-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2026/667 modifiant le règlement (UE) 2021/1119 — objectif climatique intermédiaire 2040 (-90 % net)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32026R0667"
+  parties: [EU]
+  topics: [2040_target, international_credits, article6]
+  lang: fr
+  published: 2026-03-11
+
+# Adopté le 11/03/2026 (JO). Art. 4(3) : -90 % émissions nettes 2040 vs 1990 ; art. 4(5)(a) : crédits internationaux art. 6 jusqu'à 5 % des émissions nettes 1990, à partir de 2036.
+- id: eu-climate-law-2040-amendment-2026-667-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/ea8d6d86-226e-11f1-8c3a-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2026/667 amending Regulation (EU) 2021/1119 — Union 2040 intermediate climate target (-90% net)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32026R0667"
+  parties: [EU]
+  topics: [2040_target, international_credits, article6]
+  lang: en
+  published: 2026-03-11
+
+# Texte consolidé = sans valeur juridique officielle.
+- id: eu-climate-law-consolidated-2026-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/cf20dd06-48af-11f1-8095-01aa75ed71a1.0010.02/DOC_1
+  title: "Loi européenne sur le climat — version consolidée au 07/04/2026 (intègre l'objectif 2040)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02021R1119-20260407"
+  parties: [EU]
+  topics: [climate_neutrality, 2040_target]
+  lang: fr
+  published: 2026-04-07
+
+# Texte consolidé = sans valeur juridique officielle.
+- id: eu-climate-law-consolidated-2026-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/cf20dd06-48af-11f1-8095-01aa75ed71a1.0008.02/DOC_1
+  title: "European Climate Law — consolidated version 2026-04-07 (incl. 2040 target)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02021R1119-20260407"
+  parties: [EU]
+  topics: [climate_neutrality, 2040_target]
+  lang: en
+  published: 2026-04-07
+
+# Dernière consolidation trouvée dans Cellar (SPARQL) au 06/11/2026 ; aucun acte législatif modificatif postérieur repéré.
+- id: eu-ets-directive-consolidated-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/1c8a1afb-f104-11ee-8e14-01aa75ed71a1.0010.02/DOC_3
+  title: "Directive 2003/87/CE (SEQE-UE, y compris SEQE2 / chapitre IVbis) — version consolidée au 01/03/2024"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02003L0087-20240301"
+  parties: [EU]
+  topics: [carbon_pricing, ets, ets2]
+  lang: fr
+  published: 2024-03-01
+
+# Dernière consolidation trouvée dans Cellar (SPARQL) au 06/11/2026 ; aucun acte législatif modificatif postérieur repéré.
+- id: eu-ets-directive-consolidated-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/1c8a1afb-f104-11ee-8e14-01aa75ed71a1.0006.02/DOC_1
+  title: "Directive 2003/87/EC (EU ETS incl. ETS2) — consolidated version 2024-03-01"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02003L0087-20240301"
+  parties: [EU]
+  topics: [carbon_pricing, ets, ets2]
+  lang: en
+  published: 2024-03-01
+
+- id: eu-ets-amending-directive-2023-959-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/7477bc6a-f384-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Directive (UE) 2023/959 modifiant la directive SEQE (Fit for 55, création du SEQE2)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L0959"
+  parties: [EU]
+  topics: [carbon_pricing, ets, ets2]
+  lang: fr
+  published: 2023-05-10
+
+- id: eu-ets-amending-directive-2023-959-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/7477bc6a-f384-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Directive (EU) 2023/959 amending the ETS Directive (Fit for 55, ETS2)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L0959"
+  parties: [EU]
+  topics: [carbon_pricing, ets, ets2]
+  lang: en
+  published: 2023-05-10
+
+- id: eu-ets-aviation-directive-2023-958-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/2f93a0a8-f384-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Directive (UE) 2023/958 — aviation dans le SEQE et CORSIA"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L0958"
+  parties: [EU]
+  topics: [aviation, ets, corsia]
+  lang: fr
+  published: 2023-05-10
+
+- id: eu-ets-aviation-directive-2023-958-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/2f93a0a8-f384-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Directive (EU) 2023/958 — aviation in the ETS and CORSIA"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L0958"
+  parties: [EU]
+  topics: [aviation, ets, corsia]
+  lang: en
+  published: 2023-05-10
+
+- id: eu-maritime-mrv-2023-957-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/55fad2ee-f383-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2023/957 — transport maritime dans le SEQE (MRV)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0957"
+  parties: [EU]
+  topics: [maritime, ets]
+  lang: fr
+  published: 2023-05-10
+
+- id: eu-maritime-mrv-2023-957-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/55fad2ee-f383-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/957 — maritime transport in the ETS (MRV)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0957"
+  parties: [EU]
+  topics: [maritime, ets]
+  lang: en
+  published: 2023-05-10
+
+- id: eu-effort-sharing-consolidated-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9bf6aa2f-ee88-11ed-a05c-01aa75ed71a1.0011.02/DOC_1
+  title: "Règlement (UE) 2018/842 répartition de l'effort — version consolidée au 16/05/2023"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018R0842-20230516"
+  parties: [EU]
+  topics: [effort_sharing, 2030_target]
+  lang: fr
+  published: 2023-05-16
+
+- id: eu-effort-sharing-consolidated-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9bf6aa2f-ee88-11ed-a05c-01aa75ed71a1.0007.02/DOC_1
+  title: "Regulation (EU) 2018/842 Effort Sharing — consolidated version 2023-05-16"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018R0842-20230516"
+  parties: [EU]
+  topics: [effort_sharing, 2030_target]
+  lang: en
+  published: 2023-05-16
+
+- id: eu-effort-sharing-amendment-2023-857-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/b8c7355f-e3cc-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2023/857 modifiant le règlement répartition de l'effort (-40 % en 2030)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0857"
+  parties: [EU]
+  topics: [effort_sharing, 2030_target]
+  lang: fr
+  published: 2023-04-19
+
+- id: eu-effort-sharing-amendment-2023-857-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/b8c7355f-e3cc-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/857 amending the Effort Sharing Regulation (-40% by 2030)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0857"
+  parties: [EU]
+  topics: [effort_sharing, 2030_target]
+  lang: en
+  published: 2023-04-19
+
+- id: eu-lulucf-consolidated-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/c43008f0-ef39-11ed-a05c-01aa75ed71a1.0010.02/DOC_1
+  title: "Règlement (UE) 2018/841 UTCATF (LULUCF) — version consolidée au 11/05/2023"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018R0841-20230511"
+  parties: [EU]
+  topics: [lulucf, removals]
+  lang: fr
+  published: 2023-05-11
+
+- id: eu-lulucf-consolidated-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/c43008f0-ef39-11ed-a05c-01aa75ed71a1.0006.02/DOC_1
+  title: "Regulation (EU) 2018/841 LULUCF — consolidated version 2023-05-11"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018R0841-20230511"
+  parties: [EU]
+  topics: [lulucf, removals]
+  lang: en
+  published: 2023-05-11
+
+- id: eu-lulucf-amendment-2023-839-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/c09e0b36-dfde-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2023/839 modifiant le règlement UTCATF (objectif -310 Mt absorptions 2030)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0839"
+  parties: [EU]
+  topics: [lulucf, removals]
+  lang: fr
+  published: 2023-04-19
+
+- id: eu-lulucf-amendment-2023-839-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/c09e0b36-dfde-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/839 amending the LULUCF Regulation (310 Mt removals 2030)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0839"
+  parties: [EU]
+  topics: [lulucf, removals]
+  lang: en
+  published: 2023-04-19
+
+- id: eu-cbam-2023-956-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/e5587bf5-f383-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2023/956 — mécanisme d'ajustement carbone aux frontières (MACF)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0956"
+  parties: [EU]
+  topics: [cbam, carbon_pricing, trade]
+  lang: fr
+  published: 2023-05-10
+
+- id: eu-cbam-2023-956-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/e5587bf5-f383-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/956 — Carbon Border Adjustment Mechanism (CBAM)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0956"
+  parties: [EU]
+  topics: [cbam, carbon_pricing, trade]
+  lang: en
+  published: 2023-05-10
+
+- id: eu-cbam-consolidated-2025-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/a61c0d38-bf6a-11f0-a612-01aa75ed71a1.0011.02/DOC_1
+  title: "MACF — version consolidée au 20/10/2025 (après simplification 2025/2083)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02023R0956-20251020"
+  parties: [EU]
+  topics: [cbam, trade]
+  lang: fr
+  published: 2025-10-20
+
+- id: eu-cbam-consolidated-2025-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/a61c0d38-bf6a-11f0-a612-01aa75ed71a1.0007.02/DOC_1
+  title: "CBAM — consolidated version 2025-10-20 (after 2025/2083 simplification)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02023R0956-20251020"
+  parties: [EU]
+  topics: [cbam, trade]
+  lang: en
+  published: 2025-10-20
+
+- id: eu-cbam-simplification-2025-2083-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9e9e9b38-aaf1-11f0-89c6-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2025/2083 simplifiant et renforçant le MACF"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32025R2083"
+  parties: [EU]
+  topics: [cbam, trade]
+  lang: fr
+  published: 2025-10-08
+
+- id: eu-cbam-simplification-2025-2083-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9e9e9b38-aaf1-11f0-89c6-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2025/2083 simplifying and strengthening CBAM"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32025R2083"
+  parties: [EU]
+  topics: [cbam, trade]
+  lang: en
+  published: 2025-10-08
+
+- id: eu-social-climate-fund-2023-955-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9dd87fa1-f383-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2023/955 — Fonds social pour le climat"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0955"
+  parties: [EU]
+  topics: [just_transition, ets2]
+  lang: fr
+  published: 2023-05-10
+
+- id: eu-social-climate-fund-2023-955-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9dd87fa1-f383-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/955 — Social Climate Fund"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0955"
+  parties: [EU]
+  topics: [just_transition, ets2]
+  lang: en
+  published: 2023-05-10
+
+- id: eu-governance-regulation-consolidated-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/ca94ca2b-8a41-11ee-99ba-01aa75ed71a1.0010.02/DOC_2
+  title: "Règlement (UE) 2018/1999 gouvernance de l'union de l'énergie et de l'action pour le climat — consolidé au 20/11/2023"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018R1999-20231120"
+  parties: [EU]
+  topics: [governance, necp, reporting]
+  lang: fr
+  published: 2023-11-20
+
+- id: eu-governance-regulation-consolidated-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/ca94ca2b-8a41-11ee-99ba-01aa75ed71a1.0006.02/DOC_1
+  title: "Regulation (EU) 2018/1999 Governance of the Energy Union and Climate Action — consolidated 2023-11-20"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018R1999-20231120"
+  parties: [EU]
+  topics: [governance, necp, reporting]
+  lang: en
+  published: 2023-11-20
+
+- id: eu-red-consolidated-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/0754d939-438f-11ef-865a-01aa75ed71a1.0010.02/DOC_2
+  title: "Directive (UE) 2018/2001 énergies renouvelables (RED III) — version consolidée au 16/07/2024"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018L2001-20240716"
+  parties: [EU]
+  topics: [renewables, energy]
+  lang: fr
+  published: 2024-07-16
+
+- id: eu-red-consolidated-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/0754d939-438f-11ef-865a-01aa75ed71a1.0007.02/DOC_3
+  title: "Directive (EU) 2018/2001 Renewable Energy (RED III) — consolidated 2024-07-16"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02018L2001-20240716"
+  parties: [EU]
+  topics: [renewables, energy]
+  lang: en
+  published: 2024-07-16
+
+- id: eu-red3-amending-2023-2413-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/dc3cfdf8-778e-11ee-99ba-01aa75ed71a1.0010.03/DOC_1
+  title: "Directive (UE) 2023/2413 (RED III) — objectif 42,5 % d'EnR en 2030"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L2413"
+  parties: [EU]
+  topics: [renewables, energy]
+  lang: fr
+  published: 2023-10-18
+
+- id: eu-red3-amending-2023-2413-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/dc3cfdf8-778e-11ee-99ba-01aa75ed71a1.0006.03/DOC_1
+  title: "Directive (EU) 2023/2413 (RED III) — 42.5% renewables by 2030"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L2413"
+  parties: [EU]
+  topics: [renewables, energy]
+  lang: en
+  published: 2023-10-18
+
+- id: eu-energy-efficiency-directive-2023-1791-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/0e432499-5752-11ee-9220-01aa75ed71a1.0009.03/DOC_1
+  title: "Directive (UE) 2023/1791 relative à l'efficacité énergétique (refonte)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L1791"
+  parties: [EU]
+  topics: [energy_efficiency, energy]
+  lang: fr
+  published: 2023-09-13
+
+- id: eu-energy-efficiency-directive-2023-1791-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/0e432499-5752-11ee-9220-01aa75ed71a1.0006.03/DOC_1
+  title: "Directive (EU) 2023/1791 on energy efficiency (recast)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023L1791"
+  parties: [EU]
+  topics: [energy_efficiency, energy]
+  lang: en
+  published: 2023-09-13
+
+- id: eu-epbd-2024-1275-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/2b15980c-0cd4-11ef-a251-01aa75ed71a1.0009.03/DOC_1
+  title: "Directive (UE) 2024/1275 performance énergétique des bâtiments (refonte)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024L1275"
+  parties: [EU]
+  topics: [buildings, energy_efficiency]
+  lang: fr
+  published: 2024-04-24
+
+- id: eu-epbd-2024-1275-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/2b15980c-0cd4-11ef-a251-01aa75ed71a1.0006.03/DOC_1
+  title: "Directive (EU) 2024/1275 energy performance of buildings (recast)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024L1275"
+  parties: [EU]
+  topics: [buildings, energy_efficiency]
+  lang: en
+  published: 2024-04-24
+
+- id: eu-cars-co2-consolidated-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/fdc193c1-6703-11f0-bf4e-01aa75ed71a1.0010.02/DOC_1
+  title: "Règlement (UE) 2019/631 normes CO2 voitures et VUL — version consolidée au 09/07/2025"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02019R0631-20250709"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: fr
+  published: 2025-07-09
+
+- id: eu-cars-co2-consolidated-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/fdc193c1-6703-11f0-bf4e-01aa75ed71a1.0003.02/DOC_1
+  title: "Regulation (EU) 2019/631 CO2 standards for cars and vans — consolidated 2025-07-09"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:02019R0631-20250709"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: en
+  published: 2025-07-09
+
+- id: eu-cars-co2-amendment-2023-851-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/d07498fd-e304-11ed-a05c-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2023/851 — -100 % CO2 voitures neuves en 2035"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0851"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: fr
+  published: 2023-04-19
+
+- id: eu-cars-co2-amendment-2023-851-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/d07498fd-e304-11ed-a05c-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/851 — 100% CO2 reduction for new cars by 2035"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R0851"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: en
+  published: 2023-04-19
+
+- id: eu-cars-co2-flexibility-2025-1214-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/a06b8b28-4ca6-11f0-a9d0-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2025/1214 — flexibilité de conformité 2025-2027 (voitures/VUL)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32025R1214"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: fr
+  published: 2025-06-17
+
+- id: eu-cars-co2-flexibility-2025-1214-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/a06b8b28-4ca6-11f0-a9d0-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2025/1214 — compliance flexibility 2025-2027 (cars/vans)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32025R1214"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: en
+  published: 2025-06-17
+
+- id: eu-hdv-co2-2024-1610-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/567c1b95-23c8-11ef-a195-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2024/1610 — normes CO2 véhicules lourds"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R1610"
+  parties: [EU]
+  topics: [transport, trucks]
+  lang: fr
+  published: 2024-05-14
+
+- id: eu-hdv-co2-2024-1610-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/567c1b95-23c8-11ef-a195-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2024/1610 — CO2 standards for heavy-duty vehicles"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R1610"
+  parties: [EU]
+  topics: [transport, trucks]
+  lang: en
+  published: 2024-05-14
+
+- id: eu-methane-regulation-2024-1787-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/92796ac7-4242-11ef-865a-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2024/1787 — réduction des émissions de méthane du secteur de l'énergie"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R1787"
+  parties: [EU]
+  topics: [methane, energy]
+  lang: fr
+  published: 2024-06-13
+
+- id: eu-methane-regulation-2024-1787-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/92796ac7-4242-11ef-865a-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2024/1787 — methane emissions reduction in the energy sector"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R1787"
+  parties: [EU]
+  topics: [methane, energy]
+  lang: en
+  published: 2024-06-13
+
+- id: eu-fgas-regulation-2024-573-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/996afe20-cf90-11ee-b9d9-01aa75ed71a1.0010.03/DOC_1
+  title: "Règlement (UE) 2024/573 — gaz à effet de serre fluorés"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R0573"
+  parties: [EU]
+  topics: [fgases, hfc]
+  lang: fr
+  published: 2024-02-07
+
+- id: eu-fgas-regulation-2024-573-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/996afe20-cf90-11ee-b9d9-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2024/573 — fluorinated greenhouse gases"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R0573"
+  parties: [EU]
+  topics: [fgases, hfc]
+  lang: en
+  published: 2024-02-07
+
+- id: eu-crcf-carbon-removals-2024-3012-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/1a456107-b373-11ef-acb1-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2024/3012 — cadre de certification des absorptions de carbone (CRCF)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R3012"
+  parties: [EU]
+  topics: [removals, carbon_markets]
+  lang: fr
+  published: 2024-11-27
+
+- id: eu-crcf-carbon-removals-2024-3012-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/1a456107-b373-11ef-acb1-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2024/3012 — Union certification framework for carbon removals (CRCF)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R3012"
+  parties: [EU]
+  topics: [removals, carbon_markets]
+  lang: en
+  published: 2024-11-27
+
+- id: eu-net-zero-industry-act-2024-1735-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/ecadc532-34e9-11ef-b441-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2024/1735 — règlement pour une industrie « zéro net » (NZIA)"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R1735"
+  parties: [EU]
+  topics: [industry, clean_tech]
+  lang: fr
+  published: 2024-06-13
+
+- id: eu-net-zero-industry-act-2024-1735-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/ecadc532-34e9-11ef-b441-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2024/1735 — Net-Zero Industry Act"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32024R1735"
+  parties: [EU]
+  topics: [industry, clean_tech]
+  lang: en
+  published: 2024-06-13
+
+- id: eu-fueleu-maritime-2023-1805-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/c9a4756f-58e4-11ee-9220-01aa75ed71a1.0009.03/DOC_1
+  title: "Règlement (UE) 2023/1805 — FuelEU Maritime"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R1805"
+  parties: [EU]
+  topics: [maritime, fuels]
+  lang: fr
+  published: 2023-09-13
+
+- id: eu-fueleu-maritime-2023-1805-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/c9a4756f-58e4-11ee-9220-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/1805 — FuelEU Maritime"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R1805"
+  parties: [EU]
+  topics: [maritime, fuels]
+  lang: en
+  published: 2023-09-13
+
+- id: eu-refueleu-aviation-2023-2405-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/23d2f354-778f-11ee-99ba-01aa75ed71a1.0010.03/DOC_1
+  title: "Règlement (UE) 2023/2405 — ReFuelEU Aviation"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R2405"
+  parties: [EU]
+  topics: [aviation, fuels]
+  lang: fr
+  published: 2023-10-18
+
+- id: eu-refueleu-aviation-2023-2405-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/23d2f354-778f-11ee-99ba-01aa75ed71a1.0006.03/DOC_1
+  title: "Regulation (EU) 2023/2405 — ReFuelEU Aviation"
+  level: 1
+  org: EU (Parlement européen et Conseil)
+  doc_type: loi_ue
+  symbol: "CELEX:32023R2405"
+  parties: [EU]
+  topics: [aviation, fuels]
+  lang: en
+  published: 2023-10-18
+
+# Proposition en cours de négociation (non adoptée au 06/11/2026). PDF, DOC_2 = annexes.
+- id: eu-com-2026-616-ets-revision-proposal-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/757bd24a-8413-11f1-bf5e-01aa75ed71a1.0021.02/DOC_1
+  title: "COM(2026) 616 — proposition de directive modifiant la directive SEQE et la décision MSR (compétitivité et décarbonation)"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52026PC0616"
+  parties: [EU]
+  topics: [ets, carbon_pricing, post2030]
+  lang: fr
+  published: 2026-07-17
+
+# Proposition en cours de négociation (non adoptée au 06/11/2026). PDF, DOC_2 = annexes.
+- id: eu-com-2026-616-ets-revision-proposal-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/757bd24a-8413-11f1-bf5e-01aa75ed71a1.0001.02/DOC_1
+  title: "COM(2026) 616 — proposal amending the ETS Directive and MSR Decision (competitiveness and cost-effective decarbonisation)"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52026PC0616"
+  parties: [EU]
+  topics: [ets, carbon_pricing, post2030]
+  lang: en
+  published: 2026-07-17
+
+# Le Conseil a arrêté sa position le 06/11/2026 (report d'un an des règles de surveillance) ; non adopté définitivement.
+- id: eu-com-2026-569-methane-postponement-proposal-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/372bda24-c7b3-11f1-a77b-01aa75ed71a1.0011.03/DOC_1
+  title: "COM(2026) 569 — proposition de report de certaines obligations du règlement méthane"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52026PC0569"
+  parties: [EU]
+  topics: [methane]
+  lang: fr
+  published: 2026-10-14
+
+# Le Conseil a arrêté sa position le 06/11/2026 (report d'un an des règles de surveillance) ; non adopté définitivement.
+- id: eu-com-2026-569-methane-postponement-proposal-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/372bda24-c7b3-11f1-a77b-01aa75ed71a1.0001.03/DOC_1
+  title: "COM(2026) 569 — proposal postponing certain obligations of the Methane Regulation"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52026PC0569"
+  parties: [EU]
+  topics: [methane]
+  lang: en
+  published: 2026-10-14
+
+# Version FR non encore disponible dans Cellar au 06/11/2026.
+- id: eu-com-2026-730-climate-resilience-law-proposal-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/7c3162c8-d2b9-11f1-9458-01aa75ed71a1.0001.02/DOC_1
+  title: "COM(2026) 730 — proposal for a European Climate Resilience Law"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52026PC0730"
+  parties: [EU]
+  topics: [adaptation, resilience]
+  lang: en
+  published: 2026-10-27
+
+# Communication ; version FR non encore disponible dans Cellar au 06/11/2026.
+- id: eu-com-2026-720-resilient-europe-communication-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/78edd086-d2b9-11f1-9458-01aa75ed71a1.0001.03/DOC_1
+  title: "COM(2026) 720 — A resilient Europe for a changing climate (EU framework for climate resilience)"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52026DC0720"
+  parties: [EU]
+  topics: [adaptation, resilience]
+  lang: en
+  published: 2026-10-27
+
+# L'édition 2026 n'était pas encore dans Cellar au 06/11/2026 — à surveiller.
+- id: eu-com-2025-668-climate-action-progress-report-2025-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/5685db25-bb0c-11f0-b37f-01aa75ed71a1.0015.03/DOC_1
+  title: "COM(2025) 668 — Rapport 2025 sur les progrès de l'action climatique de l'UE"
+  level: 2
+  org: Commission européenne
+  doc_type: rapport_synthese
+  symbol: "CELEX:52025DC0668"
+  parties: [EU]
+  topics: [progress, emissions]
+  lang: fr
+  published: 2025-11-06
+
+# L'édition 2026 n'était pas encore dans Cellar au 06/11/2026 — à surveiller.
+- id: eu-com-2025-668-climate-action-progress-report-2025-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/5685db25-bb0c-11f0-b37f-01aa75ed71a1.0001.03/DOC_1
+  title: "COM(2025) 668 — EU Climate Action Progress Report 2025"
+  level: 2
+  org: Commission européenne
+  doc_type: rapport_synthese
+  symbol: "CELEX:52025DC0668"
+  parties: [EU]
+  topics: [progress, emissions]
+  lang: en
+  published: 2025-11-06
+
+# Historique : remplacée par le règlement adopté (UE) 2026/667.
+- id: eu-com-2025-524-2040-proposal-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/5c12772c-5741-11f0-a9d0-01aa75ed71a1.0014.03/DOC_1
+  title: "COM(2025) 524 — proposition initiale d'amendement de la loi climat (objectif 2040)"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52025PC0524"
+  parties: [EU]
+  topics: [2040_target]
+  lang: fr
+  published: 2025-07-02
+
+# Historique : remplacée par le règlement adopté (UE) 2026/667.
+- id: eu-com-2025-524-2040-proposal-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/5c12772c-5741-11f0-a9d0-01aa75ed71a1.0001.03/DOC_1
+  title: "COM(2025) 524 — initial proposal amending the Climate Law (2040 target)"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52025PC0524"
+  parties: [EU]
+  topics: [2040_target]
+  lang: en
+  published: 2025-07-02
+
+- id: eu-com-2024-63-2040-communication-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/22aa67c3-c5a6-11ee-95d9-01aa75ed71a1.0008.03/DOC_1
+  title: "COM(2024) 63 — Communication « Assurer notre avenir » : objectif climatique 2040"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52024DC0063"
+  parties: [EU]
+  topics: [2040_target]
+  lang: fr
+  published: 2024-02-06
+
+- id: eu-com-2024-63-2040-communication-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/22aa67c3-c5a6-11ee-95d9-01aa75ed71a1.0001.03/DOC_1
+  title: "COM(2024) 63 — Securing our future: Europe's 2040 climate target"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52024DC0063"
+  parties: [EU]
+  topics: [2040_target]
+  lang: en
+  published: 2024-02-06
+
+# Proposition (statut d'adoption non vérifié).
+- id: eu-com-2025-990-temporary-decarbonisation-fund-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/95ee45d7-db37-11f0-8da2-01aa75ed71a1.0023.02/DOC_1
+  title: "COM(2025) 990 — proposition de règlement établissant le Fonds temporaire de décarbonation"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52025PC0990"
+  parties: [EU]
+  topics: [industry, cbam]
+  lang: fr
+  published: 2025-12-17
+
+# Proposition (statut d'adoption non vérifié).
+- id: eu-com-2025-990-temporary-decarbonisation-fund-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/95ee45d7-db37-11f0-8da2-01aa75ed71a1.0001.02/DOC_1
+  title: "COM(2025) 990 — proposal establishing the Temporary Decarbonisation Fund"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52025PC0990"
+  parties: [EU]
+  topics: [industry, cbam]
+  lang: en
+  published: 2025-12-17
+
+# Proposition (statut d'adoption non vérifié).
+- id: eu-com-2025-995-light-duty-co2-proposal-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9d22e7e0-db5c-11f0-8da2-01aa75ed71a1.0018.02/DOC_1
+  title: "COM(2025) 995 — proposition modifiant le règlement (UE) 2019/631 (normes CO2 véhicules légers)"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52025PC0995"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: fr
+  published: 2025-12-16
+
+# Proposition (statut d'adoption non vérifié).
+- id: eu-com-2025-995-light-duty-co2-proposal-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/9d22e7e0-db5c-11f0-8da2-01aa75ed71a1.0001.02/DOC_1
+  title: "COM(2025) 995 — proposal amending Regulation (EU) 2019/631 (light-duty CO2 standards)"
+  level: 2
+  org: Commission européenne
+  doc_type: proposition_ue
+  symbol: "CELEX:52025PC0995"
+  parties: [EU]
+  topics: [transport, cars]
+  lang: en
+  published: 2025-12-16
+
+- id: eu-com-2025-735-carbon-market-report-fr
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/cb8a1d6e-d051-11f0-8da2-01aa75ed71a1.0019.03/DOC_1
+  title: "COM(2025) 735 — rapport sur le fonctionnement du marché carbone européen en 2024"
+  level: 2
+  org: Commission européenne
+  doc_type: rapport_synthese
+  symbol: "CELEX:52025DC0735"
+  parties: [EU]
+  topics: [ets, carbon_pricing]
+  lang: fr
+  published: 2025-12-03
+
+- id: eu-com-2025-735-carbon-market-report-en
+  type: doc
+  url: https://publications.europa.eu/resource/cellar/cb8a1d6e-d051-11f0-8da2-01aa75ed71a1.0001.03/DOC_1
+  title: "COM(2025) 735 — report on the functioning of the European carbon market in 2024"
+  level: 2
+  org: Commission européenne
+  doc_type: rapport_synthese
+  symbol: "CELEX:52025DC0735"
+  parties: [EU]
+  topics: [ets, carbon_pricing]
+  lang: en
+  published: 2025-12-03

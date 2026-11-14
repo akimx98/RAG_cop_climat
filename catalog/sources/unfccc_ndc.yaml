@@ -1,0 +1,2494 @@
+# CDN (contributions déterminées au niveau national) et rapports de synthèse.
+# Le registre officiel https://unfccc.int/NDCREG est derrière Imperva : gardé « à confirmer ».
+# Alternative vérifiée (HTTP 200, application/json) : API Climate Watch (WRI), une URL par Partie qui renvoie
+# une LISTE JSON de documents [{document_type, language, html, ...}] : le texte intégral de chaque CDN est dans le
+# champ « html ». ATTENTION pipeline : ce n'est ni un PDF ni une page HTML -> prévoir un extracteur JSON
+# (itérer sur la liste, 1 document par élément, titre = location.name + document_type + language).
+# Exemples : EUU = UE (second_ndc = CDN 2035 du 05/11/2025), CHN third_ndc (EN+CN), BRA second_ndc (= CDN 3.0 2024).
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# Registre complet des CDN (toutes générations : INDC, 1re CDN, mises à jour, CDN 3.0). Structure non vérifiable
+# (snapshots Wayback = page de challenge). Alternative accessible : entrées climatewatch ci-dessous.
+- id: unfccc-ndc-registry
+  type: crawl
+  start: ['https://unfccc.int/NDCREG']
+  follow: ['^https://unfccc\.int/NDCREG(\?.*page=\d+.*)?$', '^https://unfccc\.int/documents/\d+$']
+  collect: ['^https://unfccc\.int/sites/default/files/NDC/.+\.pdf$', '^https://unfccc\.int/sites/default/files/resource/.+\.pdf$']
+  max_depth: 3
+  max_docs: 900
+  level: 2
+  org: UNFCCC
+  doc_type: ndc
+  title_from: link_text
+  watch_minutes: 0
+
+# Source alternative au registre NDC (unfccc.int bloqué). JSON : ndcs[].{document_type, language, location.iso_code3}.
+# document_type ∈ indc | first_ndc | revised_first_ndc | second_ndc | third_ndc (au 2026-11-06 : 197/241/184/62/137).
+- id: unfccc-ndc-climatewatch-index
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/text'
+  title: 'Climate Watch (WRI) — index JSON des textes de CDN disponibles (821 documents, 197 Parties)'
+  level: 2
+  org: WRI Climate Watch
+  doc_type: ndc
+  topics: [ndc, index]
+  lang: en
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-afg
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/AFG/text'
+  title: 'Afghanistan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [AFG]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ago
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/AGO/text'
+  title: 'Angola — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [AGO]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-alb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ALB/text'
+  title: 'Albania — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ALB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-and
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/AND/text'
+  title: 'Andorra — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [AND]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-are
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ARE/text'
+  title: 'United Arab Emirates — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ARE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-arg
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ARG/text'
+  title: 'Argentina — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ARG]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-arm
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ARM/text'
+  title: 'Armenia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ARM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-atg
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ATG/text'
+  title: 'Antigua and Barbuda — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ATG]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-aus
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/AUS/text'
+  title: 'Australia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [AUS]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-aut
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/AUT/text'
+  title: 'Austria — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [AUT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-aze
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/AZE/text'
+  title: 'Azerbaijan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [AZE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bdi
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BDI/text'
+  title: 'Burundi — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BDI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bel
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BEL/text'
+  title: 'Belgium — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BEL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ben
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BEN/text'
+  title: 'Benin — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BEN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bfa
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BFA/text'
+  title: 'Burkina Faso — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BFA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bgd
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BGD/text'
+  title: 'Bangladesh — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BGD]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bgr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BGR/text'
+  title: 'Bulgaria — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BGR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bhr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BHR/text'
+  title: 'Bahrain — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BHR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bhs
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BHS/text'
+  title: 'Bahamas — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BHS]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bih
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BIH/text'
+  title: 'Bosnia and Herzegovina — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BIH]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-blr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BLR/text'
+  title: 'Belarus — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BLR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-blz
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BLZ/text'
+  title: 'Belize — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BLZ]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bol
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BOL/text'
+  title: 'Bolivia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BOL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bra
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BRA/text'
+  title: 'Brazil — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BRA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-brb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BRB/text'
+  title: 'Barbados — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BRB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-brn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BRN/text'
+  title: 'Brunei — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BRN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-btn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BTN/text'
+  title: 'Bhutan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BTN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-bwa
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/BWA/text'
+  title: 'Botswana — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [BWA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-caf
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CAF/text'
+  title: 'Central African Republic — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CAF]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-can
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CAN/text'
+  title: 'Canada — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CAN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-che
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CHE/text'
+  title: 'Switzerland — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CHE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-chl
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CHL/text'
+  title: 'Chile — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CHL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-chn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CHN/text'
+  title: 'China — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CHN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-civ
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CIV/text'
+  title: 'Côte d''Ivoire — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CIV]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cmr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CMR/text'
+  title: 'Cameroon — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CMR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cod
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/COD/text'
+  title: 'Democratic Republic of the Congo — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [COD]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cog
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/COG/text'
+  title: 'Congo — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [COG]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cok
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/COK/text'
+  title: 'Cook Islands — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [COK]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-col
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/COL/text'
+  title: 'Colombia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [COL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-com
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/COM/text'
+  title: 'Comoros — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [COM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cpv
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CPV/text'
+  title: 'Cabo Verde — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CPV]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cri
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CRI/text'
+  title: 'Costa Rica — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CRI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cub
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CUB/text'
+  title: 'Cuba — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CUB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cyp
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CYP/text'
+  title: 'Cyprus — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CYP]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-cze
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/CZE/text'
+  title: 'Czech Republic — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [CZE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-deu
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/DEU/text'
+  title: 'Germany — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [DEU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-dji
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/DJI/text'
+  title: 'Djibouti — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [DJI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-dma
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/DMA/text'
+  title: 'Dominica — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [DMA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-dnk
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/DNK/text'
+  title: 'Denmark — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [DNK]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-dom
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/DOM/text'
+  title: 'Dominican Republic — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [DOM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-dza
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/DZA/text'
+  title: 'Algeria — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [DZA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ecu
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ECU/text'
+  title: 'Ecuador — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ECU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-egy
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/EGY/text'
+  title: 'Egypt — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [EGY]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-eri
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ERI/text'
+  title: 'Eritrea — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ERI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-esp
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ESP/text'
+  title: 'Spain — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ESP]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-est
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/EST/text'
+  title: 'Estonia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [EST]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-eth
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ETH/text'
+  title: 'Ethiopia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ETH]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-euu
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/EUU/text'
+  title: 'European Union (27) — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [EU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-fin
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/FIN/text'
+  title: 'Finland — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [FIN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-fji
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/FJI/text'
+  title: 'Fiji — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [FJI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-fra
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/FRA/text'
+  title: 'France — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [FRA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-fsm
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/FSM/text'
+  title: 'Micronesia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [FSM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gab
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GAB/text'
+  title: 'Gabon — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GAB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gbr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GBR/text'
+  title: 'United Kingdom — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GBR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-geo
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GEO/text'
+  title: 'Georgia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GEO]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gha
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GHA/text'
+  title: 'Ghana — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GHA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gin
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GIN/text'
+  title: 'Guinea — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GIN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gmb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GMB/text'
+  title: 'Gambia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GMB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gnb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GNB/text'
+  title: 'Guinea-Bissau — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GNB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gnq
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GNQ/text'
+  title: 'Equatorial Guinea — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GNQ]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-grc
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GRC/text'
+  title: 'Greece — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GRC]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-grd
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GRD/text'
+  title: 'Grenada — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GRD]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-gtm
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GTM/text'
+  title: 'Guatemala — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GTM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-guy
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/GUY/text'
+  title: 'Guyana — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [GUY]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-hnd
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/HND/text'
+  title: 'Honduras — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [HND]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-hrv
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/HRV/text'
+  title: 'Croatia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [HRV]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-hti
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/HTI/text'
+  title: 'Haiti — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [HTI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-hun
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/HUN/text'
+  title: 'Hungary — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [HUN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-idn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/IDN/text'
+  title: 'Indonesia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [IDN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ind
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/IND/text'
+  title: 'India — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [IND]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-irl
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/IRL/text'
+  title: 'Ireland — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [IRL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-irn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/IRN/text'
+  title: 'Iran — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [IRN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-irq
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/IRQ/text'
+  title: 'Iraq — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [IRQ]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-isl
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ISL/text'
+  title: 'Iceland — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ISL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-isr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ISR/text'
+  title: 'Israel — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ISR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ita
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ITA/text'
+  title: 'Italy — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ITA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-jam
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/JAM/text'
+  title: 'Jamaica — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [JAM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-jor
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/JOR/text'
+  title: 'Jordan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [JOR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-jpn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/JPN/text'
+  title: 'Japan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [JPN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-kaz
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KAZ/text'
+  title: 'Kazakhstan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KAZ]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ken
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KEN/text'
+  title: 'Kenya — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KEN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-kgz
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KGZ/text'
+  title: 'Kyrgyzstan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KGZ]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-khm
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KHM/text'
+  title: 'Cambodia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KHM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-kir
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KIR/text'
+  title: 'Kiribati — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KIR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-kna
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KNA/text'
+  title: 'Saint Kitts and Nevis — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KNA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-kor
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KOR/text'
+  title: 'South Korea — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KOR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-kwt
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/KWT/text'
+  title: 'Kuwait — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [KWT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lao
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LAO/text'
+  title: 'Laos — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LAO]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lbn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LBN/text'
+  title: 'Lebanon — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LBN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lbr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LBR/text'
+  title: 'Liberia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LBR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lca
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LCA/text'
+  title: 'Saint Lucia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LCA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lie
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LIE/text'
+  title: 'Liechtenstein — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LIE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lka
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LKA/text'
+  title: 'Sri Lanka — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LKA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lso
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LSO/text'
+  title: 'Lesotho — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LSO]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ltu
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LTU/text'
+  title: 'Lithuania — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LTU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lux
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LUX/text'
+  title: 'Luxembourg — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LUX]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-lva
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/LVA/text'
+  title: 'Latvia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [LVA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mar
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MAR/text'
+  title: 'Morocco — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MAR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mco
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MCO/text'
+  title: 'Monaco — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MCO]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mda
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MDA/text'
+  title: 'Moldova — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MDA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mdg
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MDG/text'
+  title: 'Madagascar — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MDG]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mdv
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MDV/text'
+  title: 'Maldives — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MDV]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mex
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MEX/text'
+  title: 'Mexico — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MEX]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mhl
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MHL/text'
+  title: 'Marshall Islands — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MHL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mkd
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MKD/text'
+  title: 'North Macedonia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MKD]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mli
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MLI/text'
+  title: 'Mali — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MLI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mlt
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MLT/text'
+  title: 'Malta — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MLT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mmr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MMR/text'
+  title: 'Myanmar — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MMR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mne
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MNE/text'
+  title: 'Montenegro — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MNE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mng
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MNG/text'
+  title: 'Mongolia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MNG]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-moz
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MOZ/text'
+  title: 'Mozambique — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MOZ]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mrt
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MRT/text'
+  title: 'Mauritania — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MRT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mus
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MUS/text'
+  title: 'Mauritius — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MUS]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mwi
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MWI/text'
+  title: 'Malawi — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MWI]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-mys
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/MYS/text'
+  title: 'Malaysia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [MYS]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-nam
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NAM/text'
+  title: 'Namibia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NAM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ner
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NER/text'
+  title: 'Niger — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NER]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-nga
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NGA/text'
+  title: 'Nigeria — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NGA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-nic
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NIC/text'
+  title: 'Nicaragua — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NIC]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-niu
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NIU/text'
+  title: 'Niue — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NIU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-nld
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NLD/text'
+  title: 'Netherlands — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NLD]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-nor
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NOR/text'
+  title: 'Norway — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NOR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-npl
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NPL/text'
+  title: 'Nepal — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NPL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-nru
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NRU/text'
+  title: 'Nauru — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NRU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-nzl
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/NZL/text'
+  title: 'New Zealand — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [NZL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-omn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/OMN/text'
+  title: 'Oman — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [OMN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-pak
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PAK/text'
+  title: 'Pakistan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PAK]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-pan
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PAN/text'
+  title: 'Panama — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PAN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-per
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PER/text'
+  title: 'Peru — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PER]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-phl
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PHL/text'
+  title: 'Philippines — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PHL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-plw
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PLW/text'
+  title: 'Palau — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PLW]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-png
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PNG/text'
+  title: 'Papua New Guinea — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PNG]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-pol
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/POL/text'
+  title: 'Poland — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [POL]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-prk
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PRK/text'
+  title: 'North Korea — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PRK]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-prt
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PRT/text'
+  title: 'Portugal — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PRT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-pry
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PRY/text'
+  title: 'Paraguay — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PRY]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-pse
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/PSE/text'
+  title: 'Palestine — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [PSE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-qat
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/QAT/text'
+  title: 'Qatar — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [QAT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-rou
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ROU/text'
+  title: 'Romania — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ROU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-rus
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/RUS/text'
+  title: 'Russia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [RUS]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-rwa
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/RWA/text'
+  title: 'Rwanda — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [RWA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-sau
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SAU/text'
+  title: 'Saudi Arabia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SAU]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-sdn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SDN/text'
+  title: 'Sudan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SDN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-sen
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SEN/text'
+  title: 'Senegal — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SEN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-sgp
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SGP/text'
+  title: 'Singapore — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SGP]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-slb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SLB/text'
+  title: 'Solomon Islands — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SLB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-sle
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SLE/text'
+  title: 'Sierra Leone — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SLE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-slv
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SLV/text'
+  title: 'El Salvador — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SLV]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-smr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SMR/text'
+  title: 'San Marino — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SMR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-som
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SOM/text'
+  title: 'Somalia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SOM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-srb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SRB/text'
+  title: 'Serbia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SRB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ssd
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SSD/text'
+  title: 'South Sudan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SSD]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-stp
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/STP/text'
+  title: 'São Tomé and Principe — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [STP]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-sur
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SUR/text'
+  title: 'Suriname — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SUR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-svk
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SVK/text'
+  title: 'Slovakia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SVK]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-svn
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SVN/text'
+  title: 'Slovenia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SVN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-swe
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SWE/text'
+  title: 'Sweden — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SWE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-swz
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SWZ/text'
+  title: 'Eswatini — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SWZ]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-syc
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SYC/text'
+  title: 'Seychelles — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SYC]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-syr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/SYR/text'
+  title: 'Syria — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [SYR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tcd
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TCD/text'
+  title: 'Chad — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TCD]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tgo
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TGO/text'
+  title: 'Togo — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TGO]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tha
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/THA/text'
+  title: 'Thailand — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [THA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tjk
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TJK/text'
+  title: 'Tajikistan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TJK]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tkm
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TKM/text'
+  title: 'Turkmenistan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TKM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tls
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TLS/text'
+  title: 'East Timor — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TLS]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ton
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TON/text'
+  title: 'Tonga — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TON]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tto
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TTO/text'
+  title: 'Trinidad and Tobago — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TTO]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tun
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TUN/text'
+  title: 'Tunisia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TUN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tur
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TUR/text'
+  title: 'Turkey — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TUR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tuv
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TUV/text'
+  title: 'Tuvalu — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TUV]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-tza
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/TZA/text'
+  title: 'Tanzania — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [TZA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-uga
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/UGA/text'
+  title: 'Uganda — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [UGA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ukr
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/UKR/text'
+  title: 'Ukraine — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [UKR]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ury
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/URY/text'
+  title: 'Uruguay — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [URY]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-usa
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/USA/text'
+  title: 'United States — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [USA]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-uzb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/UZB/text'
+  title: 'Uzbekistan — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [UZB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-vat
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/VAT/text'
+  title: 'Vatican City — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [VAT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-vct
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/VCT/text'
+  title: 'Saint Vincent and the Grenadines — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [VCT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-ven
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/VEN/text'
+  title: 'Venezuela — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [VEN]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-vnm
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/VNM/text'
+  title: 'Vietnam — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [VNM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-vut
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/VUT/text'
+  title: 'Vanuatu — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [VUT]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-wsm
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/WSM/text'
+  title: 'Samoa — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [WSM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-yem
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/YEM/text'
+  title: 'Yemen — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [YEM]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-zaf
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ZAF/text'
+  title: 'South Africa — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ZAF]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-zmb
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ZMB/text'
+  title: 'Zambia — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ZMB]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+- id: unfccc-ndc-text-zwe
+  type: doc
+  url: 'https://www.climatewatchdata.org/api/v1/ndcs/ZWE/text'
+  title: 'Zimbabwe — textes intégraux de toutes les CDN (INDC → CDN 3.0), via Climate Watch'
+  level: 2
+  org: 'WRI Climate Watch (textes officiels soumis à la CCNUCC)'
+  doc_type: ndc
+  parties: [ZWE]
+  topics: [ndc]
+  lang: mul
+  watch_minutes: 1440
+
+# Anglais uniquement (FR absent de l'ODS au 2026-11-06).
+- id: unfccc-ndc-synthesis-2026
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2026/9&l=en&t=pdf'
+  title: 'Rapport de synthèse des CDN au titre de l''Accord de Paris — mise à jour 2026'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA8
+  symbol: FCCC/PA/CMA/2026/9
+  topics: [ndc, synthesis, mitigation]
+  lang: en
+  published: 2026-10-27
+
+# Anglais uniquement (FR absent de l'ODS au 2026-11-06).
+- id: unfccc-ndc-synthesis-2025
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2025/8&l=en&t=pdf'
+  title: 'Rapport de synthèse des CDN au titre de l''Accord de Paris — 2025 (CDN 3.0)'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA7
+  symbol: FCCC/PA/CMA/2025/8
+  topics: [ndc, synthesis, mitigation]
+  lang: en
+  published: 2025-10-28
+
+- id: unfccc-ndc-synthesis-2024
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2024/10&l=en&t=pdf'
+  title: 'Rapport de synthèse des CDN au titre de l''Accord de Paris — 2024'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA6
+  symbol: FCCC/PA/CMA/2024/10
+  topics: [ndc, synthesis, mitigation]
+  lang: en
+  published: 2024-10-28
+
+- id: unfccc-ndc-synthesis-2023
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2023/12&l=en&t=pdf'
+  title: 'Rapport de synthèse des CDN au titre de l''Accord de Paris — 2023'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA5
+  symbol: FCCC/PA/CMA/2023/12
+  topics: [ndc, synthesis, mitigation]
+  lang: en
+  published: 2023-11-14
+
+- id: unfccc-ndc-synthesis-2022
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2022/4&l=en&t=pdf'
+  title: 'Rapport de synthèse des CDN au titre de l''Accord de Paris — 2022'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA4
+  symbol: FCCC/PA/CMA/2022/4
+  topics: [ndc, synthesis, mitigation]
+  lang: en
+  published: 2022-10-26
+
+- id: unfccc-ndc-synthesis-2021-rev1
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2021/8/Rev.1&l=en&t=pdf'
+  title: 'Rapport de synthèse des CDN — version révisée 2021'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA3
+  symbol: FCCC/PA/CMA/2021/8/Rev.1
+  topics: [ndc, synthesis, mitigation]
+  lang: en
+  published: 2021-10-25
+
+- id: unfccc-lts-synthesis-2023
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2023/10&l=en&t=pdf'
+  title: 'Stratégies de développement à faibles émissions à long terme — rapport de synthèse'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA5
+  symbol: FCCC/PA/CMA/2023/10
+  topics: [ndc, synthesis, mitigation]
+  lang: en
+  published: 2023-11-14
+

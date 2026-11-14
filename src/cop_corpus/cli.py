@@ -1,0 +1,299 @@
+"""Ligne de commande `cop`."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import mimetypes
+import sys
+from pathlib import Path
+
+from . import auth, catalog, config, db, embed, ingest, search
+
+
+def _print(obj) -> None:
+    print(json.dumps(obj, ensure_ascii=False, indent=2, default=str))
+
+
+def cmd_fetch(args) -> None:
+    sources = catalog.load()
+    if args.source:
+        wanted = set(args.source)
+        sources = [s for s in sources if s.id in wanted or any(s.id.startswith(w) or s.file.startswith(w) for w in wanted)]
+    if args.watched:
+        sources = [s for s in sources if s.watch_minutes > 0]
+    if args.type:
+        sources = [s for s in sources if s.type == args.type]
+    print(f"{len(sources)} sources", file=sys.stderr)
+    res = ingest.run_many(sources, workers=args.workers, recheck=args.recheck,
+                          progress=lambda m: print(m, file=sys.stderr, flush=True))
+    total: dict[str, int] = {}
+    for counts in res.values():
+        for k, v in counts.items():
+            if isinstance(v, int):
+                total[k] = total.get(k, 0) + v
+    _print({"total": total})
+
+
+def cmd_build(args) -> None:
+    conn = db.get()
+    _print(ingest.reindex_pending(conn))
+    if args.all:
+        ids = [r["id"] for r in conn.execute("SELECT id FROM documents WHERE status IN ('indexed','empty','error')")]
+        counts: dict[str, int] = {}
+        for i in ids:
+            st = ingest.index_document(conn, i)
+            counts[st] = counts.get(st, 0) + 1
+        _print(counts)
+
+
+def cmd_embed(args) -> None:
+    conn = db.get()
+    n = embed.embed_pending(conn, limit=args.limit, progress=lambda m: print(m, file=sys.stderr, flush=True))
+    print(f"{n} passages encodés")
+
+
+def cmd_search(args) -> None:
+    conn = db.get()
+    filters = {}
+    if args.level:
+        filters["levels"] = args.level
+    admin = {"can_restricted": 1, "active": 1}
+    for hit in search.search(conn, args.query, filters, admin, limit=args.limit, semantic=not args.lexical):
+        print(f"[{hit.get('niveau')}] {hit.get('titre')} — {hit.get('cote', '')} {hit.get('paragraphe') or ''} p.{hit.get('page')}")
+        print(f"    {hit['extrait'][:300]}")
+        print(f"    {hit.get('url_source') or hit['lien']}  (passage {hit['passage_id']})")
+
+
+def cmd_stats(args) -> None:
+    _print(search.stats(db.get()))
+
+
+def cmd_log(args) -> None:
+    conn = db.get()
+    rows = conn.execute(
+        "SELECT ts, source_id, outcome, url, detail FROM fetch_log WHERE outcome LIKE ? ORDER BY id DESC LIMIT ?",
+        (args.outcome or "%", args.limit),
+    ).fetchall()
+    for r in rows:
+        print(f"{r['ts']} {r['outcome']:7} {r['source_id']} {r['url']} {r['detail']}")
+
+
+def cmd_sources(args) -> None:
+    conn = db.get()
+    state = {r["source_id"]: r for r in conn.execute("SELECT * FROM source_state")}
+    for s in catalog.load():
+        st = state.get(s.id)
+        print(f"{s.id:45} {s.type:5} watch={s.watch_minutes:<3} {st['last_run'] if st else '-':20} {st['last_result'] if st else ''}")
+
+
+def cmd_user_add(args) -> None:
+    conn = db.get()
+    uid, token = auth.create_user(conn, args.email, args.name or "", admin=args.admin, restricted=not args.public_only)
+    user = auth.by_id(conn, uid)
+    _print({
+        "id": uid,
+        "lien_premiere_connexion": auth.login_link(user),
+        "connecteur_mcp": f"{config.PUBLIC_BASE}/u/{token}/mcp",
+        "code_telegram": user["telegram_code"],
+        "attention": "Lien valable 24 h pour choisir un mot de passe. Transmettre par un canal sûr.",
+    })
+
+
+def cmd_user_reset(args) -> None:
+    conn = db.get()
+    user = auth.by_email(conn, args.email)
+    if not user:
+        sys.exit("utilisateur inconnu")
+    token = auth.reset_token(conn, user["id"])
+    _print({"lien_connexion": f"{config.PUBLIC_BASE}/login/{token}", "connecteur_mcp": f"{config.PUBLIC_BASE}/u/{token}/mcp"})
+
+
+def cmd_user_link(args) -> None:
+    """Mot de passe oublié : lien de connexion 24 h, sans révoquer le connecteur MCP."""
+    conn = db.get()
+    user = auth.by_email(conn, args.email)
+    if not user:
+        sys.exit("utilisateur inconnu")
+    _print({"lien_connexion_24h": auth.login_link(user)})
+
+
+def cmd_user_list(args) -> None:
+    conn = db.get()
+    for r in conn.execute("SELECT id,email,name,is_admin,can_restricted,telegram_chat_id IS NOT NULL tg,active FROM users"):
+        print(dict(r))
+
+
+def cmd_ingest_file(args) -> None:
+    conn = db.get()
+    for p in args.paths:
+        path = Path(p)
+        mime = mimetypes.guess_type(path.name)[0] or ""
+        meta = {"title": args.title or path.stem, "level": args.level, "doc_type": args.doc_type, "org": args.org}
+        doc_id, new, status = ingest.ingest_bytes(
+            conn, path.read_bytes(), url=None, mime=mime, meta={k: v for k, v in meta.items() if v},
+            source_id="depot-manuel", access="restreint" if args.restricted else "public", filename=path.name,
+            note=args.note,
+        )
+        print(f"{path.name}: doc {doc_id} {'nouveau' if new else 'déjà présent'} {status}")
+    from . import alerts
+    alerts.run(conn)
+
+
+def cmd_load_data(args) -> None:
+    from . import data
+
+    _print(data.load_all(db.get()))
+
+
+def cmd_serve(args) -> None:
+    from . import server
+
+    server.run(host=args.host, port=args.port, with_worker=args.with_worker)
+
+
+def cmd_mail_server(args) -> None:
+    from . import mailin
+
+    mailin.serve(host=args.host, port=args.port)
+
+
+def cmd_mail_allow(args) -> None:
+    from . import mailin
+
+    conn = db.get()
+    for s in args.senders:
+        mailin.allow_sender(conn, s)
+    print("\n".join(mailin.allowed_senders(conn)))
+
+
+def cmd_worker(args) -> None:
+    from . import worker
+
+    worker.run_forever(bot=not args.no_bot, watch=not args.no_watch)
+
+
+def cmd_programme_sync(args) -> None:
+    from . import agenda, fetch
+
+    _print(agenda.sync_planner(db.get(), fetch.Client()))
+
+
+def cmd_programme_seors(args) -> None:
+    from . import agenda
+
+    text = Path(args.path).read_text(encoding="utf-8")
+    payload = json.loads(text) if text.lstrip().startswith("{") else agenda.parse_seors_tsv(text)
+    _print(agenda.import_seors(db.get(), payload))
+
+
+def cmd_programme(args) -> None:
+    from . import agenda
+
+    _print(agenda.query(db.get(), jour=args.jour, sujet=args.sujet, types=args.types, limit=args.limit))
+
+
+def cmd_mcp_stdio(args) -> None:
+    from . import mcp_server
+
+    mcp_server.mcp.run()
+
+
+def main(argv: list[str] | None = None) -> None:
+    p = argparse.ArgumentParser(prog="cop", description="Corpus COP31 : collecte, index, veille, alertes")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("fetch", help="collecter les sources du catalogue")
+    s.add_argument("--source", nargs="*", help="ids ou préfixes de fichier (ex. unfccc_, eu_)")
+    s.add_argument("--watched", action="store_true", help="seulement les sources surveillées")
+    s.add_argument("--type", choices=["doc", "crawl", "rss"])
+    s.add_argument("--workers", type=int, default=6)
+    s.add_argument("--recheck", action="store_true", help="re-télécharger les URL déjà connues")
+    s.set_defaults(func=cmd_fetch)
+
+    s = sub.add_parser("build", help="indexer les documents en attente")
+    s.add_argument("--all", action="store_true", help="ré-indexer tout")
+    s.set_defaults(func=cmd_build)
+
+    s = sub.add_parser("embed", help="calculer les embeddings manquants")
+    s.add_argument("--limit", type=int)
+    s.set_defaults(func=cmd_embed)
+
+    s = sub.add_parser("search")
+    s.add_argument("query")
+    s.add_argument("--level", nargs="*")
+    s.add_argument("--limit", type=int, default=10)
+    s.add_argument("--lexical", action="store_true")
+    s.set_defaults(func=cmd_search)
+
+    sub.add_parser("stats").set_defaults(func=cmd_stats)
+    sub.add_parser("sources").set_defaults(func=cmd_sources)
+    s = sub.add_parser("log")
+    s.add_argument("--outcome")
+    s.add_argument("--limit", type=int, default=40)
+    s.set_defaults(func=cmd_log)
+
+    s = sub.add_parser("user-add")
+    s.add_argument("email")
+    s.add_argument("--name")
+    s.add_argument("--admin", action="store_true")
+    s.add_argument("--public-only", action="store_true", help="pas d'accès aux documents restreints")
+    s.set_defaults(func=cmd_user_add)
+    s = sub.add_parser("user-reset")
+    s.add_argument("email")
+    s.set_defaults(func=cmd_user_reset)
+    s = sub.add_parser("user-link", help="lien de connexion 24 h (mot de passe oublié)")
+    s.add_argument("email")
+    s.set_defaults(func=cmd_user_link)
+    sub.add_parser("user-list").set_defaults(func=cmd_user_list)
+
+    s = sub.add_parser("ingest-file", help="déposer des fichiers locaux")
+    s.add_argument("paths", nargs="+")
+    s.add_argument("--title")
+    s.add_argument("--level")
+    s.add_argument("--doc-type")
+    s.add_argument("--org")
+    s.add_argument("--note")
+    s.add_argument("--public", dest="restricted", action="store_false")
+    s.set_defaults(func=cmd_ingest_file, restricted=True)
+
+    sub.add_parser("load-data", help="charger les jeux de données chiffrées (émissions)").set_defaults(func=cmd_load_data)
+
+    s = sub.add_parser("serve", help="tableau de bord web + MCP HTTP")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8000)
+    s.add_argument("--with-worker", action="store_true")
+    s.set_defaults(func=cmd_serve)
+
+    s = sub.add_parser("mail-server", help="réception SMTP (veille@, depot-…@)")
+    s.add_argument("--host", default="0.0.0.0")
+    s.add_argument("--port", type=int, default=2525)
+    s.set_defaults(func=cmd_mail_server)
+    s = sub.add_parser("mail-allow", help="autoriser des expéditeurs (adresse ou domaine) sur veille@")
+    s.add_argument("senders", nargs="*")
+    s.set_defaults(func=cmd_mail_allow)
+    s = sub.add_parser("worker", help="veilleur + alertes + bot Telegram")
+    s.add_argument("--no-bot", action="store_true")
+    s.add_argument("--no-watch", action="store_true")
+    s.set_defaults(func=cmd_worker)
+
+    sub.add_parser("programme-sync", help="relever le planner (side events, réunions officielles)").set_defaults(
+        func=cmd_programme_sync)
+    s = sub.add_parser("programme-seors", help="importer un relevé SEORS fait dans un navigateur (JSON)")
+    s.add_argument("path")
+    s.set_defaults(func=cmd_programme_seors)
+    s = sub.add_parser("programme", help="programme d'un jour / d'un sujet")
+    s.add_argument("--jour")
+    s.add_argument("--sujet")
+    s.add_argument("--types", nargs="*")
+    s.add_argument("--limit", type=int, default=40)
+    s.set_defaults(func=cmd_programme)
+
+    sub.add_parser("mcp-stdio", help="serveur MCP en stdio (usage local)").set_defaults(func=cmd_mcp_stdio)
+
+    args = p.parse_args(argv)
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,303 @@
+# Rapports onusiens complémentaires : bilan mondial, transparence (BTR), financement (NCQG, feuille de route 1,3 T),
+# documents de session COP29/COP30, Comité permanent du financement, Fonds pertes et préjudices.
+# BTR : les originaux unfccc.int étant bloqués (Imperva), les PDF viennent de copies vérifiées (HTTP 200 application/pdf) :
+# site de la Commission (UE), env.go.jp (Japon), CDN Climate Policy Radar (miroir des soumissions CCNUCC, URL source citée).
+
+- id: unfccc-gst1-technical-dialogue-synthesis
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/SB/2023/9&l=en&t=pdf'
+  title: 'Premier bilan mondial — dialogue technique : rapport de synthèse des co-facilitateurs'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: SB59
+  symbol: FCCC/SB/2023/9
+  topics: [global_stocktake, synthesis]
+  lang: en
+  published: 2023-09-08
+
+- id: unfccc-gst1-technical-dialogue-synthesis-fr
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/SB/2023/9&l=fr&t=pdf'
+  title: 'Premier bilan mondial — dialogue technique : rapport de synthèse (FR)'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: SB59
+  symbol: FCCC/SB/2023/9
+  topics: [global_stocktake, synthesis]
+  lang: fr
+  published: 2023-09-08
+
+# Plusieurs de ces documents sont « English only » : la version FR renvoie /error (normal, ne pas compter comme panne).
+- id: unfccc-sb-joint-documents-2022-2023
+  type: ods
+  symbols: [FCCC/SB/2022/1, FCCC/SB/2022/2, FCCC/SB/2022/3, FCCC/SB/2022/4, FCCC/SB/2022/5, FCCC/SB/2022/6, FCCC/SB/2023/1, FCCC/SB/2023/2, FCCC/SB/2023/3, FCCC/SB/2023/4, FCCC/SB/2023/5, FCCC/SB/2023/6, FCCC/SB/2023/7, FCCC/SB/2023/8]
+  langs: [en, fr]
+  stop_after_misses: 20
+  title: 'Documents conjoints SBSTA/SBI 2022–2023 (deuxième examen périodique, GGA, MWP, WIM, Comité de l''adaptation, TEC/CTCN, mesures de riposte)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  topics: [global_stocktake, adaptation, mitigation, loss_and_damage]
+  watch_minutes: 0
+
+- id: unfccc-gst-annual-dialogue-2025
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2025/6&l=en&t=pdf'
+  title: 'Rapports 2024 et 2025 du dialogue annuel sur le bilan mondial (suivi 1/CMA.5)'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA7
+  symbol: FCCC/PA/CMA/2025/6
+  topics: [global_stocktake]
+  lang: en
+  published: 2025-10-07
+
+- id: unfccc-btr-synthesis-2025
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2025/16&l=en&t=pdf'
+  title: 'Rapports biennaux de transparence et rapports d''inventaire national — rapport de synthèse du secrétariat'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA7
+  symbol: FCCC/PA/CMA/2025/16
+  topics: [transparency, btr, synthesis]
+  lang: en
+  published: 2025-10-31
+
+- id: unfccc-baku-belem-roadmap-1-3t
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2025/11&l=en&t=pdf'
+  title: 'Feuille de route de Bakou à Belém vers 1,3 billion de dollars (« Baku to Belém Roadmap to 1.3T ») — rapport des présidences COP29/COP30'
+  level: 2
+  org: 'Présidences COP29 et COP30'
+  doc_type: rapport_synthese
+  session: CMA7
+  symbol: FCCC/PA/CMA/2025/11
+  topics: [finance, ncqg]
+  lang: en
+  published: 2025-11-06
+
+- id: unfccc-ncqg-adhoc-work-programme-2024
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/PA/CMA/2024/9&l=en&t=pdf'
+  title: 'NCQG — rapport du programme de travail ad hoc (texte de base des négociations de Bakou)'
+  level: 2
+  org: UNFCCC
+  doc_type: rapport_synthese
+  session: CMA6
+  symbol: FCCC/PA/CMA/2024/9
+  topics: [finance, ncqg]
+  lang: en
+  published: 2024-10-15
+
+# Plusieurs de ces documents sont « English only » : la version FR renvoie /error (normal, ne pas compter comme panne).
+# Cotes vérifiées une par une (EN). FCCC/CP/2025/2 = FCCC/PA/CMA/2025/3 (document conjoint, cité une fois).
+- id: unfccc-cop30-cma7-session-documents
+  type: ods
+  symbols: [FCCC/PA/CMA/2025/1, FCCC/PA/CMA/2025/2, FCCC/PA/CMA/2025/3, FCCC/PA/CMA/2025/4, FCCC/PA/CMA/2025/5, FCCC/PA/CMA/2025/7, FCCC/PA/CMA/2025/9, FCCC/PA/CMA/2025/10, FCCC/PA/CMA/2025/12, FCCC/PA/CMA/2025/14, FCCC/PA/CMA/2025/17, FCCC/PA/CMA/2025/18, FCCC/PA/CMA/2025/INF.1, FCCC/PA/CMA/2025/INF.2, FCCC/CP/2025/1, FCCC/CP/2025/3, FCCC/CP/2025/4, FCCC/CP/2025/5, FCCC/CP/2025/6, FCCC/CP/2025/7, FCCC/CP/2025/8, FCCC/CP/2025/10, FCCC/CP/2025/11, FCCC/CP/2025/7/Add.1, FCCC/CP/2025/8/Add.1]
+  langs: [en, fr]
+  stop_after_misses: 30
+  title: 'COP30/CMA7 (Belém) — documents de session : ordres du jour, rapports FVC/FEM/fonds pertes et préjudices, dialogues finance (Art. 2.1c, 9.5), comité de conformité, organe de supervision 6.4'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  topics: [session_documents, finance]
+  watch_minutes: 0
+
+# Plusieurs de ces documents sont « English only » : la version FR renvoie /error (normal, ne pas compter comme panne).
+- id: unfccc-cop29-cma6-session-documents
+  type: ods
+  symbols: [FCCC/PA/CMA/2024/1, FCCC/PA/CMA/2024/2, FCCC/PA/CMA/2024/4, FCCC/PA/CMA/2024/5, FCCC/PA/CMA/2024/6, FCCC/PA/CMA/2024/7, FCCC/PA/CMA/2024/8, FCCC/PA/CMA/2024/11, FCCC/PA/CMA/2024/12, FCCC/PA/CMA/2024/13, FCCC/PA/CMA/2024/14, FCCC/PA/CMA/2024/15, FCCC/PA/CMA/2024/16, FCCC/PA/CMA/2024/INF.1, FCCC/CP/2024/1, FCCC/CP/2024/2, FCCC/CP/2024/3, FCCC/CP/2024/4, FCCC/CP/2024/5, FCCC/CP/2024/6, FCCC/CP/2024/7, FCCC/CP/2024/8, FCCC/CP/2024/9, FCCC/CP/2024/10]
+  langs: [en, fr]
+  stop_after_misses: 30
+  title: 'COP29/CMA6 (Bakou) — documents de session (ordres du jour, rapports des organes et fonds, synthèses)'
+  level: 2
+  org: UNFCCC
+  doc_type: autre
+  topics: [session_documents, finance]
+  watch_minutes: 0
+
+- id: unfccc-btr1-eu
+  type: doc
+  url: 'https://climate.ec.europa.eu/document/download/806caa13-b17d-4c73-8a83-08c23b03f55c_en?filename=EUfirstBTR-glossy%20%281%29.pdf'
+  title: 'Union européenne — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Commission européenne'
+  doc_type: btr
+  parties: [EU]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-11-21
+
+# Copie Climate Policy Radar de https://unfccc.int/sites/default/files/resource/The%20People%E2%80%99s%20Republic%20of%20China%20First%20Biennial%20Transparency%20Report%20on%20Climate%20Change.pdf (bloqué Imperva)
+- id: unfccc-btr1-chn
+  type: doc
+  url: 'https://cdn.climatepolicyradar.org/navigator/CHN/2024/china-biennial-transparency-report-btr1_b83e99047b7f4d0d2c872f39715e54f2.pdf'
+  title: 'Chine — premier rapport biennal de transparence (BTR1, traduction anglaise non officielle)'
+  level: 2
+  org: 'Gouvernement de la Chine (MEE)'
+  doc_type: btr
+  parties: [CHN]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-12-31
+
+# Copie Climate Policy Radar de https://unfccc.int/sites/default/files/resource/2024%20U.S.%20Biennial%20Transparency%20Report.pdf
+- id: unfccc-btr1-usa
+  type: doc
+  url: 'https://cdn.climatepolicyradar.org/navigator/USA/2024/united-states-of-america-biennial-transparency-report-btr1_6e58d86abdeba0b1194769a10a4ff98d.pdf'
+  title: 'États-Unis — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Gouvernement des États-Unis'
+  doc_type: btr
+  parties: [USA]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-12-19
+
+# Copie Climate Policy Radar de https://unfccc.int/sites/default/files/resource/BTR1_INDIA.pdf
+- id: unfccc-btr1-ind
+  type: doc
+  url: 'https://cdn.climatepolicyradar.org/navigator/IND/2026/india-biennial-transparency-report-btr1_05fd5b2a6bbb71148dd1a064bfc891b1.pdf'
+  title: 'Inde — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Gouvernement de l''Inde'
+  doc_type: btr
+  parties: [IND]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2026-04-30
+
+# Copie Climate Policy Radar de https://unfccc.int/sites/default/files/resource/BRA_BTR1_2024_ENG.pdf
+- id: unfccc-btr1-bra
+  type: doc
+  url: 'https://cdn.climatepolicyradar.org/navigator/BRA/2024/brazil-biennial-transparency-report-btr1_edda596b878add8ebcffd39308ccae42.pdf'
+  title: 'Brésil — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Gouvernement du Brésil (MCTI)'
+  doc_type: btr
+  parties: [BRA]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-12-13
+
+# Copie Climate Policy Radar de https://unfccc.int/sites/default/files/resource/T%C3%BCrkiye_1BTR.pdf
+- id: unfccc-btr1-tur
+  type: doc
+  url: 'https://cdn.climatepolicyradar.org/navigator/TUR/2024/turkiye-biennial-transparency-report-btr1_a24973a9528868e56091b402cdddabc0.pdf'
+  title: 'Türkiye — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Gouvernement de la Türkiye'
+  doc_type: btr
+  parties: [TUR]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-11-07
+
+# Copie Climate Policy Radar de https://unfccc.int/sites/default/files/resource/KSA_BTR1_20250320-2.pdf
+- id: unfccc-btr1-sau
+  type: doc
+  url: 'https://cdn.climatepolicyradar.org/navigator/SAU/2025/saudi-arabia-biennial-transparency-report-btr1_f73502280c0942d8066a474018bd2c3b.pdf'
+  title: 'Arabie saoudite — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Gouvernement de l''Arabie saoudite'
+  doc_type: btr
+  parties: [SAU]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2025-03-24
+
+- id: unfccc-btr1-jpn
+  type: doc
+  url: 'https://www.env.go.jp/content/000269444.pdf'
+  title: 'Japon — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Ministère japonais de l''Environnement'
+  doc_type: btr
+  parties: [JPN]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-10-31
+
+- id: unfccc-btr1-gbr
+  type: doc
+  url: 'https://cdn.climatepolicyradar.org/navigator/GBR/2024/united-kingdom-biennial-transparency-report-btr1_0e77f9e4d928e6e9d64ea26cd95945e1.pdf'
+  title: 'Royaume-Uni — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: Gouvernement du Royaume-Uni
+  doc_type: btr
+  parties: [GBR]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-12-24
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# Aucune copie hors unfccc.int trouvée (ni dcceew.gov.au, ni Climate Policy Radar).
+- id: unfccc-btr1-aus
+  type: doc
+  url: 'https://unfccc.int/sites/default/files/resource/01.%20Australia%27s%20first%20Biennial%20Transparency%20Report%20%28BTR%29.pdf'
+  title: 'Australie — premier rapport biennal de transparence (BTR1)'
+  level: 2
+  org: 'Gouvernement australien (DCCEEW)'
+  doc_type: btr
+  parties: [AUS]
+  topics: [transparency, btr, emissions, ndc_progress]
+  lang: en
+  published: 2024-12-19
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# Liste complète des BTR soumis (BTR1 2024–2025, BTR2 attendus fin 2026).
+- id: unfccc-btr-submissions-pages
+  type: crawl
+  start: ['https://unfccc.int/first-biennial-transparency-reports', 'https://unfccc.int/second-biennial-transparency-reports']
+  follow: ['^https://unfccc\.int/documents/\d+$']
+  collect:
+    - '^https://unfccc\.int/sites/default/files/resource/.*BTR.*\.pdf$'
+  max_depth: 2
+  max_docs: 300
+  level: 2
+  org: UNFCCC
+  doc_type: btr
+  title_from: link_text
+  watch_minutes: 0
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+# à confirmer — URL de la page des rapports sur la détermination des besoins (NDR) non vérifiable.
+# Les rapports du SCF à la COP/CMA (FCCC/CP/AAAA/n/Add.k) sont couverts par les entrées ods de session.
+- id: unfccc-scf-needs-determination
+  type: crawl
+  start:
+    - 'https://unfccc.int/topics/climate-finance/workstreams/needs-report'
+  follow:
+    - '^https://unfccc\.int/(documents/\d+|topics/climate-finance/workstreams/needs-report.*)$'
+  collect: ['^https://unfccc\.int/sites/default/files/resource/.+\.pdf$']
+  max_depth: 2
+  max_docs: 30
+  level: 2
+  org: 'UNFCCC — Comité permanent du financement'
+  doc_type: rapport_synthese
+  topics: [finance, needs_determination]
+  title_from: link_text
+  watch_minutes: 0
+
+# à confirmer — www.frld.org renvoie 403 (protection anti-bot) au 2026-11-06 ; structure des liens non vérifiée.
+# Les rapports du Conseil du FRLD à la COP/CMA ont des cotes ODS (ex. FCCC/CP/2025/10 = FCCC/PA/CMA/2025/14) couvertes ailleurs.
+- id: unfccc-frld-board-documents
+  type: crawl
+  start: ['https://www.frld.org/']
+  follow:
+    - '^https://www\.frld\.org/(en/)?(documents|board|meetings)[^#]*$'
+  collect: ['^https://www\.frld\.org/.+\.pdf$']
+  max_depth: 2
+  max_docs: 100
+  level: 2
+  org: 'Fonds pour répondre aux pertes et préjudices (FRLD)'
+  doc_type: autre
+  topics: [loss_and_damage, finance]
+  title_from: link_text
+  watch_minutes: 0
+

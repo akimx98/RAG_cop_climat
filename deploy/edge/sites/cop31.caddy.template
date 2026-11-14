@@ -1,0 +1,16 @@
+# Route du service COP31 dans l'edge Caddy partagé (installée par scripts/install-edge-site.sh).
+__DOMAIN__ {
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy __BACKEND__
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+	}
+	log {
+		output stdout
+		format console
+	}
+}

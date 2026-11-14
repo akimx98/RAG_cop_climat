@@ -1,0 +1,315 @@
+# Données chiffrées téléchargeables (CSV / JSON / XLSX / ZIP) pour vérifier des chiffres.
+# Vérifié le 2026-11-06 (User-Agent "cop-corpus/0.1 (veille documentaire)") : tout répond 200/206
+# sauf mention contraire. Fichiers volumineux : ne pas re-télécharger plus d'une fois par jour.
+
+# --- Our World in Data (GitHub owid/co2-data) -------------------------------------------
+- id: owid-co2-data-csv
+  type: doc
+  url: https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv
+  title: "Our World in Data — CO2 and greenhouse gas emissions dataset (CSV, par pays et par an)"
+  level: 3
+  org: Our World in Data
+  doc_type: donnees
+  topics: [co2_emissions, ghg_emissions, per_capita, cumulative]
+  lang: en
+
+- id: owid-co2-codebook-csv
+  type: doc
+  url: https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-codebook.csv
+  title: "Our World in Data — CO2 dataset codebook (définitions et sources des colonnes)"
+  level: 3
+  org: Our World in Data
+  doc_type: donnees
+  topics: [metadata]
+  lang: en
+
+- id: owid-co2-data-json
+  type: doc
+  url: https://nyc3.digitaloceanspaces.com/owid-public/data/co2/owid-co2-data.json
+  title: "Our World in Data — CO2 dataset (JSON)"
+  level: 3
+  org: Our World in Data
+  doc_type: donnees
+  topics: [co2_emissions, ghg_emissions]
+  lang: en
+
+# --- Climate Watch (WRI) — API v1 --------------------------------------------------------
+- id: climatewatch-api-historical-emissions-data-sources
+  type: doc
+  url: https://www.climatewatchdata.org/api/v1/data/historical_emissions/data_sources
+  title: "Climate Watch API — historical emissions: data sources (Climate Watch/CAIT, PRIMAP, UNFCCC, GCP…)"
+  level: 3
+  org: World Resources Institute (Climate Watch)
+  doc_type: donnees
+  topics: [ghg_emissions, metadata]
+  lang: en
+
+- id: climatewatch-api-historical-emissions-gases
+  type: doc
+  url: https://www.climatewatchdata.org/api/v1/data/historical_emissions/gases
+  title: "Climate Watch API — historical emissions: gases"
+  level: 3
+  org: World Resources Institute (Climate Watch)
+  doc_type: donnees
+  topics: [metadata]
+  lang: en
+
+- id: climatewatch-api-historical-emissions-eu-fra
+  type: doc
+  url: https://www.climatewatchdata.org/api/v1/data/historical_emissions?regions[]=EUU&regions[]=FRA&per_page=200
+  title: "Climate Watch API — historical GHG emissions, EU27 (EUU) and France (JSON, paginé)"
+  level: 3
+  org: World Resources Institute (Climate Watch)
+  doc_type: donnees
+  parties: [EU, FRA]
+  topics: [ghg_emissions]
+  lang: en
+
+- id: climatewatch-api-historical-emissions-major
+  type: doc
+  url: https://www.climatewatchdata.org/api/v1/data/historical_emissions?regions[]=CHN&regions[]=USA&regions[]=IND&regions[]=EUU&regions[]=RUS&regions[]=JPN&regions[]=BRA&regions[]=IDN&regions[]=SAU&regions[]=TUR&regions[]=AUS&regions[]=WORLD&per_page=200
+  title: "Climate Watch API — historical GHG emissions, grands émetteurs + Türkiye, Australie, monde (JSON, paginé)"
+  level: 3
+  org: World Resources Institute (Climate Watch)
+  doc_type: donnees
+  parties: [CHN, USA, IND, EU, RUS, JPN, BRA, IDN, SAU, TUR, AUS]
+  topics: [ghg_emissions]
+  lang: en
+
+- id: climatewatch-api-ndc-content-indicators
+  type: doc
+  url: https://www.climatewatchdata.org/api/v1/data/ndc_content/indicators
+  title: "Climate Watch API — NDC content: indicators list"
+  level: 3
+  org: World Resources Institute (Climate Watch)
+  doc_type: donnees
+  topics: [ndc, metadata]
+  lang: en
+
+- id: climatewatch-api-ndc-content-eu-fra
+  type: doc
+  url: https://www.climatewatchdata.org/api/v1/data/ndc_content?countries[]=EUU&countries[]=FRA&per_page=200
+  title: "Climate Watch API — NDC content, EU and France (JSON, paginé)"
+  level: 3
+  org: World Resources Institute (Climate Watch)
+  doc_type: donnees
+  parties: [EU, FRA]
+  topics: [ndc]
+  lang: en
+
+- id: climatewatch-api-ndc-content-major
+  type: doc
+  url: https://www.climatewatchdata.org/api/v1/data/ndc_content?countries[]=CHN&countries[]=USA&countries[]=IND&countries[]=BRA&countries[]=TUR&countries[]=AUS&countries[]=JPN&countries[]=IDN&countries[]=SAU&countries[]=ZAF&per_page=200
+  title: "Climate Watch API — NDC content, grands émetteurs et présidences (JSON, paginé)"
+  level: 3
+  org: World Resources Institute (Climate Watch)
+  doc_type: donnees
+  parties: [CHN, USA, IND, BRA, TUR, AUS, JPN, IDN, SAU, ZAF]
+  topics: [ndc]
+  lang: en
+
+# --- EDGAR (JRC) ------------------------------------------------------------------------
+- id: edgar-2026-ghg-booklet-xlsx
+  type: doc
+  url: https://edgar.jrc.ec.europa.eu/booklet/EDGAR_2026_GHG_booklet_2026.xlsx
+  title: "EDGAR 2026 — GHG emissions of all world countries (booklet data, XLSX, 1970-2025)"
+  level: 3
+  org: Commission européenne — JRC (EDGAR)
+  doc_type: donnees
+  topics: [ghg_emissions, per_capita, by_country]
+  lang: en
+
+- id: edgar-2026-fossil-co2-booklet-xlsx
+  type: doc
+  url: https://edgar.jrc.ec.europa.eu/booklet/EDGAR_2026_GHG_booklet_2026_fossilCO2only.xlsx
+  title: "EDGAR 2026 — fossil CO2 emissions of all world countries (XLSX)"
+  level: 3
+  org: Commission européenne — JRC (EDGAR)
+  doc_type: donnees
+  topics: [co2_emissions, by_country]
+  lang: en
+
+- id: edgar-2026-ghg-booklet-pdf
+  type: doc
+  url: https://edgar.jrc.ec.europa.eu/booklet/GHG_emissions_of_all_world_countries_booklet_2026report.pdf
+  title: "EDGAR — GHG emissions of all world countries, 2026 report (PDF)"
+  level: 3
+  org: Commission européenne — JRC (EDGAR)
+  doc_type: rapport_scientifique
+  topics: [ghg_emissions, by_country]
+  lang: en
+
+- id: edgar-2026-ar5-ghg-zip
+  type: doc
+  url: https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/EDGAR/datasets/EDGAR_2026_GHG/EDGAR_AR5_GHG_1970_2025.zip
+  title: "EDGAR 2026 — total GHG (GWP100 AR5) par pays et secteur, 1970-2025 (ZIP)"
+  level: 3
+  org: Commission européenne — JRC (EDGAR)
+  doc_type: donnees
+  topics: [ghg_emissions, by_sector]
+  lang: en
+
+- id: edgar-2026-co2-zip
+  type: doc
+  url: https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/EDGAR/datasets/EDGAR_2026_GHG/IEA_EDGAR_CO2_1970_2025.zip
+  title: "EDGAR 2026 — CO2 fossile (IEA-EDGAR) par pays et secteur, 1970-2025 (ZIP)"
+  level: 3
+  org: Commission européenne — JRC (EDGAR)
+  doc_type: donnees
+  topics: [co2_emissions, by_sector]
+  lang: en
+
+- id: edgar-2026-ch4-zip
+  type: doc
+  url: https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/EDGAR/datasets/EDGAR_2026_GHG/EDGAR_CH4_1970_2025.zip
+  title: "EDGAR 2026 — CH4 par pays et secteur, 1970-2025 (ZIP)"
+  level: 3
+  org: Commission européenne — JRC (EDGAR)
+  doc_type: donnees
+  topics: [methane, by_sector]
+  lang: en
+
+- id: edgar-2025-ghg-booklet-xlsx
+  type: doc
+  url: https://edgar.jrc.ec.europa.eu/booklet/EDGAR_2025_GHG_booklet_2025.xlsx
+  title: "EDGAR 2025 — GHG emissions of all world countries (XLSX, 1970-2024) — édition précédente"
+  level: 3
+  org: Commission européenne — JRC (EDGAR)
+  doc_type: donnees
+  topics: [ghg_emissions, by_country]
+  lang: en
+
+# --- Global Carbon Project ---------------------------------------------------------------
+- id: gcb-2025-national-fossil-emissions-xlsx
+  type: doc
+  # URL de téléchargement WordPress (ID 2345) relevée sur la page "latest data 2025" ; renvoie un XLSX.
+  url: https://globalcarbonbudget.org/download/2345/?tmstv=1762815968
+  title: "Global Carbon Budget 2025 — National fossil carbon emissions v2025 (XLSX, MtC)"
+  level: 3
+  org: Global Carbon Project
+  doc_type: donnees
+  topics: [co2_emissions, by_country, fossil_co2]
+  lang: en
+  published: 2025-11-13
+
+- id: gcb-2025-global-budget-xlsx
+  type: doc
+  url: https://globalcarbonbudget.org/download/2341/?tmstv=1762815901
+  title: "Global Carbon Budget 2025 — Global carbon budget v2025 (XLSX)"
+  level: 3
+  org: Global Carbon Project
+  doc_type: donnees
+  topics: [carbon_budget, sinks]
+  lang: en
+  published: 2025-11-13
+
+- id: gcb-2025-national-luc-emissions-xlsx
+  type: doc
+  url: https://globalcarbonbudget.org/download/2348/?tmstv=1762816074
+  title: "Global Carbon Budget 2025 — National land-use change carbon emissions v2025 (XLSX)"
+  level: 3
+  org: Global Carbon Project
+  doc_type: donnees
+  topics: [land_use, by_country]
+  lang: en
+  published: 2025-11-13
+
+- id: gcb-2025-dataset-descriptions
+  type: doc
+  url: https://globalcarbonbudget.org/download/2454/?tmstv=1762956990
+  title: "Global Carbon Budget 2025 — dataset descriptions"
+  level: 3
+  org: Global Carbon Project
+  doc_type: donnees
+  topics: [metadata]
+  lang: en
+
+# --- Eurostat / AEE (inventaires UE) -----------------------------------------------------
+- id: eurostat-env-air-gge-eu-fr-totals-json
+  type: doc
+  # TOTX4_MEMO = total hors UTCATF ; TOTXMEMO = total y c. UTCATF ; CRF1D1A = aviation internationale (poste mémo).
+  # Ex. UE27 : 4 866,9 Mt (1990) → 3 017,2 Mt (2024) hors UTCATF (mise à jour Eurostat 2026-06-02).
+  url: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/env_air_gge?geo=EU27_2020&geo=FR&unit=MIO_T&airpol=GHG&src_crf=TOTX4_MEMO&src_crf=TOTXMEMO&src_crf=CRF1D1A
+  title: "Eurostat env_air_gge — émissions de GES UE27 et France, totaux avec/sans UTCATF et aviation internationale (JSON-stat)"
+  level: 3
+  org: Eurostat (inventaire UE soumis à la CCNUCC)
+  doc_type: donnees
+  parties: [EU, FRA]
+  topics: [ghg_emissions, inventory, lulucf]
+  lang: en
+
+- id: eurostat-env-air-gge-fr-sdmx-csv
+  type: doc
+  url: https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/env_air_gge?format=SDMX-CSV&compressed=false&geo=FR
+  title: "Eurostat env_air_gge — émissions de GES de la France par secteur CRF (SDMX-CSV)"
+  level: 3
+  org: Eurostat
+  doc_type: donnees
+  parties: [FRA]
+  topics: [ghg_emissions, by_sector, inventory]
+  lang: en
+
+- id: eurostat-env-air-gge-eu27-sdmx-csv
+  type: doc
+  url: https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/env_air_gge?format=SDMX-CSV&compressed=false&geo=EU27_2020
+  title: "Eurostat env_air_gge — émissions de GES de l'UE27 par secteur CRF (SDMX-CSV)"
+  level: 3
+  org: Eurostat
+  doc_type: donnees
+  parties: [EU]
+  topics: [ghg_emissions, by_sector, inventory]
+  lang: en
+
+- id: eurostat-sdg-13-10-json
+  type: doc
+  url: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/sdg_13_10?geo=EU27_2020&geo=FR
+  title: "Eurostat sdg_13_10 — émissions nettes de GES (indice 1990=100, base loi climat), UE27 et France (JSON-stat)"
+  level: 3
+  org: Eurostat
+  doc_type: donnees
+  parties: [EU, FRA]
+  topics: [ghg_emissions, 2030_target]
+  lang: en
+
+# --- Climate Action Tracker --------------------------------------------------------------
+- id: cat-thermometer
+  type: doc
+  url: https://climateactiontracker.org/global/cat-thermometer/
+  title: "Climate Action Tracker — CAT warming projections thermometer"
+  level: 3
+  org: Climate Action Tracker (Climate Analytics / NewClimate Institute)
+  doc_type: donnees
+  topics: [warming_projections, ndc]
+  lang: en
+
+- id: cat-country-ratings-crawl
+  type: crawl
+  # Pages pays (notation et analyse). La liste /countries/ est rendue en JS : on part des pages pays.
+  start:
+    - https://climateactiontracker.org/countries/eu/
+    - https://climateactiontracker.org/countries/china/
+    - https://climateactiontracker.org/countries/usa/
+    - https://climateactiontracker.org/countries/india/
+    - https://climateactiontracker.org/countries/brazil/
+    - https://climateactiontracker.org/countries/turkey/
+    - https://climateactiontracker.org/countries/australia/
+    - https://climateactiontracker.org/countries/japan/
+    - https://climateactiontracker.org/countries/uk/
+    - https://climateactiontracker.org/countries/south-africa/
+    - https://climateactiontracker.org/countries/indonesia/
+    - https://climateactiontracker.org/countries/saudi-arabia/
+    - https://climateactiontracker.org/countries/russian-federation/
+    - https://climateactiontracker.org/countries/canada/
+    - https://climateactiontracker.org/countries/mexico/
+    - https://climateactiontracker.org/countries/south-korea/
+  follow: []
+  collect:
+    - '^https://climateactiontracker\.org/countries/(eu|china|usa|india|brazil|turkey|australia|japan|uk|south-africa|indonesia|saudi-arabia|russian-federation|canada|mexico|south-korea)/$'
+    - '^https://climateactiontracker\.org/countries/[a-z-]+/(targets|policies-action|2035-ndc|net-zero-targets|fair-share|assumptions)/$'
+  max_depth: 1
+  max_docs: 120
+  level: 3
+  org: Climate Action Tracker (Climate Analytics / NewClimate Institute)
+  doc_type: donnees
+  title_from: page_title
+  watch_minutes: 0

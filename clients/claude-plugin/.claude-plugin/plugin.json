@@ -1,0 +1,8 @@
+{
+  "name": "cop31",
+  "displayName": "COP31 — veille indépendante",
+  "version": "0.2.0",
+  "description": "Assistant indépendant pour suivre la COP31 (Antalya, 9–20 novembre 2026) : droit onusien, décisions COP/CMA, projets de texte en direct, NDC, droit et positions de l'UE, science et données d'émissions, documents internes. Vérification d'affirmations sourcée, suivi des versions de texte, briefs pour novices. Nécessite le connecteur MCP COP31.",
+  "author": { "name": "Akim Viennet" },
+  "keywords": ["COP31", "climat", "CCNUCC", "Accord de Paris", "négociation", "UE", "fact-checking"]
+}

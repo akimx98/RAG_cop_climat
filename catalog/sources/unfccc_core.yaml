@@ -1,0 +1,240 @@
+# Textes fondateurs : Convention, Accord de Paris, Protocole de Kyoto (+ amendement de Doha), état des ratifications.
+# Sources vérifiées (HTTP 200) : UN Treaty Collection (treaties.un.org) et Système de documents officiels de l'ONU (ODS,
+# documents.un.org/api/symbol/access). Les copies unfccc.int sont gardées mais bloquées par Imperva.
+
+- id: unfccc-convention-untc-certified
+  type: doc
+  url: 'https://treaties.un.org/doc/Treaties/1994/03/19940321%2004-56%20AM/Ch_XXVII_07p.pdf'
+  title: 'Convention-cadre des Nations unies sur les changements climatiques — copie certifiée conforme (toutes langues officielles)'
+  level: 1
+  org: 'Nations unies (dépositaire)'
+  doc_type: traite
+  symbol: UNTC XXVII-7
+  topics: [convention, treaty]
+  lang: mul
+  published: 1992-05-09
+
+- id: unfccc-convention-en-ods
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=A/AC.237/18(PartII)/Add.1&l=en&t=pdf'
+  title: 'United Nations Framework Convention on Climate Change (A/AC.237/18 (Part II)/Add.1)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  symbol: 'A/AC.237/18 (Part II)/Add.1'
+  topics: [convention, treaty]
+  lang: en
+  published: 1992-05-15
+
+- id: unfccc-convention-fr-ods
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=A/AC.237/18(PartII)/Add.1&l=fr&t=pdf'
+  title: 'Convention-cadre des Nations unies sur les changements climatiques (A/AC.237/18 (Part II)/Add.1)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  symbol: 'A/AC.237/18 (Part II)/Add.1'
+  topics: [convention, treaty]
+  lang: fr
+  published: 1992-05-15
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+- id: unfccc-convention-en-site
+  type: doc
+  url: 'https://unfccc.int/resource/docs/convkp/conveng.pdf'
+  title: 'United Nations Framework Convention on Climate Change (texte, site CCNUCC)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  topics: [convention, treaty]
+  lang: en
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+- id: unfccc-convention-fr-site
+  type: doc
+  url: 'https://unfccc.int/resource/docs/convkp/convfr.pdf'
+  title: 'Convention-cadre des Nations unies sur les changements climatiques (texte, site CCNUCC)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  topics: [convention, treaty]
+  lang: fr
+
+- id: unfccc-paris-agreement-untc-certified
+  type: doc
+  url: 'https://treaties.un.org/doc/Treaties/2016/02/20160215%2006-03%20PM/Ch_XXVII-7-d.pdf'
+  title: 'Accord de Paris — copie certifiée conforme (toutes langues officielles, dont FR)'
+  level: 1
+  org: 'Nations unies (dépositaire)'
+  doc_type: traite
+  symbol: UNTC XXVII-7-d
+  topics: [paris_agreement, treaty]
+  lang: mul
+  published: 2015-12-12
+
+- id: unfccc-dec-1-cp21-paris-agreement-en
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/2015/10/Add.1&l=en&t=pdf'
+  title: 'Decision 1/CP.21 Adoption of the Paris Agreement (Paris Agreement in annex)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP21
+  symbol: FCCC/CP/2015/10/Add.1
+  topics: [paris_agreement, treaty, temperature_goal, ndc]
+  lang: en
+  published: 2016-01-29
+
+- id: unfccc-dec-1-cp21-paris-agreement-fr
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/2015/10/Add.1&l=fr&t=pdf'
+  title: 'Décision 1/CP.21 Adoption de l''Accord de Paris (Accord de Paris en annexe)'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: COP21
+  symbol: FCCC/CP/2015/10/Add.1
+  topics: [paris_agreement, treaty, temperature_goal, ndc]
+  lang: fr
+  published: 2016-01-29
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+- id: unfccc-paris-agreement-en-site
+  type: doc
+  url: 'https://unfccc.int/sites/default/files/english_paris_agreement.pdf'
+  title: 'Paris Agreement (texte, site CCNUCC)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  topics: [paris_agreement, treaty]
+  lang: en
+  published: 2015-12-12
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+- id: unfccc-paris-agreement-fr-site
+  type: doc
+  url: 'https://unfccc.int/sites/default/files/french_paris_agreement.pdf'
+  title: 'Accord de Paris (texte, site CCNUCC)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  topics: [paris_agreement, treaty]
+  lang: fr
+  published: 2015-12-12
+
+- id: unfccc-kyoto-protocol-untc-certified
+  type: doc
+  url: 'https://treaties.un.org/doc/Treaties/1998/09/19980921%2004-41%20PM/Ch_XXVII_07_ap.pdf'
+  title: 'Protocole de Kyoto — copie certifiée conforme (toutes langues officielles)'
+  level: 1
+  org: 'Nations unies (dépositaire)'
+  doc_type: traite
+  symbol: UNTC XXVII-7-a
+  topics: [kyoto_protocol, treaty]
+  lang: mul
+  published: 1997-12-11
+
+- id: unfccc-kyoto-protocol-en-ods
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/1997/7/Add.1&l=en&t=pdf'
+  title: 'Decision 1/CP.3 Adoption of the Kyoto Protocol (Protocol in annex)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  session: COP3
+  symbol: FCCC/CP/1997/7/Add.1
+  topics: [kyoto_protocol, treaty]
+  lang: en
+  published: 1998-03-18
+
+- id: unfccc-kyoto-protocol-fr-ods
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/CP/1997/7/Add.1&l=fr&t=pdf'
+  title: 'Décision 1/CP.3 Adoption du Protocole de Kyoto (Protocole en annexe)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  session: COP3
+  symbol: FCCC/CP/1997/7/Add.1
+  topics: [kyoto_protocol, treaty]
+  lang: fr
+  published: 1998-03-18
+
+- id: unfccc-doha-amendment-en-ods
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/KP/CMP/2012/13/Add.1&l=en&t=pdf'
+  title: 'Doha Amendment to the Kyoto Protocol — decision 1/CMP.8'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP8
+  symbol: FCCC/KP/CMP/2012/13/Add.1
+  topics: [kyoto_protocol, doha_amendment]
+  lang: en
+  published: 2013-02-28
+
+- id: unfccc-doha-amendment-fr-ods
+  type: doc
+  url: 'https://documents.un.org/api/symbol/access?s=FCCC/KP/CMP/2012/13/Add.1&l=fr&t=pdf'
+  title: 'Amendement de Doha au Protocole de Kyoto — décision 1/CMP.8'
+  level: 1
+  org: UNFCCC
+  doc_type: decision
+  session: CMP8
+  symbol: FCCC/KP/CMP/2012/13/Add.1
+  topics: [kyoto_protocol, doha_amendment]
+  lang: fr
+  published: 2013-02-28
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+- id: unfccc-kyoto-protocol-en-site
+  type: doc
+  url: 'https://unfccc.int/resource/docs/convkp/kpeng.pdf'
+  title: 'Kyoto Protocol (texte, site CCNUCC)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  topics: [kyoto_protocol, treaty]
+  lang: en
+
+# à confirmer — bloqué Imperva (unfccc.int renvoie un challenge anti-bot à tout client non-navigateur)
+- id: unfccc-kyoto-protocol-fr-site
+  type: doc
+  url: 'https://unfccc.int/resource/docs/convkp/kpfrench.pdf'
+  title: 'Protocole de Kyoto (texte, site CCNUCC)'
+  level: 1
+  org: UNFCCC
+  doc_type: traite
+  topics: [kyoto_protocol, treaty]
+  lang: fr
+
+- id: unfccc-untc-status-convention
+  type: doc
+  url: 'https://treaties.un.org/Pages/ViewDetailsIII.aspx?src=TREATY&mtdsg_no=XXVII-7&chapter=27&Temp=mtdsg3&clang=_en'
+  title: 'Convention-cadre — état des signatures et ratifications'
+  level: 2
+  org: 'Nations unies (dépositaire)'
+  doc_type: autre
+  topics: [ratification, treaty]
+  lang: en
+
+- id: unfccc-untc-status-paris-agreement
+  type: doc
+  url: 'https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XXVII-7-d&chapter=27&clang=_en'
+  title: 'Accord de Paris — état des ratifications (dont retraits)'
+  level: 2
+  org: 'Nations unies (dépositaire)'
+  doc_type: autre
+  topics: [ratification, treaty]
+  lang: en
+
+- id: unfccc-untc-status-kyoto-protocol
+  type: doc
+  url: 'https://treaties.un.org/Pages/ViewDetails.aspx?src=TREATY&mtdsg_no=XXVII-7-a&chapter=27&clang=_en'
+  title: 'Protocole de Kyoto — état des ratifications'
+  level: 2
+  org: 'Nations unies (dépositaire)'
+  doc_type: autre
+  topics: [ratification, treaty]
+  lang: en
+

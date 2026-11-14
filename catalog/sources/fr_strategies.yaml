@@ -1,0 +1,481 @@
+# France — stratégies nationales, positions COP31, avis du Haut Conseil pour le climat.
+# Vérifié le 2026-11-06 (User-Agent "cop-corpus/0.1 (veille documentaire)").
+# Bloqués (403 anti-bot) : www.legifrance.gouv.fr (tout le site), www.economie.gouv.fr (PDF PPE3),
+# flux RSS de www.diplomatie.gouv.fr (spip.php?page=backend).
+
+# --- SNBC 3 (adoptée : décret n° 2026-636 du 16 juillet 2026, JO du 18/07/2026) -------------
+- id: fr-snbc3-partie1
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/SNBC3-Partie1-Juillet2026.pdf
+  title: "Stratégie nationale bas-carbone 3 (SNBC 3) — Partie 1 (version adoptée, juillet 2026)"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc, carbon_budgets, mitigation, climate_neutrality]
+  lang: fr
+  published: 2026-07-16
+
+- id: fr-snbc3-partie2
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/SNBC3-Partie2-Juillet2026.pdf
+  title: "SNBC 3 — Partie 2 (orientations sectorielles et transversales, juillet 2026)"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc, sectoral_policies, mitigation]
+  lang: fr
+  published: 2026-07-16
+
+- id: fr-snbc3-annexes
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/SNBC3-Annexes-Juillet2026_0.pdf
+  title: "SNBC 3 — Annexes (juillet 2026)"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc, carbon_budgets]
+  lang: fr
+  published: 2026-07-16
+
+- id: fr-snbc3-resume
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/SNBC3-ResumeSNBC-Juillet2026.pdf
+  title: "SNBC 3 — Résumé (juillet 2026)"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc, carbon_budgets]
+  lang: fr
+  published: 2026-07-16
+
+- id: fr-snbc3-summary-en
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/SNBC3_Summary_ENG.pdf
+  title: "France's third National Low-Carbon Strategy (SNBC 3) — Summary (English)"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc, carbon_budgets]
+  lang: en
+  published: 2026-07-16
+
+- id: fr-snbc3-rapport-accompagnement
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/SNBC3-%20Rapport-Accompagnement-Juillet2026_0.pdf
+  title: "SNBC 3 — Rapport d'accompagnement (juillet 2026)"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc]
+  lang: fr
+  published: 2026-07-16
+
+- id: fr-snbc3-resume-ees
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/SNBC3-Resume-EES-Juillet2026_0.pdf
+  title: "SNBC 3 — Résumé de l'évaluation environnementale stratégique"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc]
+  lang: fr
+  published: 2026-07-16
+
+- id: fr-snbc3-page-feuille-de-route
+  type: doc
+  url: https://www.ecologie.gouv.fr/strategie-nationale-bas-carbone/feuille-route-climatique-francaise
+  title: "La feuille de route climatique française (SNBC 3) — page du ministère"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc]
+  lang: fr
+
+- id: fr-snbc3-objectifs-secteur
+  type: doc
+  url: https://www.ecologie.gouv.fr/strategie-nationale-bas-carbone/objectifs-secteur
+  title: "SNBC 3 — Les objectifs par secteur"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc, sectoral_policies]
+  lang: fr
+
+- id: fr-snbc-suivi-emissions
+  type: doc
+  url: https://www.ecologie.gouv.fr/strategie-nationale-bas-carbone/suivi-des-emissions-gaz-effet-serre
+  title: "Suivi des émissions de gaz à effet de serre en France (SNBC)"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: donnees
+  parties: [FRA]
+  topics: [emissions, monitoring]
+  lang: fr
+
+- id: fr-press-snbc3-adoption
+  type: doc
+  url: https://www.ecologie.gouv.fr/presse/france-adopte-sa-troisieme-strategie-nationale-bas-carbone-feuille-route-ambitieuse
+  title: "La France adopte sa troisième stratégie nationale bas-carbone (communiqué)"
+  level: 5
+  org: Ministère de la Transition écologique (France)
+  doc_type: communique
+  parties: [FRA]
+  topics: [snbc]
+  lang: fr
+  published: 2026-07-15
+
+# SNBC 2 (version précédente, mars 2020) — historique
+- id: fr-snbc2-2020
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/2020-03-25_MTES_SNBC2.pdf
+  title: "Stratégie nationale bas-carbone 2 (mars 2020) — version précédente, remplacée par la SNBC 3"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [snbc, carbon_budgets]
+  lang: fr
+  published: 2020-04-21
+
+# --- PPE 3 (décret n° 2026-76 du 12 février 2026, JO du 13/02/2026, période 2026-2035) ----
+- id: fr-ppe3-2026-2035
+  type: doc
+  # à confirmer — bloqué anti-bot : www.economie.gouv.fr renvoie 403 (aussi à un UA honnête)
+  url: https://www.economie.gouv.fr/files/files/2026/ppe3.pdf
+  title: "Programmation pluriannuelle de l'énergie 2026-2035 (PPE 3)"
+  level: 1
+  org: Gouvernement français (MEF / MTE)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [energy, ppe, renewables, nuclear]
+  lang: fr
+  published: 2026-02-13
+
+- id: fr-ppe-page
+  type: doc
+  url: https://www.ecologie.gouv.fr/politiques-publiques/programmations-pluriannuelles-lenergie-ppe
+  title: "Programmations pluriannuelles de l'énergie (PPE) — page du ministère"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [energy, ppe]
+  lang: fr
+
+- id: fr-ppe2-2020
+  type: doc
+  url: "https://www.ecologie.gouv.fr/sites/default/files/documents/20200422%20Programmation%20pluriannuelle%20de%20l%27e%CC%81nergie.pdf"
+  title: "Programmation pluriannuelle de l'énergie 2019-2028 (PPE 2, avril 2020) — historique"
+  level: 1
+  org: Ministère de la Transition écologique (France)
+  doc_type: strategie_nationale
+  parties: [FRA]
+  topics: [energy, ppe]
+  lang: fr
+  published: 2020-04-21
+
+# --- PNIEC ------------------------------------------------------------------------------
+- id: fr-pniec-2024-final-fr
+  type: doc
+  # Copie officielle sur CIRCABC (Commission) ; .../download renvoie directement le PDF.
+  url: https://webgate.ec.europa.eu/circabc-ewpp/d/d/workspace/SpacesStore/e5d093a6-248c-4491-813c-1f833a4be076/download
+  title: "Plan national intégré énergie-climat (PNIEC) de la France — mise à jour finale 2024"
+  level: 1
+  org: Gouvernement français
+  doc_type: strategie_nationale
+  parties: [FRA, EU]
+  topics: [necp, energy, mitigation]
+  lang: fr
+
+- id: fr-pniec-2024-final-en
+  type: doc
+  url: https://webgate.ec.europa.eu/circabc-ewpp/d/d/workspace/SpacesStore/9316d7ea-ce75-4468-beb0-6d06bb97d379/download
+  title: "France — Final updated National Energy and Climate Plan (June 2024, machine translation to English)"
+  level: 1
+  org: Gouvernement français
+  doc_type: strategie_nationale
+  parties: [FRA, EU]
+  topics: [necp, energy, mitigation]
+  lang: en
+
+- id: fr-pniec-2020
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/PNIEC_France_mars_2020.pdf
+  title: "Plan national intégré énergie-climat de la France (mars 2020) — historique"
+  level: 1
+  org: Gouvernement français
+  doc_type: strategie_nationale
+  parties: [FRA, EU]
+  topics: [necp]
+  lang: fr
+
+# --- Haut Conseil pour le climat ---------------------------------------------------------
+- id: fr-hcc-ra2026-resume-executif
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/HCC_RA2026-Resume-executif-Recommandations_1707.pdf
+  title: "HCC — Rapport annuel 2026 « Dangers climatiques : la France face à ses responsabilités » — résumé exécutif et recommandations"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [assessment, mitigation, adaptation, carbon_budgets]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-ra2026-orientations
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/10/Orientation-du-HCC_Rapport_annuel_2026.pdf
+  title: "HCC — Orientations du rapport annuel 2026"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [assessment]
+  lang: fr
+
+- id: fr-hcc-ra2026-ch1
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/RANC2026-Chapitre-1.pdf
+  title: "HCC RA2026 — Ch. 1 : Urgence climatique et transitions mondiales, bilan de l'Accord de Paris"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [paris_agreement, global_stocktake]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-ra2026-ch2
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/RANC2026-Chapitre-2.pdf
+  title: "HCC RA2026 — Ch. 2 : Impacts du changement climatique et bénéfices de l'adaptation"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [impacts, adaptation]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-ra2026-ch3
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/HCC_RA2026-Chapitre-3_1707.pdf
+  title: "HCC RA2026 — Ch. 3 : Suivi des émissions nationales et respect des budgets carbone"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [emissions, carbon_budgets]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-ra2026-ch4
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/RANC2026-Chapitre-4.pdf
+  title: "HCC RA2026 — Ch. 4 : Suivi des émissions et des politiques publiques par secteur"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [sectoral_policies]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-ra2026-ch5
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/HCC_RA2026-Chapitre-5_1707.pdf
+  title: "HCC RA2026 — Ch. 5 : Cadre d'action publique"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [governance]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-ra2026-ch6
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/RANC2026-Chapitre-6.pdf
+  title: "HCC RA2026 — Ch. 6 : Diplomatie climatique européenne et internationale"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA, EU]
+  topics: [climate_diplomacy, eu_position]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-ra2026-annexes
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/07/RANC2026-Annexes_WEB.pdf
+  title: "HCC RA2026 — Annexes"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [emissions]
+  lang: fr
+  published: 2026-07-09
+
+- id: fr-hcc-avis-snbc3-2026
+  type: doc
+  url: https://www.hautconseilclimat.fr/wp-content/uploads/2026/03/HCC_2026_Avis-SNBC-3_web.pdf
+  title: "HCC — Avis sur le projet de troisième stratégie nationale bas-carbone (SNBC 3)"
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  topics: [snbc, assessment]
+  lang: fr
+
+- id: fr-hcc-publications-crawl
+  type: crawl
+  start: [https://www.hautconseilclimat.fr/publications/]
+  follow: ['^https://www\.hautconseilclimat\.fr/publications/[a-z0-9-]+/$']
+  collect: ['^https://www\.hautconseilclimat\.fr/wp-content/uploads/20(2[3-6])/[0-9]{2}/[^/]+\.pdf$']
+  max_depth: 2
+  max_docs: 150
+  level: 3
+  org: Haut Conseil pour le climat
+  doc_type: rapport_scientifique
+  parties: [FRA]
+  title_from: link_text
+  watch_minutes: 0
+
+# --- Ministère de la Transition écologique : COP31 --------------------------------------
+- id: fr-mte-cop31-page
+  type: doc
+  url: https://www.ecologie.gouv.fr/rendez-vous/cop31-climat-priorite-lelectrification
+  title: "COP31 climat : priorité à l'électrification — page du ministère"
+  level: 5
+  org: Ministère de la Transition écologique (France)
+  doc_type: communique
+  session: COP31
+  parties: [FRA]
+  topics: [electrification, french_position]
+  lang: fr
+
+- id: fr-mte-cop31-france-a-la-cop31
+  type: doc
+  url: https://www.ecologie.gouv.fr/rendez-vous/cop31-climat-priorite-lelectrification/france-cop31
+  title: "La France à la COP31"
+  level: 5
+  org: Ministère de la Transition écologique (France)
+  doc_type: communique
+  session: COP31
+  parties: [FRA]
+  topics: [french_position, electrification]
+  lang: fr
+
+- id: fr-mte-cop31-france-at-cop31-en
+  type: doc
+  url: https://www.ecologie.gouv.fr/rendez-vous/cop31-climat-priorite-lelectrification/france-cop31-0
+  title: "France at COP31"
+  level: 5
+  org: Ministère de la Transition écologique (France)
+  doc_type: communique
+  session: COP31
+  parties: [FRA]
+  topics: [french_position, electrification]
+  lang: en
+
+- id: fr-mte-cop31-espace-presse
+  type: doc
+  url: https://www.ecologie.gouv.fr/presse/cop31-conference-nations-unies-changements-climatiques-antalya-turquie-du-9-20-novembre-2026
+  title: "COP31 — Conférence des Nations unies sur les changements climatiques à Antalya (espace presse)"
+  level: 5
+  org: Ministère de la Transition écologique (France)
+  doc_type: communique
+  session: COP31
+  parties: [FRA]
+  topics: [french_position]
+  lang: fr
+
+- id: fr-mte-dossier-presse-cop30
+  type: doc
+  url: https://www.ecologie.gouv.fr/sites/default/files/documents/20251106_DP_COP30.pdf
+  title: "Dossier de presse COP30 Climat (6 novembre 2025)"
+  level: 5
+  org: Ministère de la Transition écologique (France)
+  doc_type: communique
+  session: COP30
+  parties: [FRA]
+  topics: [french_position]
+  lang: fr
+  published: 2025-11-06
+
+- id: fr-mte-presse-crawl
+  type: crawl
+  # Liste paginée /presse?page=N ; liens d'articles /presse/<slug>. Filtre par mots du slug.
+  start: [https://www.ecologie.gouv.fr/presse]
+  follow: ['^https://www\.ecologie\.gouv\.fr/presse\?page=[0-4]$']
+  collect:
+    - '^https://www\.ecologie\.gouv\.fr/presse/[a-z0-9-]*(cop31|cop-31|cop30|climat|climate|bas-carbone|snbc|electrification|neutralite|carbone|fossiles|pre-cop|barbut)[a-z0-9-]*$'
+    - '^https://www\.ecologie\.gouv\.fr/sites/default/files/documents/[^/]*(COP31|COP_31|cop31)[^/]*\.pdf$'
+  max_depth: 2
+  max_docs: 80
+  level: 5
+  org: Ministère de la Transition écologique (France)
+  doc_type: communique
+  parties: [FRA]
+  title_from: page_title
+  watch_minutes: 30
+
+# --- Ministère de l'Europe et des Affaires étrangères ------------------------------------
+- id: fr-meae-lutte-changement-climatique
+  type: doc
+  url: https://www.diplomatie.gouv.fr/fr/le-ministere-en-action/contribuer-a-une-mondialisation-durable-et-equilibree/repondre-a-l-urgence-de-la-crise-climatique-et-environnementale/la-lutte-contre-le-changement-climatique
+  title: "La lutte contre le changement climatique — diplomatie climatique de la France (MEAE)"
+  level: 5
+  org: Ministère de l'Europe et des Affaires étrangères (France)
+  doc_type: communique
+  parties: [FRA]
+  topics: [climate_diplomacy, french_position]
+  lang: fr
+
+- id: fr-meae-feuille-route-sortie-fossiles
+  type: doc
+  url: https://www.diplomatie.gouv.fr/fr/le-ministere-en-action/contribuer-a-une-mondialisation-durable-et-equilibree/repondre-a-l-urgence-de-la-crise-climatique-et-environnementale/la-france-devoile-sa-feuille-de-route-pour-une-sortie-progressive-des-energies-fossiles
+  title: "La France dévoile sa feuille de route pour une sortie progressive des énergies fossiles (MEAE)"
+  level: 5
+  org: Ministère de l'Europe et des Affaires étrangères (France)
+  doc_type: communique
+  parties: [FRA]
+  topics: [fossil_fuels, transition_away]
+  lang: fr
+
+- id: fr-meae-climat-crawl
+  type: crawl
+  # Le flux RSS du MEAE (spip.php?page=backend) renvoie 403 ; on parcourt la rubrique climat.
+  start: [https://www.diplomatie.gouv.fr/fr/le-ministere-en-action/contribuer-a-une-mondialisation-durable-et-equilibree/repondre-a-l-urgence-de-la-crise-climatique-et-environnementale/la-lutte-contre-le-changement-climatique]
+  follow: []
+  collect: ['^https://www\.diplomatie\.gouv\.fr/fr/le-ministere-en-action/contribuer-a-une-mondialisation-durable-et-equilibree/repondre-a-l-urgence-de-la-crise-climatique-et-environnementale/la-lutte-contre-les?-changements?-climatiques?/[a-z0-9-]+$']
+  max_depth: 1
+  max_docs: 40
+  level: 5
+  org: Ministère de l'Europe et des Affaires étrangères (France)
+  doc_type: communique
+  parties: [FRA]
+  title_from: page_title
+  watch_minutes: 60
+
+# --- Inventaire national (Citepa, Secten) ------------------------------------------------
+- id: fr-citepa-secten
+  type: doc
+  url: https://www.citepa.org/donnees-air-climat/donnees-gaz-a-effet-de-serre/secten/
+  title: "Citepa — rapport Secten (inventaire national des émissions de GES de la France)"
+  level: 3
+  org: Citepa
+  doc_type: donnees
+  parties: [FRA]
+  topics: [emissions, inventory]
+  lang: fr

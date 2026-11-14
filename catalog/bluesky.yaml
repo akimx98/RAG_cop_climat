@@ -1,0 +1,24 @@
+# Comptes Bluesky suivis pendant la COP31 (journalistes en salle, observateurs, négociateurs).
+# Chaque compte a été vérifié (app.bsky.actor.searchActors) le 7 novembre 2026. Lecture publique, sans compte.
+# Les messages ne sont PAS des sources de niveau 1-3 : niveau 4 (journalistes de référence) ou 5 (acteurs).
+- {handle: carbonbrief.org, nom: Carbon Brief, niveau: "4"}
+- {handle: drsimevans.carbonbrief.org, nom: Simon Evans (Carbon Brief), niveau: "4"}
+- {handle: joshgabbatiss.bsky.social, nom: Josh Gabbatiss (Carbon Brief), niveau: "4"}
+- {handle: mollylempriere.carbonbrief.org, nom: Molly Lempriere (Carbon Brief), niveau: "4"}
+- {handle: climatechangenews.com, nom: Climate Home News, niveau: "4"}
+- {handle: chloefarand.bsky.social, nom: Chloé Farand (Climate Home), niveau: "4"}
+- {handle: meganrowling.bsky.social, nom: Megan Rowling (Climate Home), niveau: "4"}
+- {handle: enb.iisd.org, nom: Earth Negotiations Bulletin, niveau: "4"}
+- {handle: jenirisallan.bsky.social, nom: Jen Iris Allan (ENB), niveau: "4"}
+- {handle: jenniferbansard.bsky.social, nom: Jennifer Bansard (ENB), niveau: "4"}
+- {handle: 3rdworldnetwork.bsky.social, nom: Third World Network, niveau: "5"}
+- {handle: caneurope.org, nom: CAN Europe, niveau: "5"}
+- {handle: e3g.bsky.social, nom: E3G, niveau: "5"}
+- {handle: wriclimate.bsky.social, nom: WRI Climate, niveau: "5"}
+- {handle: ldcchairunfccc.bsky.social, nom: Présidence du groupe des PMA, niveau: "5"}
+- {handle: mjfeist.bsky.social, nom: Marian Feist (négociations), niveau: "5"}
+- {handle: eamaberg.bsky.social, nom: Anna Aberg (Chatham House), niveau: "5"}
+- {handle: tarungk91.bsky.social, nom: Tarun Gopalakrishnan (finance), niveau: "5"}
+- {handle: pwatkinson.bsky.social, nom: Paul Watkinson (ancien négociateur FR), niveau: "5"}
+- {handle: vallejolola.bsky.social, nom: Lola Vallejo (Iddri), niveau: "5"}
+- {handle: climatedialogues.bsky.social, nom: Global Climate Dialogues (Türkiye), niveau: "5"}

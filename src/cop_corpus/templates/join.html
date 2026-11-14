@@ -1,0 +1,112 @@
+{% extends "base.html" %}{% from "_photo.html" import photo %}{% block title %}COP Tracker · COP31{% endblock %}{% block body %}
+<style>
+.land{max-width:1080px;margin:0 auto}
+.land .photo{margin:0 0 22px}
+.lead{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:36px;align-items:start;margin:0 0 40px}
+@media(max-width:900px){.lead{grid-template-columns:minmax(0,1fr);gap:26px}}
+.lead h1{font-size:clamp(30px,4vw,42px);line-height:1.08;margin:6px 0 10px}
+.lead .sub{font-size:17px;line-height:1.5;color:var(--ink-2);margin:0 0 16px;max-width:44ch}
+.lead .fine{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+/* Trois usages, visibles dès l'arrivée */
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:2px solid var(--ink);margin:20px 0 0}
+.three div{padding:12px 14px 2px 0}
+.three div+div{padding-left:14px;border-left:1px solid var(--line-2)}
+.three b{display:block;font-size:15px;margin-bottom:3px}
+.three p{margin:0;font-size:13.5px;line-height:1.45;color:var(--ink-2)}
+@media(max-width:560px){.three{grid-template-columns:minmax(0,1fr)}.three div,.three div+div{padding:10px 0 8px;border-left:0}.three div+div{border-top:1px solid var(--line-2)}}
+/* Extrait réel d'un projet de texte, mis en page comme un document de la CCNUCC, puis ce qu'en fait l'outil */
+.specimen{margin:0;border:1px solid var(--line-2);border-radius:2px;background:var(--surface);overflow:hidden}
+.excerpt{background:#fff;color:#1a1a1a;padding:18px 22px 16px}
+.excerpt .sym{display:flex;justify-content:space-between;gap:10px;font:11.5px/1.3 var(--mono);color:#555;border-bottom:1px solid #ccc;padding-bottom:7px;margin-bottom:10px;flex-wrap:wrap}
+.excerpt .ttl{font:700 14.5px/1.35 "Times New Roman",Times,var(--serif);margin:0 0 8px}
+.excerpt .para{font:15px/1.55 "Times New Roman",Times,var(--serif);margin:0;text-align:left;hyphens:manual}
+.excerpt mark{background:#fde9a8;color:inherit;padding:0 2px;outline:1px solid #e6c65a}
+.reading{border-top:3px solid var(--accent);padding:12px 22px 14px;font-size:13.5px;line-height:1.45}
+.reading .lbl{font:700 11px/1 var(--sans);text-transform:uppercase;letter-spacing:.09em;color:var(--accent);margin:0 0 10px}
+.reading dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 12px;margin:0}
+.reading dt{font-weight:650;color:var(--ink)}
+.reading dd{margin:0;color:var(--ink-2)}
+.reading dt .k{display:inline-block;min-width:8px;padding:0 3px;background:#fde9a8;outline:1px solid #e6c65a;color:#1a1a1a;font-family:var(--serif)}
+.reading .go{display:flex;gap:6px 14px;flex-wrap:wrap;margin:12px 0 0;font-size:13px;font-weight:600}
+@media(max-width:900px){.land .photo img{height:120px!important}}
+.signup{max-width:520px;margin:0 auto}
+.more{text-align:center;margin:28px 0 0;font-size:15px}
+</style>
+{% set signup_block %}<form class="card signup" id="signup" method="post" action="{{ '/join/' ~ code if invited else '/join' }}" style="padding:26px 24px">
+<h2 style="margin-top:0">{{ L('Créer mon compte', 'Create my account') }}</h2>
+{% if error %}<p class="banner warn">{{ error }}</p>{% endif %}
+{% if invited or open_signup %}
+<input type="hidden" name="code" value="{{ code }}">
+<div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+<p><label class="small" for="email">E-mail</label>
+<input type="email" id="email" name="email" value="{{ form.get('email') or '' }}" autocomplete="username" required></p>
+<p><label class="small" for="organisation">{{ L('Organisation (facultatif)', 'Organisation (optional)') }}</label>
+<input type="text" id="organisation" name="organisation" value="{{ form.get('organisation') or '' }}" autocomplete="organization" placeholder="{{ L('ONG, délégation, média, université…', 'NGO, delegation, media, university…') }}"></p>
+{% if not invited %}
+<p><label class="small" for="password">{{ L('Mot de passe (10 caractères minimum)', 'Password (at least 10 characters)') }}</label>
+<input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required></p>
+<p><label class="small" for="password2">{{ L('Confirmer', 'Confirm') }}</label>
+<input type="password" id="password2" name="password2" autocomplete="new-password" minlength="10" required></p>
+{% endif %}
+<input type="hidden" name="lang" value="{{ lang }}">
+<p style="margin-top:16px"><button>{{ L('Créer mon compte', 'Create my account') }}</button></p>
+<p class="small muted" style="margin-bottom:0">{% if invited %}{{ L('Invitation reçue : pas de mot de passe, vous êtes connecté tout de suite et le restez un an sur cet appareil.', 'You were invited: no password, you are signed in straight away and stay signed in on this device for a year.') }}{% else %}{{ L('Gratuit. Vous restez connecté un an sur cet appareil.', 'Free. You stay signed in on this device for a year.') }}{% endif %}
+{{ L('Votre e-mail sert uniquement à vous connecter ; il n\'est jamais partagé.', 'Your e-mail is only used to sign in; it is never shared.') }}</p>
+{% else %}
+<p class="muted">{{ L('Les inscriptions libres sont fermées pour le moment. Avec un code d\'invitation :', 'Open sign-ups are closed for now. With an invitation code:') }}</p>
+{% endif %}
+<p class="small muted" style="margin:14px 0 0">{{ L('Déjà inscrit ?', 'Already registered?') }} <a href="/connexion">{{ L('Se connecter', 'Sign in') }}</a></p>
+</form>
+{% if not invited %}
+<form class="signup small muted" method="post" action="/join" style="margin-top:10px;text-align:center">
+<input type="hidden" name="check_code" value="1">
+<label for="invite-code">{{ L('Un code d\'invitation ? Pas besoin de mot de passe :', 'Got an invitation code? No password needed:') }}</label>
+<span class="row" style="justify-content:center;margin-top:6px"><input type="text" id="invite-code" name="code" autocomplete="off" autocapitalize="none" style="width:150px" required><button class="secondary">OK</button></span>
+</form>
+{% endif %}{% endset %}
+<div class="land">
+{{ photo('cop31-projet-texte',
+ L('Projet de conclusions du SBSTA sur la recherche et l\'observation systématique, projeté sur un écran pendant une négociation à la COP31', 'Draft SBSTA conclusions on research and systematic observation, shown on a screen during a COP31 negotiation'),
+ L('Un projet de conclusions projeté en séance de négociation, Antalya, 14 novembre 2026.', 'A draft text on screen during a negotiation session, Antalya, 14 November 2026.'),
+ 'https://www.flickr.com/photos/unfccc/55652256196', '50% 58%', 'clamp(110px,13vw,160px)') }}
+<section class="lead">
+<div>
+<div class="eyebrow">COP31 · Antalya · 9–20 {{ L('novembre', 'November') }} 2026</div>
+<h1>{{ L('Suivre la COP31 à partir des textes', 'Follow COP31 from the texts themselves') }}</h1>
+<p class="sub">{{ L('Les projets de texte, ce qui change d\'une version à l\'autre et qui défend quoi, avec à chaque fois le passage exact.',
+ 'Draft texts, what changes from one version to the next and who stands where, always with the exact passage.') }}</p>
+{% if invited %}<p class="row" style="margin:0"><a class="btn" href="#signup">{{ L('Créer mon compte', 'Create my account') }}</a></p>
+{% else %}<p class="row" style="margin:0"><a class="btn" href="#signup">{{ L('Créer un compte gratuit', 'Create a free account') }}</a><a class="btn secondary" href="/a-propos">{{ L('Qu\'est-ce que COP Tracker ?', 'What is COP Tracker?') }}</a></p>{% endif %}
+<div class="three">
+<div><b>{{ L('Lire', 'Read') }}</b><p>{{ L('Chaque projet de texte, et ce qui a changé depuis la version précédente.', 'Every draft text, and what changed since the previous version.') }}</p></div>
+<div><b>{{ L('Demander', 'Ask') }}</b><p>{{ L('Ici, à votre assistant IA ou sur Telegram : réponse sourcée au paragraphe près.', 'Here, in your AI assistant or on Telegram: answers sourced down to the paragraph.') }}</p></div>
+<div><b>{{ L('Être prévenu', 'Get alerts') }}</b><p>{{ L('Une alerte à chaque nouveau texte sur vos sujets, un point matin et soir.', 'An alert for every new text on your topics, a brief morning and evening.') }}</p></div>
+</div>
+<p class="fine">{{ L('Gratuit et indépendant, sans lien avec la CCNUCC ni avec une délégation.', 'Free and independent. Not affiliated with the UNFCCC or any delegation.') }}
+{% if stats and stats.documents %}{{ '{:,}'.format(stats.documents).replace(',', '\u202f') }} {{ L('documents suivis', 'documents tracked') }}.{% endif %}</p>
+</div>
+
+<figure class="specimen">
+<div class="excerpt" lang="en">
+<div class="sym"><span>IN.SBI65.i7_SBSTA65.i7.1</span><span>Draft text · 13 Nov 2026</span></div>
+<p class="ttl">United Arab Emirates just transition work programme</p>
+<p class="para"><b>22.</b> … builds on and complements relevant workstreams under the Convention and the Paris Agreement, <mark>[including the just transition work programme]</mark> making effective use of existing institutions and expertise …</p>
+</div>
+<figcaption class="reading">
+<p class="lbl">{{ L('Ce que COP Tracker en tire', 'What COP Tracker makes of it') }}</p>
+<dl>
+<dt><span class="k">[ ]</span></dt><dd>{{ L('Pas d\'accord sur ce passage : faut-il citer ici le programme de travail sur la transition juste ? Ce n\'est pas tranché.', 'No agreement on this passage: should it refer to the just transition work programme? Not settled yet.') }}</dd>
+<dt>{{ L('Le texte', 'The text') }}</dt><dd>{{ L('Version du 13 novembre, non adoptée : 44 crochets et 16 options encore ouverts. La prochaine version sera comparée paragraphe par paragraphe.', 'Version of 13 November, not adopted: 44 brackets and 16 options still open. The next version will be compared paragraph by paragraph.') }}</dd>
+<dt>{{ L('Le dossier', 'The negotiation') }}</dt><dd>{{ L('Transition juste : toutes les versions, les positions des pays et des groupes, un point matin et soir.', 'Just transition: every version, countries\' and groups\' positions, a brief morning and evening.') }}</dd>
+</dl>
+<p class="go"><a href="#signup">{{ L('Suivre ce dossier', 'Follow this negotiation') }} →</a><a href="https://docs.unfccc.int/documents/10000298/files/en/UAE%20JTWP_DT_SB65.pdf#page=8" rel="noopener">{{ L('Texte original, p. 8', 'Original text, p. 8') }}</a></p>
+</figcaption>
+</figure>
+</section>
+
+{% if invited %}{{ signup_block }}{% endif %}
+
+{% if not invited %}{{ signup_block }}{% endif %}
+<p class="more"><a href="/a-propos">{{ L('Comment ça marche, quelles sources, qui est derrière : qu\'est-ce que COP Tracker ?', 'How it works, which sources, who is behind it: what is COP Tracker?') }}</a></p>
+</div>
+{% endblock %}
