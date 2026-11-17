@@ -89,6 +89,10 @@ VERDICTS = {
 
 def ensure_schema(conn) -> None:
     conn.executescript(SCHEMA)
+    if "iso3" not in {r[1] for r in conn.execute("PRAGMA table_info(sub_items)")}:
+        conn.execute("ALTER TABLE sub_items ADD COLUMN iso3 TEXT")  # pays de l'auteur (groupes.to_iso3)
+        conn.execute("CREATE INDEX IF NOT EXISTS sub_items_iso3 ON sub_items(iso3)")
+        conn.commit()
     live.ensure_schema(conn)
 
 
@@ -224,8 +228,13 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
              LANGS.get((s.get("Language") or "").strip().lower()), parse_date(s.get("SubmissionDate")), entity,
              s.get("EntityType"), entity_kind(s.get("EntityType"), entity, parties),
              db.jdump(co_submitters(s.get("Description"), entity)), s.get("ModifiedDate")))
+    from . import groupes
     from .positions import normalize_actor
 
+    idx = groupes.iso_index(conn)
+    conn.executemany("UPDATE sub_items SET iso3=? WHERE id=?",
+                     [(groupes.to_iso3(r["entity"], idx), r["id"]) for r in
+                      conn.execute("SELECT id, entity FROM sub_items WHERE kind='party'").fetchall()])
     conn.execute("DELETE FROM sub_actors")
     rows = conn.execute("SELECT id, entity, co_submitters FROM sub_items").fetchall()
     conn.executemany("INSERT OR IGNORE INTO sub_actors(sub_id,actor,role) VALUES(?,?,?)",
@@ -1095,13 +1104,13 @@ def group_member_items(conn, gid: str, call_ids: set[int] | None = None) -> tupl
     isos = groupes.member_isos(conn, gid)
     if not isos:
         return [], 0
-    idx = groupes.iso_index(conn)
-    rows = conn.execute("SELECT * FROM sub_items WHERE kind='party' AND doc_id IS NOT NULL ORDER BY submitted DESC").fetchall()
-    out = [r for r in rows if (call_ids is None or r["call_id"] in call_ids) and groupes.to_iso3(r["entity"], idx) in isos]
-    return out, len(isos)
+    rows = conn.execute(
+        f"""SELECT * FROM sub_items WHERE kind='party' AND doc_id IS NOT NULL
+            AND iso3 IN ({','.join('?' * len(isos))}) ORDER BY submitted DESC""", sorted(isos)).fetchall()
+    return [r for r in rows if call_ids is None or r["call_id"] in call_ids], len(isos)
 
 
-def _side(conn, ref: str, call_ids: set[int] | None) -> dict[str, Any]:
+def _side(conn, ref: str, call_ids: set[int] | None, force_members: bool = False) -> dict[str, Any]:
     """Un côté d'une comparaison : soumission(s) propres de l'acteur, sinon soumissions des membres du groupe."""
     from . import groupes
 
@@ -1111,9 +1120,10 @@ def _side(conn, ref: str, call_ids: set[int] | None) -> dict[str, Any]:
             raise ValueError(f"le document {ref} n'est pas une soumission CCNUCC connue")
         return {"acteur": _who(conn, int(ref)), "mode": "propre", "items": [it]}
     try:
-        items = [x for x in _actor_items(conn, ref, indexed_only=True) if call_ids is None or x["call_id"] in call_ids]
+        items = [] if force_members else [x for x in _actor_items(conn, ref, indexed_only=True)
+                                          if call_ids is None or x["call_id"] in call_ids]
         if items:
-            return {"acteur": items and speaks_for(items[0]), "mode": "propre", "items": items}
+            return {"acteur": speaks_for(items[0]), "mode": "propre", "items": items}
     except UnknownActor:
         pass
     gid = groupes.group_id(ref)
@@ -1137,7 +1147,32 @@ def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: s
         call_ids = {appel}
     elif dossier:
         call_ids = set(dossier_call_ids(conn, live.dossier_from_alias(dossier) or dossier))
+    from . import groupes
+
     sa, sb = _side(conn, a, call_ids), _side(conn, b, call_ids)
+    note = None
+
+    def calls(side):
+        return {x["call_id"] for x in side["items"]}
+
+    if not calls(sa) & calls(sb):
+        # Un groupe a soumis en son nom, mais pas sur un appel commun : repli sur les soumissions de ses membres.
+        for ref, side_name in ((b, "sb"), (a, "sa")):
+            side = sb if side_name == "sb" else sa
+            if side["mode"] == "propre" and groupes.group_id(ref):
+                try:
+                    alt = _side(conn, ref, call_ids, force_members=True)
+                except UnknownActor:
+                    continue
+                other = sa if side_name == "sb" else sb
+                if calls(alt) & calls(other):
+                    if side_name == "sb":
+                        sb = alt
+                    else:
+                        sa = alt
+                    note = (f"« {alt['acteur']} » n'a pas soumis en son nom sur un appel commun : comparaison avec les "
+                            "soumissions de ses membres.")
+                    break
     common = sorted({x["call_id"] for x in sa["items"]} & {x["call_id"] for x in sb["items"]},
                     key=lambda c: max(x["submitted"] or "" for x in sa["items"] + sb["items"] if x["call_id"] == c),
                     reverse=True)
@@ -1176,7 +1211,7 @@ def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: s
                       "couverture": f"{len(members)} membre(s) sur {side['membres_listes']} listés"})
         return o
 
-    out = {"appel": _call_public(row) if row else call, "a": side_out(sa), "b": side_out(sb),
+    out = {"appel": _call_public(row) if row else call, "a": side_out(sa), "b": side_out(sb), "repli": note,
            "comparaisons": results, "repartition": counts, "non_comparees": skipped or None,
            "suite": "Relancer pour comparer les suivantes (cache)." if skipped else None,
            "methode": "Chaque comparaison : comparer_soumissions(doc_a, doc_b) pour le détail point par point."}

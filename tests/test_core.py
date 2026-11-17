@@ -1109,3 +1109,73 @@ def test_compare_group_through_members(env, monkeypatch):
     assert "pas une position de groupe" in out["avertissement"]
     g = mcp_server.soumissions(groupe="LDC")
     assert g["soumissions_du_groupe"] == [] and len(g["soumissions_des_membres"]) == 2
+
+
+def test_groupes_review_fixes(env, monkeypatch):
+    """G1 : parenthèses onusiennes jamais simplement retirées (RDC ≠ Congo, Corée du Nord ≠ du Sud) ;
+    G2 : statut « par équivalence » ; G4 : nombre attendu variable ; G3 : repli sur les membres."""
+    import json
+
+    from cop_corpus import fetch, groupes, live, llm, soumissions as sm
+
+    conn = env
+    conn.execute("CREATE TABLE IF NOT EXISTS emissions(iso3 TEXT, country TEXT, year INT, indicator TEXT, value REAL, "
+                 "unit TEXT, source TEXT)")
+    conn.executemany("INSERT INTO emissions(iso3,country) VALUES(?,?)", [
+        ("COG", "Congo"), ("COD", "Democratic Republic of Congo"), ("KOR", "South Korea"), ("PRK", "North Korea"),
+        ("JOR", "Jordan"), ("OMN", "Oman"), ("EGY", "Egypt"), ("DZA", "Algeria"), ("ZWE", "Zimbabwe"),
+        ("TUV", "Tuvalu"), ("NPL", "Nepal")])
+    idx = groupes.iso_index(conn)
+    t = groupes.to_iso3
+    assert t("Congo (Democratic Republic of the)", idx) == "COD" and t("Congo", idx) == "COG"
+    assert t("Korea (Democratic People's Republic of)", idx) == "PRK" and t("Korea (Republic of)", idx) == "KOR"
+    assert t("Bahamas (the)", idx) is None or t("Bahamas (the)", idx) == idx.get("bahamas")
+    assert t("Hashemite Kingdom of Jordan", idx) == "JOR" and t("Sultanate of Oman", idx) == "OMN"
+    assert t("Arab Republic of Egypt", idx) == "EGY" and t("Unknown (Something)", idx) is None
+    # G2 / G4
+    las = '<a href="/en/aboutlas/Pages/CountryDataDetails.aspx?RID=5">Hashemite Kingdom of Jordan</a>' \
+          '<a href="/en/aboutlas/Pages/CountryDataDetails.aspx?RID=12">Sultanate of Oman</a>'
+    afr = "<table><tr><td>Algeria</td><td>Egypt</td><td>Zimbabwe</td></tr></table>"
+    cat = [{"id": "Arab Group", "nom": "Groupe arabe", "type": "negociation", "source": "https://las.test",
+            "parser": "las", "attendu": 2, "equivalence": "Ligue des États arabes"},
+           {"id": "AGN", "nom": "AGN", "type": "negociation", "source": "https://un.test", "parser": "un_african_states",
+            "attendu": [4, 3], "equivalence": "groupe régional africain de l'ONU"},
+           {"id": "LDC", "nom": "PMA", "type": "onu", "source": "https://ldc.test", "releve": "2026-11-17",
+            "membres": ["Tuvalu", "Nepal"], "attendu": 2, "alias": ["PMA"]}]
+    monkeypatch.setattr(groupes, "catalog", lambda: cat)
+    pages = {"https://las.test": las, "https://un.test": afr}
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            if url in pages:
+                return fetch.FetchResult(url=url, status=200, content=pages[url].encode(), mime="text/html")
+            if url.endswith("/CallForSubmissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(calls).encode(), mime="application/json")
+            if url.endswith("/Submissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(subs).encode(), mime="application/json")
+            return fetch.FetchResult(url=url, status=200, mime="text/plain",
+                                     content=(("We call for robust adaptation indicators. " * 8) + url).encode())
+
+    out = groupes.sync(conn, FakeClient())
+    assert out["Arab Group"].startswith("verifie_par_equivalence 2") and out["AGN"].startswith("verifie_par_equivalence 3")
+    info = groupes.query(conn, groupe="AGN")
+    assert "équivalence" not in info["statut"] and "groupe régional" in info["equivalence"]
+    assert info["membres_annonces"] == "4 puis 3"
+    # G3 : le groupe a soumis en son nom, mais pas sur l'appel où l'UE a répondu → repli sur les membres.
+    live._ready.clear()
+    calls = [{"Id": i, "Title": f"Views on GGA indicators {i}", "Issue": "", "SessionName": "SB 65", "Mandate": "N/A",
+              "Deadline": None, "Themes": [], "Bodies": [], "TargetAudience": [], "CallType": "CallForSubmission",
+              "OpenCall": True, "IsUpcomingSession": True, "ModifiedDate": "2026-09-01T00:00:00Z"} for i in (1, 2)]
+    subs = [{"Id": i + 1, "CallForSubmissionId": c, "Title": e, "FileName": f"{e}{c}.txt",
+             "ServerRelativeURL": f"/submissions/Archive/{e}{c}.txt", "Language": "English",
+             "SubmissionDate": f"2026-09-0{i + 1}T00:00:00Z", "Description": d, "Entity": e, "EntityType": "Party"}
+            for i, (c, e, d) in enumerate([(1, "European Union", ""), (1, "Nepal", ""),
+                                           (2, "Tuvalu", "on behalf of the LDC Group")])]
+    sm.sync_index(conn, FakeClient())
+    assert conn.execute("SELECT iso3 FROM sub_items WHERE entity='Nepal'").fetchone()[0] == "NPL"  # G5
+    sm.download_pending(conn, FakeClient(), limit=10)
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.setattr(llm, "json_call", lambda conn_, **k: {"points": []} if k["purpose"] == "soumission-comparaison"
+                        else {"summary": "r", "summary_en": "s", "matters": []})
+    r = sm.compare_actors(conn, "EU", "LDC")
+    assert r["b"]["mode"] == "membres" and r["b"]["membres_ayant_soumis"] == ["Nepal"] and "repli" in r

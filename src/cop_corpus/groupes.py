@@ -48,7 +48,8 @@ VARIANTES = {
     "democratic people's republic of korea": "PRK", "republic of korea": "KOR", "the republic of korea": "KOR",
     "viet nam": "VNM", "syrian arab republic": "SYR", "state of palestine": "PSE", "brunei darussalam": "BRN",
     "cote d'ivoire": "CIV", "côte d'ivoire": "CIV", "cabo verde": "CPV", "eswatini": "SWZ", "dominicanrepublic": "DOM",
-    "czechia": "CZE", "the netherlands": "NLD", "netherlands": "NLD", "united states": "USA",
+    "lebanese republic": "LBN", "comoros": "COM", "libya": "LBY",
+    "czechia": "CZE", "czech republic": "CZE", "holy see": "VAT", "united arab emirates": "ARE", "the netherlands": "NLD", "netherlands": "NLD", "united states": "USA",
     "united states of america": "USA", "the united states": "USA", "united kingdom": "GBR",
     "united kingdom of great britain and northern ireland": "GBR", "türkiye": "TUR", "turkiye": "TUR",
     "russian federation": "RUS", "north macedonia": "MKD", "timor-leste": "TLS", "gambia": "GMB",
@@ -89,12 +90,30 @@ def iso_index(conn) -> dict[str, str]:
     return idx
 
 
+STATE_FORMS = re.compile(r"^(hashemite kingdom of|kingdom of|republic of|people's democratic republic of|"
+                         r"federal republic of|sultanate of|state of|arab republic of|islamic republic of|"
+                         r"federal democratic republic of|union of)\s+")
+
+
 def to_iso3(name: str, idx: dict[str, str]) -> str | None:
+    """ISO3 d'un nom de pays. Une parenthèse n'est JAMAIS simplement retirée (« Congo (Democratic Republic of the) »
+    n'est pas le Congo) : forme onusienne « X (Y of [the]) » réécrite en « Y of [the] X » ; seules « (the) » et un
+    sigle (« (UAE) ») sont retirés."""
     k = _key(name)
     if k in idx:
         return idx[k]
-    k2 = re.sub(r"\s*\([^)]*\)", "", k).strip()  # « Bolivia (Plurinational State of) » → « bolivia »
-    return idx.get(k2)
+    m = re.fullmatch(r"(.+?)\s*\((.+)\)", k)
+    if not m:
+        # Forme protocolaire (« Hashemite Kingdom of Jordan », « Sultanate of Oman ») : en dernier recours seulement,
+        # après les noms exacts et VARIANTES (« Republic of Korea », « Republic of Moldova » y sont déjà).
+        short = STATE_FORMS.sub("", k)
+        return idx.get(short) if short != k else None
+    base, inner = m.group(1).strip(), m.group(2).strip()
+    if inner == "the" or re.fullmatch(r"[a-z]{2,5}", inner) and inner.upper() == re.sub(r"[^A-Z]", "", name.split("(")[-1]):
+        return idx.get(base)
+    if re.search(r"\b(of|of the)$", inner):  # « Democratic Republic of the » + « Congo »
+        return idx.get(f"{inner} {base}")
+    return None
 
 
 # --- lecture des sources --------------------------------------------------------------------------------------------
@@ -142,9 +161,36 @@ def parse_aosis(html) -> list[tuple[str, str | None]]:
     return [(re.split(r"\s+[A-Z]{3,}\b|\s+\d", n)[0].strip(), None) for n in names]
 
 
+def parse_un_african_states(html) -> list[tuple[str, str | None]]:
+    for tbl in BeautifulSoup(html, "lxml").find_all("table"):
+        cells = [" ".join(c.get_text(" ", strip=True).split()).rstrip("*") for c in tbl.find_all("td")]
+        cells = [c for c in cells if c]
+        if "Algeria" in cells and "Zimbabwe" in cells:
+            return [(c, None) for c in cells]
+    return []
+
+
+def parse_las(html) -> list[tuple[str, str | None]]:
+    soup = BeautifulSoup(html, "lxml")
+    names = [" ".join(a.get_text(" ", strip=True).split()) for a in soup.find_all("a")
+             if "CountryDataDetails" in (a.get("href") or "")]
+    return [(n, None) for n in dict.fromkeys(n for n in names if n)]
+
+
 PARSERS = {"g77": parse_g77, "eu": parse_eu, "ohrlls_ldc": parse_ohrlls_ldc, "ohrlls_numbered": parse_ohrlls_numbered,
-           "aosis": parse_aosis}
+           "aosis": parse_aosis, "un_african_states": parse_un_african_states, "las": parse_las}
 EXTRA_PAGES = {"eu": ["?page=1"]}  # liste paginée (20 par page)
+
+
+def _expected(g: dict) -> list[int]:
+    a = g.get("attendu")
+    return [int(x) for x in a] if isinstance(a, list) else ([int(a)] if a else [])
+
+
+def _statut(g: dict, n: int) -> str:
+    if _expected(g) and n not in _expected(g):
+        return "ecart"
+    return "verifie_par_equivalence" if g.get("equivalence") else "verifie"
 
 
 def sync(conn, client: fetch.Client) -> dict[str, Any]:
@@ -156,13 +202,14 @@ def sync(conn, client: fetch.Client) -> dict[str, Any]:
     now = db.now()
     for g in catalog():
         gid, parser = g["id"], g.get("parser")
-        base = {"nom": g["nom"], "type": g["type"], "source": g["source"], "attendu": g.get("attendu")}
+        base = {"nom": g["nom"], "type": g["type"], "source": g["source"],
+                "attendu": (_expected(g) or [None])[0]}
         if g.get("membres"):  # relevé daté, recopié d'une phrase citée de la source
             since = g.get("depuis") or {}
             rows = [(gid, to_iso3(n, idx), n, n, since.get(n), g["source"], str(g.get("releve")))
                     for n in g["membres"]]
             unresolved = [r[2] for r in rows if not r[1]]
-            statut = "verifie" if not g.get("attendu") or len(rows) == g["attendu"] else "ecart"
+            statut = _statut(g, len(rows))
             conn.execute("DELETE FROM grp_members WHERE groupe=?", (gid,))
             conn.executemany("INSERT OR REPLACE INTO grp_members(groupe,iso3,nom,nom_source,depuis,source,recupere_le) "
                              "VALUES(?,?,?,?,?,?,?)", rows)
@@ -206,7 +253,7 @@ def sync(conn, client: fetch.Client) -> dict[str, Any]:
                 rows.append((gid, iso, name, name, since, g["source"], now))
             if not rows:
                 raise RuntimeError("aucun membre lu (structure de la page changée ?)")
-            statut = "verifie" if not g.get("attendu") or len(rows) == g["attendu"] + len(g.get("ajout") or []) else "ecart"
+            statut = _statut(g, len(rows))
             conn.execute("DELETE FROM grp_members WHERE groupe=?", (gid,))
             conn.executemany("INSERT OR REPLACE INTO grp_members(groupe,iso3,nom,nom_source,depuis,source,recupere_le) "
                              "VALUES(?,?,?,?,?,?,?)", rows)
@@ -263,6 +310,10 @@ def group_info(conn, gid: str) -> dict[str, Any]:
         out["statut"] = "non_releve"
     if cat.get("citation"):
         out["citation_source"] = cat["citation"]
+    if cat.get("equivalence"):
+        out["equivalence"] = cat["equivalence"]
+    if isinstance(cat.get("attendu"), list):
+        out["membres_annonces"] = " puis ".join(str(x) for x in cat["attendu"])
     if out.get("statut") == "erreur" and out.get("nb_membres_listes"):
         out["avertissement"] = "Dernière relève en échec : liste de la relève précédente (voir liste_recuperee_le)."
     if out.get("statut") in ("non_verifie", "non_releve"):

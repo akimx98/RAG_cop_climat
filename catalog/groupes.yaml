@@ -9,6 +9,9 @@
 #   membres   (au lieu de parser) relevé daté d'une page qui ne peut pas être relue automatiquement (page de la CCNUCC
 #             protégée par un anti-bot, jamais contourné) : liste recopiée de la phrase citée (`citation`) le jour `releve`
 #   depuis    (optionnel) {membre: année d'adhésion} quand la source la donne
+#   equivalence (optionnel) le groupe n'a pas de liste propre : composition reprise d'une liste officielle équivalente
+#             (statut « verifie_par_equivalence », phrase explicative renvoyée par l'outil)
+#   attendu   peut être une liste de nombres acceptés quand la composition change à une date connue
 # Page de référence des groupes : https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
 
 - id: G77 and China
@@ -31,7 +34,8 @@
   type: onu
   source: https://www.un.org/ohrlls/content/list-ldcs
   parser: ohrlls_ldc
-  attendu: 44
+  attendu: [44, 41]
+  note: "Sortie de la catégorie du Bangladesh, de la RDP lao et du Népal prévue le 24 novembre 2026 (pendant la COP31) : 44 puis 41 membres ; la liste est relue chaque jour sur la page de l'ONU, à vérifier."
   alias: [PMA, LDCs, Least Developed Countries]
 - id: LLDC
   nom: Pays en développement sans littoral
@@ -73,7 +77,7 @@
   membres: [Australia, Canada, Iceland, Israel, Japan, New Zealand, Kazakhstan, Norway, Ukraine, United States, United Kingdom]
   depuis: {United Kingdom: "2023"}
   attendu: 11
-  note: "Coalition informelle, composition variable : liste valable à la date du relevé."
+  note: "Coalition informelle, composition variable : liste valable à la date du relevé. Les États-Unis figurent dans la phrase source ; leur retrait de l'Accord de Paris (notifié en janvier 2025) rend leur participation au groupe à vérifier à la date de la COP."
   alias: [Umbrella, Groupe parapluie]
 - id: BASIC
   nom: Brésil, Afrique du Sud, Inde, Chine
@@ -85,20 +89,23 @@
   attendu: 4
   alias: [BASIC]
 # Groupes sans liste officielle publiée trouvée : décrits par la CCNUCC (nombre de membres), membres non listés.
+# (AGN et Groupe arabe : composition par équivalence, voir plus haut.)
 - id: AGN
   nom: Groupe africain des négociateurs
   type: negociation
-  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  source: https://www.un.org/dgacm/en/content/regional-groups
+  parser: un_african_states
   attendu: 54
+  equivalence: "Pas de liste publiée par le groupe : composition reprise du groupe régional « African States » de l'ONU (54 États), nombre identique aux « 54 pays africains » annoncés par la CCNUCC."
   alias: [African Group, Groupe africain, African Group of Negotiators]
-  note: "« 54 pays africains » selon la CCNUCC ; pas de liste nominative publiée par le groupe."
 - id: Arab Group
   nom: Groupe arabe
   type: negociation
-  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  source: http://www.lasportal.org/en/aboutlas/Pages/CountryData.aspx
+  parser: las
   attendu: 22
+  equivalence: "Pas de liste publiée par le groupe : composition reprise des États membres de la Ligue des États arabes (22), nombre identique aux « 22 pays arabes » annoncés par la CCNUCC."
   alias: [Arab States, Groupe arabe]
-  note: "« 22 pays arabes » selon la CCNUCC ; liste nominative non publiée sur cette page."
 - id: LMDC
   nom: Pays en développement aux vues similaires
   type: coalition

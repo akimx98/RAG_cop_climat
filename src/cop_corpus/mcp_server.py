@@ -62,7 +62,7 @@ document=<id> : résumé et points soulevés classés par force du langage, cita
 appel : accords, différences, conflits ; indication d'alignement calculée par règles fixes, à présenter comme une
 aide à l'analyse, pas un jugement ; un groupe sans soumission propre est comparé via les soumissions de ses
 membres, présentées comme telles). groupes(groupe | partie) : membres des groupes de négociation, liste sourcée
-et datée (AGN, Groupe arabe, LMDC, AILAC, ALBA, CfRN : pas de liste vérifiée). dossier(slug) inclut la rubrique « soumissions » (appels liés, qui a soumis,
+et datée (AGN et Groupe arabe par équivalence ; LMDC, AILAC, ALBA, CfRN : pas de liste vérifiée). dossier(slug) inclut la rubrique « soumissions » (appels liés, qui a soumis,
 alignements connus) ; soumissions(dossier=…, acteurs=[…]) : matrice d'alignement lue dans le cache. Exclues par défaut
 de rechercher : texte intégral avec rechercher(types=["soumission"]) ou partie=…
 NÉGOCIATIONS EN DIRECT : dossiers (vue d'ensemble) → dossier(slug ou alias : GGA, finance, MWP, art6…) : état,
@@ -479,9 +479,10 @@ def groupes(groupe: str | None = None, partie: str | None = None) -> dict[str, A
       membres (nom, ISO3, année d'adhésion si la source la donne).
     - partie=« China », « Brazil », « Tuvalu »… : groupes dont elle est membre.
     - sans argument : tous les groupes et l'état de leur liste.
-    Statut : verifie (liste sourcée, nombre conforme) ; ecart (à vérifier) ; non_verifie (AGN, Groupe arabe, LMDC,
-    AILAC, ALBA, CfRN : pas de liste officielle publiée — ne JAMAIS en déduire la composition, citer seulement le
-    nombre annoncé par la source)."""
+    Statut : verifie (liste sourcée, nombre conforme) ; verifie_par_equivalence (AGN = groupe régional africain de
+    l'ONU, Groupe arabe = Ligue des États arabes : le dire avec la phrase `equivalence`) ; ecart (à vérifier) ;
+    non_verifie (LMDC, AILAC, ALBA, CfRN : pas de liste officielle — ne JAMAIS en déduire la composition, citer
+    seulement le nombre annoncé par la source)."""
     from . import groupes as grp
 
     return grp.query(db.get(), groupe=groupe, partie=partie)

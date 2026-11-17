@@ -420,14 +420,20 @@ donne, source, date). Règle : **pas de liste sourcée, pas de membres**.
 |---|---|---|
 | G77 et Chine (134, Chine incluse) | g77.org | relève quotidienne |
 | UE (27, année d'adhésion) | european-union.europa.eu (2 pages) | relève quotidienne |
-| PMA/LDC (44), PDSL/LLDC (32), PEID/SIDS (39) | un.org/ohrlls | relève quotidienne |
+| PMA/LDC (44, puis 41 après la sortie prévue le 24/11/2026), PDSL/LLDC (32), PEID/SIDS (39) | un.org/ohrlls | relève quotidienne |
 | AOSIS (39) | aosis.org | relève quotidienne |
 | EIG (6), Umbrella Group (11, Royaume-Uni depuis 2023), BASIC (4) | page « Party groupings » de la CCNUCC | relevé daté du 17/11/2026, phrase source citée (la page est derrière un anti-bot Incapsula intermittent : jamais contourné) |
-| AGN (54), Groupe arabe (22), LMDC (≈24), AILAC (8), ALBA (5), CfRN (52) | — | **non vérifié** : nombre annoncé par la CCNUCC, aucun membre listé |
+| AGN (54) | groupe régional « African States » de l'ONU (un.org/dgacm) | **par équivalence** (même nombre que celui annoncé par la CCNUCC), relève quotidienne |
+| Groupe arabe (22) | États membres de la Ligue des États arabes (lasportal.org, version anglaise) | **par équivalence**, relève quotidienne |
+| LMDC (≈24), AILAC (8), ALBA (5), CfRN (52) | — | **non vérifié** : nombre annoncé par la CCNUCC, aucun membre listé |
 
-Nombre lu ≠ nombre annoncé → statut `ecart` (liste à vérifier) ; source en échec → dernière liste gardée, statut
-`erreur`. Noms ramenés à l'ISO3 (noms Our World in Data + variantes onusiennes : Naoero, St. Lucia…) ; un nom non
-résolu est signalé, jamais écarté. Usages : outil MCP `groupes(groupe | partie)` ; `rechercher(groupe=…)` (élément
+Nombre lu hors des nombres annoncés (une liste quand la composition change à date connue) → statut `ecart` (liste à
+vérifier) ; source en échec → dernière liste gardée, statut `erreur`. Noms ramenés à l'ISO3 (noms Our World in Data +
+variantes onusiennes : Naoero, St. Lucia…) ; une parenthèse n'est jamais simplement retirée (« Congo (Democratic
+Republic of the) » est réécrit « Democratic Republic of the Congo ») ; un nom non résolu est signalé, jamais écarté.
+ISO3 de l'auteur stocké dans `sub_items.iso3` à chaque relève de l'index (168 entités « Partie » réelles : toutes
+les Parties résolues ; seuls les groupes et organisations ne le sont pas). Comparaison : si un groupe a soumis en son
+nom mais pas sur un appel commun avec l'autre acteur, repli sur les soumissions de ses membres (champ `repli`). Usages : outil MCP `groupes(groupe | partie)` ; `rechercher(groupe=…)` (élément
 exact de `documents.parties` : noms CCNUCC et ISO3 ; « Niger » ≠ « Nigeria ») ; `soumissions(groupe=…)` (soumissions
 du groupe en son nom ET de ses membres, séparées) ; `comparer_soumissions` avec un groupe qui n'a pas soumis :
 comparaison avec les soumissions de ses MEMBRES sur l'appel commun le plus récent, présentée comme telle (couverture
