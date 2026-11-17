@@ -676,6 +676,11 @@ def test_soumissions_normalisation():
     assert sm.speaks_for({"entity": "Saudi Arabia", "co_submitters": '["LMDC"]'}) == "LMDC"
     assert sm.co_submitters("African Group of Negotiators as an input to the JTWP review",
                             "African Group of Negotiators (AGN)") == ["African Group of Negotiators"]
+    assert sm.co_submitters("on behalf of the Coalition for Rainforest Nations", "Panama") == [
+        "Coalition for Rainforest Nations"]
+    assert sm.co_submitters("on behalf of ALBA, the Bolivarian Alliance for the Peoples of Our America", "Cuba") == [
+        "ALBA", "Bolivarian Alliance for the Peoples of Our America"]
+    assert sm.co_submitters("Group of Experts in Climate Finance", "X") == ["Group of Experts in Climate Finance"]
     assert sm.speaks_for({"entity": "Australia", "co_submitters": '["Republic of Korea"]'}) == "Australia"
     assert sm.entity_kind("pARTY", "X", set()) == "party"
     assert sm.entity_kind("", "Jordan", {"jordan"}) == "party"

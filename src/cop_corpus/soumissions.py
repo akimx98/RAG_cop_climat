@@ -148,8 +148,10 @@ def co_submitters(description: str | None, entity: str) -> list[str]:
     elif d.lower().startswith(ent):
         return []  # titre du document, pas des co-auteurs
     d = re.sub(r"^(this submission (was|is) )?(jointly )?(prepared|submitted) by\s+", "", d, flags=re.I)
-    # « African Group of Negotiators as an input to the review » : la suite après as / for / to / in n'est pas un nom.
-    d = re.split(r"\s+(?:as|for|to|in|regarding|on the)\s+", d, maxsplit=1, flags=re.I)[0]
+    # « African Group of Negotiators as an input to the review » : coupé sur les seules tournures descriptives ;
+    # jamais sur as / for / to / in seuls, présents dans des noms propres (« Coalition for Rainforest Nations »).
+    d = re.split(r"\s+(?:as an? input|as inputs?|in response to|in relation to|for the purpose|pursuant to|"
+                 r"to the call|regarding|on the topic of|with regard to)\b", d, maxsplit=1, flags=re.I)[0]
     names = [re.sub(r"^the\s+", "", x.strip(" ."), flags=re.I) for x in re.split(r"\s*[,;]\s*", d) if x.strip(" .")]
     return [n for n in names if n.lower() != ent and len(n) < 90][:12]
 
