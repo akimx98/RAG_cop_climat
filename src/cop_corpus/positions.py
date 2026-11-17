@@ -43,7 +43,9 @@ ALIASES = {"european union": "EU", "eu27": "EU", "g77/china": "G77 and China", "
            "umbrella group": "Umbrella Group", "groupe parapluie": "Umbrella Group", "chine": "China",
            "inde": "India", "arabie saoudite": "Saudi Arabia", "brésil": "Brazil", "japon": "Japan",
            "états-unis": "United States", "etats-unis": "United States", "royaume-uni": "UK",
-           "turquie": "Türkiye", "republic of türkiye": "Türkiye", "people's republic of china": "China"}
+           "turquie": "Türkiye", "republic of türkiye": "Türkiye", "people's republic of china": "China",
+           "cfrn": "CfRN", "coalition for rainforest nations": "CfRN", "coalition of rainforest nations": "CfRN",
+           "bolivarian alliance for the peoples of our america": "ALBA", "alba group": "ALBA", "alba+": "ALBA"}
 
 
 def normalize_actor(name: str) -> str:

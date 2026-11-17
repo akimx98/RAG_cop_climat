@@ -681,6 +681,12 @@ def test_soumissions_normalisation():
     assert sm.co_submitters("on behalf of ALBA, the Bolivarian Alliance for the Peoples of Our America", "Cuba") == [
         "ALBA", "Bolivarian Alliance for the Peoples of Our America"]
     assert sm.co_submitters("Group of Experts in Climate Finance", "X") == ["Group of Experts in Climate Finance"]
+    assert sm.co_submitters("ALBA at the joint meeting of the SBI and SBSTA at their opening", "Cuba") == ["ALBA"]
+    assert sm.co_submitters("European Union and its Member States. This submission is supported by Albania",
+                            "Austria") == ["European Union and its Member States"]
+    assert sm.co_submitters("on behalf Coalition for Rainforest Nations", "Panama") == ["Coalition for Rainforest Nations"]
+    from cop_corpus.positions import normalize_actor
+    assert normalize_actor("Coalition of Rainforest Nations (CfRN)") == "CfRN" == normalize_actor("CfRN")
     assert sm.speaks_for({"entity": "Australia", "co_submitters": '["Republic of Korea"]'}) == "Australia"
     assert sm.entity_kind("pARTY", "X", set()) == "party"
     assert sm.entity_kind("", "Jordan", {"jordan"}) == "party"
