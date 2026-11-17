@@ -1391,3 +1391,26 @@ def test_briefs_off_by_default(env):
     conn.commit()
     assert briefs.latest(conn, "adaptation") is None and briefs.run_slot(conn, lambda *a: None) == 0
     assert "brief" not in [c["command"] for c in live_bot.COMMANDS] and "/brief" not in live_bot.HELP
+
+
+def test_position_extraction_sources_filtered(env):
+    """Extraction des positions : comptes rendus de négociation et déclarations officielles seulement ; les positions
+    déjà tirées d'une source exclue (presse généraliste) sont retirées."""
+    from cop_corpus import ingest, live, positions
+
+    conn = env
+    live._ready.clear()
+    live.ensure_schema(conn)
+    ids = {}
+    for sid in ("twn-climate-info", "guardian-cop31-rss", "g77-statements-2026-crawl"):
+        ids[sid], _, _ = ingest.ingest_bytes(conn, f"{sid} report on negotiations and positions of Parties. ".encode() * 20,
+                                             url=f"https://x.test/{sid}", filename=f"{sid}.txt", source_id=sid,
+                                             meta={"doc_type": "analyse", "level": "4", "published": "2026-11-15"})
+    picked = {d["source_id"] for d in positions.pending_docs(conn, limit=10)}
+    assert picked == {"twn-climate-info", "g77-statements-2026-crawl"}
+    for sid, did in ids.items():
+        conn.execute("INSERT INTO positions(key,actor,issue,stance,summary,quote,source_kind,doc_id,created_at,access) "
+                     "VALUES(?,?,?,?,?,?,'extraction',?,'2026-11-15','public')", (sid, "UK", "i", "soutient", "s", "q", did))
+    conn.commit()
+    assert positions.prune_unlisted(conn) == 1
+    assert {r[0] for r in conn.execute("SELECT key FROM positions")} == {"twn-climate-info", "g77-statements-2026-crawl"}

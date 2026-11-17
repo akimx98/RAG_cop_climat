@@ -127,17 +127,40 @@ def _store(conn, items: list[dict], source_text: str, *, kind: str, label: str, 
     return n
 
 
+# Sources lues pour l'extraction : comptes rendus de NÉGOCIATION et déclarations officielles des groupes et
+# institutions (préfixes de source_id du catalogue). La presse généraliste (The Guardian, Le Monde, AFP…) et les
+# think tanks sont exclus : ils produisaient des « positions » hors négociation (sondages, débats nationaux).
+POSITION_SOURCES = ("twn-", "climatehome", "carbonbrief", "enb-", "veille-mail", "can-eco",   # comptes rendus
+                    "g77-", "aosis-", "tr-cop31-", "eu-dgclima")                               # déclarations
+
+
+def _listed_source_sql(col: str = "d.source_id") -> tuple[str, list[str]]:
+    return "(" + " OR ".join(f"COALESCE({col},'') LIKE ?" for _ in POSITION_SOURCES) + ")", \
+        [f"{p}%" for p in POSITION_SOURCES]
+
+
+def prune_unlisted(conn) -> int:
+    """Retire les positions extraites de sources qui ne sont plus lues (idempotent)."""
+    live.ensure_schema(conn)
+    clause, params = _listed_source_sql()
+    cur = conn.execute(
+        f"""DELETE FROM positions WHERE source_kind='extraction' AND doc_id IN (
+              SELECT d.id FROM documents d WHERE NOT {clause})""", params)
+    conn.commit()
+    return cur.rowcount
+
+
 def pending_docs(conn, limit: int = 10) -> list:
     live.ensure_schema(conn)
+    clause, params = _listed_source_sql()
     return conn.execute(
-        """SELECT d.* FROM documents d LEFT JOIN extraction_log x ON x.doc_id=d.id
+        f"""SELECT d.* FROM documents d LEFT JOIN extraction_log x ON x.doc_id=d.id
            WHERE x.doc_id IS NULL AND d.access='public' AND d.status='indexed'
              AND COALESCE(d.source_id,'')<>'unfccc-submissions'  -- analysées par soumissions.py
              AND ((COALESCE(d.published,'') <> '' AND d.published >= ?) OR (COALESCE(d.published,'') = ''
                   AND (d.fetched_at >= ? OR d.source_id='veille-mail')))
-             AND (d.source_id='veille-mail' OR d.doc_type IN ('compte_rendu','analyse','communique')
-                  OR d.level IN ('4','5'))
-           ORDER BY d.id DESC LIMIT ?""", (SINCE, UNDATED_SINCE, limit)).fetchall()
+             AND {clause}
+           ORDER BY d.id DESC LIMIT ?""", (SINCE, UNDATED_SINCE, *params, limit)).fetchall()
 
 
 def extract_doc(conn, doc) -> int:
@@ -196,6 +219,9 @@ def run(conn, docs: int = 6) -> dict[str, int]:
     if not llm.enabled():
         return {}
     out = {"documents": 0, "positions": 0}
+    pruned = prune_unlisted(conn)
+    if pruned:
+        out["retirees"] = pruned
     for doc in pending_docs(conn, limit=docs):
         out["positions"] += extract_doc(conn, doc)
         out["documents"] += 1

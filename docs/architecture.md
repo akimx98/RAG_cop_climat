@@ -65,7 +65,9 @@ lignées de versions et diff, recherche hybride (paliers lexicaux + sens, priori
 
 Index public de Carbon Brief (textes de session, positions de référence « Who wants what », cité) ; récupération
 des textes par leur adresse puis par l'ODS, sinon « à récupérer » (dépôt manuel) ; positions extraites des sources
-publiques récentes, gardées seulement si la citation figure mot pour mot dans la source ; briefs IA par dossier à
+publiques récentes — comptes rendus de négociation (TWN, Climate Home, Carbon Brief, ENB, ECO) et déclarations
+officielles (G77, AOSIS, présidence COP31, DG CLIMA), pas la presse généraliste (`positions.POSITION_SOURCES`) —,
+gardées seulement si la citation figure mot pour mot dans la source ; briefs IA par dossier à
 7 h et 19 h, désactivés par défaut (`COP_BRIEFS`) ; notes de terrain restreintes, jamais
 envoyées à un modèle.
 
