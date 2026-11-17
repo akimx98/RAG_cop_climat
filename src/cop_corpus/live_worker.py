@@ -60,7 +60,7 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         from . import groupes
 
         groupes.log(str(groupes.sync(conn, client)))
-    if due("soumissions") and llm.enabled() and config.SUB:
+    if due("soumissions") and llm.enabled() and config.SUB and config.SUB_AUTO_ANALYSE:
         from . import soumissions
 
         try:

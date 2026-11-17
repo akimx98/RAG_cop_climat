@@ -77,8 +77,8 @@ Le stock historique est tenu à l'écart : exclu par défaut de `rechercher`, de
 alertes s'il a été déposé il y a plus de 14 jours ; seules les soumissions de 2026 sont vectorisées.
 
 - **Analyse** (IA, documents publics) : résumé, points soulevés, force du langage (1 constate, 2 suggère,
-  3 demande, 4 exige), citation vérifiée mot pour mot (sinon le point est rejeté). Automatique pour les soumissions
-  de Parties de 2026, sinon à la demande. Les 6 points les plus forts d'une soumission récente de Partie entrent
+  3 demande, 4 exige), citation vérifiée mot pour mot (sinon le point est rejeté). À la demande (`soumissions(document=…)`,
+  comparaisons) ; en tâche de fond seulement si `COP_SUB_AUTO_ANALYSE=1`. Les 6 points les plus forts d'une soumission récente de Partie entrent
   dans `positions` (`source_kind='soumission'`, rubrique « positions écrites » du dossier).
 - **Comparaison** : l'IA qualifie chaque point (accord / partiel / conflit / un seul côté) ; l'indication d'ensemble
   est calculée par règles fixes (`soumissions.verdict`) : points centraux = langage fort des deux côtés ; ≥ 2
@@ -156,7 +156,7 @@ depuis la page « Claude / ChatGPT » du tableau de bord.
 | Récapitulatif du matin (Telegram) | `worker.morning_digest` | 7 h, heure d'Antalya |
 | Textes de session (index Carbon Brief, récupération, alertes) | `live_worker` | 5 min |
 | Bluesky, extraction des positions | `live_worker` | 10 min |
-| Analyse des soumissions de Parties récentes | `live_worker` | 10 min (5 par passage) |
+| Analyse des soumissions de Parties récentes (si `COP_SUB_AUTO_ANALYSE=1`) | `live_worker` | 10 min (5 par passage) |
 | État des dossiers, positions de référence Carbon Brief | `live_worker` | 1 h |
 | Programme (planner), pavillons | `live_worker` | 6 h |
 | Groupes de négociation | `live_worker` | 24 h |
@@ -185,7 +185,8 @@ tableau couvre toutes les variables lues.
 | `COP_LIVE_SINCE`, `COP_LIVE_UNDATED_SINCE` | 2026-11-01, 2026-11-07T18:00Z | sources prises pour l'extraction des positions |
 | `COP_BRIEF_HOURS` | 7,19 | heures des briefs (fuseau `COP_TZ`) |
 | `COP_SUB` | 1 | 0 = ni collecte ni analyse des soumissions |
-| `COP_SUB_ANALYSE_SINCE` | 2026-01-01 | analyse automatique des soumissions de Parties déposées depuis |
+| `COP_SUB_AUTO_ANALYSE` | 0 | 1 = analyser en tâche de fond les soumissions de Parties récentes (sinon à la demande seulement) |
+| `COP_SUB_ANALYSE_SINCE` | 2026-01-01 | analyse automatique (si activée) des soumissions de Parties déposées depuis |
 | `COP_SUB_PER_TICK` | 60 | fichiers de soumissions téléchargés par passage |
 | `COP_SUB_EMBED_SINCE` | 2026-01-01 | soumissions vectorisées seulement depuis cette date |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_NAME` | vide | bot Telegram |

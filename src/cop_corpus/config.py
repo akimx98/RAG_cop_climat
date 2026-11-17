@@ -87,6 +87,7 @@ BRIEF_HOURS = [int(h) for h in os.environ.get("COP_BRIEF_HOURS", "7,19").split("
 
 # --- Soumissions officielles (portail CCNUCC) ------------------------------------------------------------------------
 SUB = os.environ.get("COP_SUB", "1") != "0"                         # collecte et analyse
+SUB_AUTO_ANALYSE = os.environ.get("COP_SUB_AUTO_ANALYSE", "0") == "1"  # 1 = analyser en tâche de fond (coût IA)
 SUB_ANALYSE_SINCE = os.environ.get("COP_SUB_ANALYSE_SINCE", "2026-01-01")   # analyse auto. des Parties depuis
 SUB_PER_TICK = int(os.environ.get("COP_SUB_PER_TICK", "60"))        # fichiers téléchargés par passage
 SUB_EMBED_SINCE = os.environ.get("COP_SUB_EMBED_SINCE", "2026-01-01").replace("'", "")  # vectorisées depuis
