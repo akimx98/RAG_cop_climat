@@ -458,7 +458,8 @@ def test_mcp_guest_tools_and_prompts(env, monkeypatch):
     monkeypatch.setattr(mcp_server, "_user", lambda ctx: guest)
     assert "reserved for contributors" in mcp_server.deposer_url("https://example.org")["erreur"]
     assert "contributors" in mcp_server.noter("blocage")["erreur"]
-    assert mcp_server.suivre_dossier("ace")["dossier"] == "technologie-capacites"
+    assert mcp_server.suivre(dossier="ace")["dossier"] == "technologie-capacites"
+    assert "erreur" in mcp_server.suivre(mots_cles="x", dossier="ace")
     assert [d["slug"] for d in mcp_server.mes_sujets()["dossiers_suivis"]] == ["technologie-capacites"]
     assert all(d["nb_notes"] == 0 for d in live.overview(conn, guest))
     assert "notes_terrain_internes" not in mcp_server.dossier("finance")
@@ -997,7 +998,7 @@ def test_soumissions_dossier_link(env, monkeypatch):
     with pytest.raises(sm.UnknownActor):
         sm.resolve_pair(conn, "EU", "AOSIS", dossier="gga")  # l'AOSIS n'a soumis que hors dossier
     # Matrice : lecture du cache ; une paire comparée apparaît ensuite dans la rubrique.
-    m = sm.alignment_matrix(conn, "adaptation", ["UE", "LMDC", "AOSIS"])
+    m = mcp_server.comparer_soumissions(acteurs=["UE", "LMDC", "AOSIS"], dossier="gga")
     assert m["comparees"] == [] and m["a_calculer"] == [{"a": "EU", "b": "LMDC", "appel": 1}]
     assert m["absents_du_dossier"] == ["AOSIS"] and m["sans_appel_commun"] is None
     sm.compare(conn, da, db_)
@@ -1237,3 +1238,30 @@ def test_prompts_and_skills_cite_existing_tools():
         assert len(v["fr"]) == len(v["en"]), k
     assert "soumissions" in " ".join(mcp_server.METHODES["position_pays"]["fr"])
     assert "groupes" in " ".join(mcp_server.METHODES["preparer_rencontre"]["en"])
+
+
+def test_retired_tools_not_cited_and_and_split():
+    """P3 : aucun outil retiré n'est cité (mot entier) ; « and » ne sépare que des acteurs connus."""
+    import re as _re
+    from pathlib import Path
+
+    from cop_corpus import mcp_server, soumissions as sm
+
+    root = Path(__file__).resolve().parents[1]
+    texts = {"INSTRUCTIONS": mcp_server.INSTRUCTIONS,
+             "METHODES": str(mcp_server.METHODES),
+             "docstrings": "\n".join((t.description or "") for t in mcp_server.mcp._tool_manager._tools.values())}
+    for f in root.glob("clients/claude-plugin/skills/*/SKILL.md"):
+        texts[f.parent.name] = f.read_text(encoding="utf-8")
+    for name, text in texts.items():
+        for tool in mcp_server.RETIRED_TOOLS:
+            # Nom avec « _ » : interdit comme mot entier ; mot courant (« engagements ») : interdit sous forme d'outil.
+            pattern = rf"\b{tool}\b" if "_" in tool else rf"`{tool}[`(]|\b{tool}\("
+            assert not _re.search(pattern, text), (tool, name)
+    assert not set(mcp_server.RETIRED_TOOLS) & set(mcp_server.mcp._tool_manager._tools)
+    known = {"brazil", "south africa", "india", "china", "basic", "arab group", "alba", "antigua"}
+    assert sm.co_submitters("on behalf of Brazil, South Africa, India and China (BASIC)", "X", known) == [
+        "Brazil", "South Africa", "India", "China", "BASIC"]
+    assert sm.co_submitters("Arab Group and ALBA", "X", known) == ["Arab Group", "ALBA"]
+    assert sm.co_submitters("Antigua and Barbuda", "X", known) == ["Antigua and Barbuda"]
+    assert sm.co_submitters("Arab Group and ALBA", "X") == ["Arab Group and ALBA"]  # sans liste : pas de découpe

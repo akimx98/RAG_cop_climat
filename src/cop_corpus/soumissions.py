@@ -134,7 +134,7 @@ def entity_kind(entity_type: str | None, entity: str, parties: set[str]) -> str:
     return "party" if entity.strip().lower() in parties else "observer"
 
 
-def co_submitters(description: str | None, entity: str) -> list[str]:
+def co_submitters(description: str | None, entity: str, known: set[str] | None = None) -> list[str]:
     """Co-auteurs ou groupe au nom duquel l'auteur soumet, d'après le champ Description (texte libre) :
     « on behalf of the LDC Group », « Republic of Korea », « Uruguay on behalf of G77 and China ». Un champ qui
     reprend le titre du document (commence par le nom de l'auteur sans « on behalf ») est ignoré."""
@@ -157,7 +157,21 @@ def co_submitters(description: str | None, entity: str) -> list[str]:
                  r"at (?:the )?(?:joint|opening|closing|apa|sbi|sbsta|sb ?\d|cop ?\d|cma ?\d|cmp ?\d|its))\b",
                  d, maxsplit=1, flags=re.I)[0]
     names = [re.sub(r"^the\s+", "", x.strip(" ."), flags=re.I) for x in re.split(r"\s*[,;]\s*", d) if x.strip(" .")]
-    return [n for n in names if n.lower() != ent and len(n) < 90][:12]
+    out: list[str] = []
+    for n in names:
+        m2 = re.fullmatch(r"(.+?)\s*\(([A-Z][A-Za-z0-9+]{1,9})\)", n)  # « India and China (BASIC) » : sigle final
+        acronym = None
+        if m2 and known is not None and m2.group(2).lower() in known:
+            n, acronym = m2.group(1).strip(), m2.group(2)
+        parts = [p.strip() for p in re.split(r"\s+and\s+", n)]
+        # « and » ne sépare que si chaque morceau est un acteur connu (« Antigua and Barbuda » reste entier).
+        if known is not None and len(parts) > 1 and all(p.lower() in known for p in parts):
+            out += parts
+        else:
+            out.append(n)
+        if acronym:
+            out.append(acronym)
+    return [n for n in out if n.lower() != ent and len(n) < 90][:12]
 
 
 GROUP_HINT = re.compile(r"group|G77|G-77|LDC|LMDC|AOSIS|AILAC|ALBA|AGN|BASIC|LLDC|SIDS|alliance|coalition|"
@@ -220,6 +234,7 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
              db.jdump(c.get("TargetAudience")), c.get("CallType"), int(bool(c.get("OpenCall"))),
              int(bool(c.get("IsUpcomingSession"))), c.get("ModifiedDate")))
     parties = {(s.get("Entity") or "").strip().lower() for s in subs if (s.get("EntityType") or "").lower() == "party"}
+    known = _known_actor_names(conn) | parties
     known = {r[0] for r in conn.execute("SELECT id FROM sub_items")}
     for s in subs:
         entity = (s.get("Entity") or "").replace("\u200b", "").strip()
@@ -235,7 +250,7 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
             (s["Id"], s.get("CallForSubmissionId"), s.get("Title"), s.get("FileName"), s.get("ServerRelativeURL"),
              LANGS.get((s.get("Language") or "").strip().lower()), parse_date(s.get("SubmissionDate")), entity,
              s.get("EntityType"), entity_kind(s.get("EntityType"), entity, parties),
-             db.jdump(co_submitters(s.get("Description"), entity)), s.get("ModifiedDate")))
+             db.jdump(co_submitters(s.get("Description"), entity, known)), s.get("ModifiedDate")))
     from . import groupes
     from .positions import normalize_actor
 
@@ -255,6 +270,18 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
     db.meta_set(conn, "soumissions_index", db.now())
     map_calls(conn)
     return {"appels": len(calls), "soumissions": len(subs), "nouvelles": sum(1 for x in subs if x["Id"] not in known)}
+
+
+def _known_actor_names(conn) -> set[str]:
+    """Noms d'acteurs reconnus (minuscules) : pays (ISO3), alias de groupes et d'acteurs. Sert à découper « X and Y »
+    seulement quand X et Y sont des acteurs connus."""
+    from . import groupes
+    from .positions import ALIASES
+
+    names = set(groupes.iso_index(conn)) | set(ALIASES) | {v.lower() for v in ALIASES.values()}
+    for g in groupes.catalog():
+        names |= {g["id"].lower(), *(a.lower() for a in g.get("alias") or [])}
+    return names
 
 
 def _meta(conn, item, call) -> dict[str, Any]:

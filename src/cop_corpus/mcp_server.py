@@ -36,11 +36,16 @@ RÈGLES
 
 OUTILS
 - Corpus : rechercher → lire_passage ; document ; comparer_versions ; nouveautes ; donnees ; glossaire.
-- Négociations : dossiers → dossier (état, textes, brief, positions, soumissions) ; positions ; textes_en_cours ; noter.
-- Positions écrites : soumissions (appels, auteurs, analyse) ; comparer_soumissions ; groupes (membres sourcés).
+- Négociations : dossiers (textes annoncés) → dossier (état, textes, brief, positions, soumissions) ; positions ; noter.
+- Positions écrites : soumissions (appels, auteurs, analyse) ; comparer_soumissions (et matrice) ; groupes.
 - Événements : programme (où et quand) ; pavillons (contenu des événements, comptages).
-- Alertes et ajout : mes_sujets ; suivre ; suivre_dossier ; arreter_suivi ; deposer_url ; etat_corpus.
+- Alertes et ajout : mes_sujets ; suivre (mots-clés, dossier, arrêt) ; deposer_url ; etat_corpus.
 Méthodes : point_negociation, position_pays, preparer_rencontre, plaidoyer, decouvrir_sujet, quoi_de_neuf."""
+
+# Outils retirés ou renommés : ne doivent plus apparaître nulle part (test). textes_en_cours → dossiers(textes=…) ;
+# suivre_dossier / arreter_suivi → suivre(dossier=… | arreter=…) ; analyser_soumission → soumissions(document=…) ;
+# engagements / deposer : noms qui n'ont jamais existé (ancienne documentation).
+RETIRED_TOOLS = ("textes_en_cours", "suivre_dossier", "arreter_suivi", "analyser_soumission", "engagements", "deposer")
 
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
@@ -240,7 +245,8 @@ def glossaire(terme: str | None = None) -> dict[str, Any]:
 def programme(sujet: str | None = None, jour: str | None = None, types: list[str] | None = None,
               limite: int = 40, mes_sujets: bool = False, pavillons: bool = True,
               ctx: Context | None = None) -> dict[str, Any]:
-    """Programme de la COP31 : où et quand aller. Side events officiels (salle, horaire, organisateurs, thèmes),
+    """Programme de la COP31 : OÙ et QUAND aller (un jour donné, des sujets donnés). Pour chercher dans le contenu
+    des événements, compter (« combien de pavillons ont parlé de… ») ou voir la couverture : outil `pavillons`. Side events officiels (salle, horaire, organisateurs, thèmes),
     réunions officielles du calendrier CCNUCC (dialogues et ateliers prévus par les décisions, coordinations de
     groupes, événements spéciaux), résumé des négociations du jour, documents de programme déposés (Daily
     Programme, ordres du jour) ET événements des pavillons et hubs (Blue Zone et Green Zone, ≈5 000 sessions
@@ -299,7 +305,8 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
 def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str | None = None,
               zone: str | None = None, mode: str = "hybride", limite: int = 80, evenement: str | None = None,
               couverture: bool = False) -> dict[str, Any]:
-    """Programmes de TOUS les pavillons et side events de la COP31 (≈5 000 événements : titre, résumé,
+    """Recherche dans le CONTENU des programmes (comptages, couverture, qui a parlé de quoi). Pour « où et quand
+    aller aujourd'hui » : outil `programme`. Programmes de TOUS les pavillons et side events de la COP31 (≈5 000 événements : titre, résumé,
     intervenants, thèmes, mots-clés), pour des questions transversales : « combien de pavillons ont parlé des
     forêts tropicales ? », « quels pavillons ont critiqué les solutions techniques (CCS, géo-ingénierie…) ? »,
     « que fait le pavillon de l'Indonésie sur le méthane ? », « qui a parlé de minerais critiques ? ».
@@ -327,14 +334,15 @@ def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str |
                      limite=max(1, min(limite, 300)))
 
 
-@mcp.tool(annotations=WRITE)
+@mcp.tool(annotations=READ)
 def soumissions(appel: int | None = None, auteur: str | None = None, document: str | None = None,
-                dossier: str | None = None, acteurs: list[str] | None = None, groupe: str | None = None,
+                dossier: str | None = None, groupe: str | None = None,
                 requete: str | None = None, theme: str | None = None, session: str | None = None,
                 ouverts: bool = False, parties_seulement: bool = False, limite: int = 40,
                 ctx: Context | None = None) -> dict[str, Any]:
     """Soumissions officielles à la CCNUCC (portail submissions.unfccc.int, depuis 2015) : appels, qui a soumis
-    quoi, et analyse d'une soumission.
+    quoi, et analyse d'une soumission. UN mode par appel, dans cet ordre de priorité : document, appel, groupe,
+    dossier, auteur, sinon liste des appels (requete / theme / session / ouverts).
     - sans argument (ou requete / theme / session / ouverts) : liste des appels, avec nombre de soumissions ;
       requete = mots du titre, tous requis (« just transition », « adaptation indicators », « Article 6.8 ») ;
       session = COP31, SB64… ; ouverts=true : appels ouverts ou de la session en cours.
@@ -344,8 +352,6 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
       co-auteur (nom exact après normalisation ; un nom inconnu renvoie les noms proches, jamais un autre pays).
     - dossier=<slug ou alias : GGA, finance, JTWP, art6…> : appels rattachés au dossier (les plus récents), qui a
       soumis (acteurs canoniques ; groupe quand une Partie soumet en son nom), alignements déjà calculés.
-      Avec acteurs=["EU","LMDC","AOSIS",…] : matrice d'alignement LUE DANS LE CACHE (paires comparées, paires
-      « à calculer » avec l'appel commun ; rien n'est calculé ici).
     - groupe=« LDC », « AOSIS », « G77 »… : soumissions du groupe en son nom ET de ses membres (liste sourcée),
       avec dossier= pour se limiter à un dossier.
     - document=<doc_id> : ANALYSE de la soumission (calculée une fois puis en cache) : résumé, points soulevés avec
@@ -392,8 +398,6 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
             slug = live.dossier_from_alias(dossier) or dossier
             if not live.dossier(slug):
                 return {"erreur": f"dossier inconnu : {dossier}", "dossiers": [d["slug"] for d in live.dossiers()]}
-            if acteurs:
-                return sm.alignment_matrix(conn, slug, acteurs)
             return {"dossier": slug, **sm.dossier_section(conn, slug, limit=min(limite, 25))}
         if auteur:
             return {"auteur": auteur, "soumissions": sm.by_entity(conn, auteur, limite)}
@@ -403,9 +407,10 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
         return {"erreur": str(exc)}
 
 
-@mcp.tool(annotations=WRITE)
-def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None, dossier: str | None = None,
-                         max_comparaisons: int = 6, ctx: Context | None = None) -> dict[str, Any]:
+@mcp.tool(annotations=READ)
+def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int | None = None,
+                         dossier: str | None = None, acteurs: list[str] | None = None, max_comparaisons: int = 6,
+                         ctx: Context | None = None) -> dict[str, Any]:
     """Compare les positions écrites de deux acteurs (soumissions officielles), point par point : chaque point est
     qualifié accord / partiel / conflit / un seul côté, avec ce que dit chacun et la force de son langage ;
     l'indication d'ensemble (alignées, partiellement, non alignées, pas de position commune) est calculée par
@@ -417,12 +422,24 @@ def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None,
       on le signale.
     - b absent : compare la soumission de `a` avec les autres Parties du même appel (comparaisons en cache
       d'abord, quelques nouvelles par requête ; relancer pour la suite).
+    - acteurs=["EU","LMDC","AOSIS",…] + dossier=… : matrice d'alignement LUE DANS LE CACHE (paires déjà comparées,
+      paires « à calculer » avec leur appel commun) ; aucune comparaison lancée.
+    Analyses et comparaisons sont calculées une fois puis gardées en cache (coût plafonné).
     Présenter comme une aide à l'analyse (pas un jugement), avec les citations et liens des deux documents."""
     from . import soumissions as sm
 
     conn = db.get()
-    _need_user(ctx)
     try:
+        if acteurs:
+            from . import live
+
+            slug = live.dossier_from_alias(dossier or "") or dossier
+            if not slug or not live.dossier(slug):
+                return {"erreur": "acteurs=[…] demande dossier=… (slug ou alias)"}
+            return sm.alignment_matrix(conn, slug, acteurs)
+        if not a:
+            return {"erreur": "préciser a (et b), ou acteurs=[…] avec dossier=…"}
+        _need_user(ctx)
         if not b:
             return sm.compare_in_call(conn, sm.latest_doc(conn, a, appel), max_n=max(1, min(max_comparaisons, 10)))
         try:
@@ -478,36 +495,32 @@ def mes_sujets(ctx: Context | None = None) -> dict[str, Any]:
 
 
 @mcp.tool(annotations=WRITE)
-def suivre(mots_cles: str, libelle: str | None = None, niveaux: list[str] | None = None,
+def suivre(mots_cles: str | None = None, dossier: str | None = None, arreter: int | None = None,
+           ne_plus_suivre: bool = False, libelle: str | None = None, niveaux: list[str] | None = None,
            types: list[str] | None = None, ctx: Context | None = None) -> dict[str, Any]:
-    """Créer une alerte : chaque nouveau document correspondant sera signalé (Telegram + tableau de bord).
-    `mots_cles` : expressions séparées par des virgules, de préférence en anglais ET en français
-    (ex. « fossil fuels, combustibles fossiles, transition away »). Vide (« * ») + types = tout nouveau
-    document de ces types (ex. types=["projet_texte"])."""
+    """Alertes (Telegram + tableau de bord). Un seul des trois modes :
+    - mots_cles=… : alerte sur chaque nouveau document correspondant ; expressions séparées par des virgules, en
+      anglais ET en français (« fossil fuels, combustibles fossiles, transition away ») ; « * » + types = tout
+      nouveau document de ces types (ex. types=["projet_texte"]).
+    - dossier=… (slug ou alias : GGA, finance, ACE, art6…) : alerte à chaque nouveau texte du dossier et brief de
+      7 h et 19 h ; ne_plus_suivre=true pour arrêter.
+    - arreter=<id> : supprimer une alerte par mots-clés (identifiant donné par mes_sujets)."""
     user = _need_user(ctx)
     conn = db.get()
+    modes = [x is not None and x != "" for x in (mots_cles, dossier, arreter)]
+    if sum(modes) != 1:
+        return {"erreur": "préciser exactement un de : mots_cles, dossier, arreter"}
+    if arreter is not None:
+        return {"ok": alerts.remove_subscription(conn, user["id"], arreter), "alerte_supprimee": arreter}
+    if dossier:
+        live, _, _ = _live()
+        slug = live.dossier_from_alias(dossier) or (dossier if live.dossier(dossier) else None)
+        if not slug:
+            return {"erreur": "dossier inconnu : voir l'outil `dossiers` pour la liste et les alias"}
+        live.follow(conn, user["id"], slug, not ne_plus_suivre)
+        return {"ok": True, "dossier": slug, "suivi": not ne_plus_suivre}
     sid = alerts.add_subscription(conn, user["id"], libelle or mots_cles[:60], mots_cles, niveaux, types)
     return {"ok": True, "id": sid, "apercu_7_jours": alerts.preview(conn, mots_cles, niveaux, types, user, days=7, limit=5)}
-
-
-@mcp.tool(annotations=WRITE)
-def suivre_dossier(dossier: str, suivre: bool = True, ctx: Context | None = None) -> dict[str, Any]:
-    """Suivre (ou ne plus suivre) un dossier de négociation (slug ou alias : GGA, finance, ACE, art6…) :
-    alerte à chaque nouveau texte et brief à 7 h et 19 h sur Telegram, et le dossier figure dans mes_sujets."""
-    live, _, _ = _live()
-    user = _need_user(ctx)
-    slug = live.dossier_from_alias(dossier) or (dossier if live.dossier(dossier) else None)
-    if not slug:
-        return {"erreur": "dossier inconnu : voir l'outil `dossiers` pour la liste et les alias"}
-    live.follow(db.get(), user["id"], slug, suivre)
-    return {"ok": True, "dossier": slug, "suivi": suivre}
-
-
-@mcp.tool(annotations=WRITE)
-def arreter_suivi(id: int, ctx: Context | None = None) -> dict[str, Any]:
-    """Arrêter une alerte (identifiant donné par mes_sujets)."""
-    user = _need_user(ctx)
-    return {"ok": alerts.remove_subscription(db.get(), user["id"], id)}
 
 
 @mcp.tool(annotations=WRITE)
@@ -550,15 +563,25 @@ def _live():
 
 
 @mcp.tool(annotations=READ)
-def dossiers(ctx: Context | None = None) -> dict[str, Any]:
+def dossiers(textes: bool = False, a_recuperer: bool = False, limite: int = 30,
+             ctx: Context | None = None) -> dict[str, Any]:
     """Les dossiers de négociation de la COP31 (atténuation, GGA, finance, art. 6, transition juste…) avec leur
     état (selon l'index de Carbon Brief), le nombre de textes, de positions et de notes. Point d'entrée pour
-    « où en est-on ? ». Utiliser ensuite `dossier(slug)`."""
+    « où en est-on ? ». Utiliser ensuite `dossier(slug)`.
+    textes=true : en plus, les derniers textes de négociation annoncés, tous dossiers (cote, titre, heure,
+    crochets, options, récupéré ou non) ; a_recuperer=true : seulement ceux pas encore récupérés dans le corpus."""
     live, _, _ = _live()
-    rows = live.overview(db.get(), _user(ctx))
-    return {"dossiers": [{k: d[k] for k in ("slug", "nom", "alias", "enjeu", "etat", "nb_textes", "a_recuperer",
-                                            "nb_positions", "nb_notes", "dernier")} for d in rows],
-            "source_index": f"{live.CB_CREDIT} — {live.CB_TEXTS_PAGE} (à citer)"}
+    conn = db.get()
+    rows = live.overview(conn, _user(ctx))
+    out = {"dossiers": [{k: d[k] for k in ("slug", "nom", "alias", "enjeu", "etat", "nb_textes", "a_recuperer",
+                                           "nb_positions", "nb_notes", "dernier")} for d in rows],
+           "source_index": f"{live.CB_CREDIT} — {live.CB_TEXTS_PAGE} (à citer)"}
+    if textes or a_recuperer:
+        ts = live.texts(conn, None, pending_only=a_recuperer, limit=min(limite, 100))
+        out["textes"] = [{**{k: t[k] for k in ("dossier", "symbol", "title", "body", "agenda_item", "published",
+                                               "brackets", "options", "pdf_url")},
+                          "lien": f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t["doc_id"] else None} for t in ts]
+    return out
 
 
 @mcp.tool(annotations=READ)
@@ -613,21 +636,6 @@ def _sub_section(conn, slug: str) -> dict[str, Any] | None:
         return out if out["appels"] else None
     except Exception:
         return None
-
-
-@mcp.tool(annotations=READ)
-def textes_en_cours(dossier: str | None = None, a_recuperer: bool = False, limite: int = 30,
-                    ctx: Context | None = None) -> dict[str, Any]:
-    """Derniers textes de négociation annoncés (index Carbon Brief) : cote, titre, heure, crochets, options,
-    statut (récupéré dans le corpus ou à récupérer à la main)."""
-    live, _, _ = _live()
-    conn = db.get()
-    slug = live.dossier_from_alias(dossier) if dossier else None
-    ts = live.texts(conn, slug or dossier, pending_only=a_recuperer, limit=min(limite, 100))
-    return {"textes": [{**{k: t[k] for k in ("dossier", "symbol", "title", "body", "agenda_item", "published",
-                                             "brackets", "options", "pdf_url")},
-                        "lien": f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t["doc_id"] else None} for t in ts],
-            "source": f"{live.CB_CREDIT} — {live.CB_TEXTS_PAGE}"}
 
 
 @mcp.tool(annotations=READ)
