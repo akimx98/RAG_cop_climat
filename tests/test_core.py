@@ -896,6 +896,27 @@ def test_soumissions_dossier_link(env, monkeypatch):
     assert sm.rule_dossiers({"title": "Review of the just transition work programme and finance", "issue": "",
                              "themes": "[]"}) == {"transition-juste": 1.0}
     assert sm.rule_dossiers({"title": "Voluntary submissions", "issue": "Unsolicited", "themes": "[]"}) == {}
+    # R1 : article 6 de la Convention = ACE, pas les marchés carbone.
+    assert sm.rule_dossiers({"title": "Views on Action for Climate Empowerment under Article 6 of the Convention",
+                             "issue": "", "themes": "[]"}) == {"technologie-capacites": 1.0}
+    assert sm.rule_dossiers({"title": "Views on Article 6, paragraph 4 mechanism", "issue": "", "themes": "[]"}) == {
+        "article-6": 1.0}
+    # R2 : les thèmes du portail ne s'ajoutent jamais à un rattachement spécifique ; dernier recours à 0.6.
+    assert sm.rule_dossiers({"title": "Just transition work programme", "issue": "",
+                             "themes": '["Technology", "Transparency"]'}) == {"transition-juste": 1.0}
+    assert sm.rule_dossiers({"title": "Call for inputs", "issue": "", "themes": '["Gender and climate change"]'}) == {
+        "genre": 0.6}
+    # R3 : « reporting » et « agenda » sont larges ; adaptation communication est spécifique.
+    assert sm.rule_dossiers({"title": "Adaptation communications: reporting guidance", "issue": "", "themes": "[]"}) == {
+        "adaptation": 1.0}
+    assert sm.rule_dossiers({"title": "Views on the provisional agenda item on the GGA", "issue": "", "themes": "[]"}) == {
+        "adaptation": 1.0}
+    # Le point de l'ordre du jour prime sur un titre descriptif ; les invités (« Financial Mechanism ») ne comptent pas.
+    assert sm.rule_dossiers({"title": "Submissions on gender-responsive finance and available capacity-building",
+                             "issue": "Gender and climate change", "themes": "[]"}) == {"genre": 1.0}
+    assert sm.rule_dossiers({"title": "Parties, constituted bodies and the operating entities of the Financial Mechanism "
+                                      "are invited", "issue": "Second review of the PCCB", "themes": "[]"}) == {
+        "technologie-capacites": 1.0}
 
     calls = [
         {"Id": 1, "Title": "Views on GGA indicators", "Issue": "", "SessionName": "SB 65", "Mandate": "N/A",
@@ -965,7 +986,7 @@ def test_soumissions_dossier_link(env, monkeypatch):
     # Matrice : lecture du cache ; une paire comparée apparaît ensuite dans la rubrique.
     m = sm.alignment_matrix(conn, "adaptation", ["UE", "LMDC", "AOSIS"])
     assert m["comparees"] == [] and m["a_calculer"] == [{"a": "EU", "b": "LMDC", "appel": 1}]
-    assert m["sans_appel_commun"] == ["AOSIS"]
+    assert m["absents_du_dossier"] == ["AOSIS"] and m["sans_appel_commun"] is None
     sm.compare(conn, da, db_)
     m = sm.alignment_matrix(conn, "adaptation", ["EU", "LMDC"])
     assert m["comparees"][0]["indication"] == "aligne" and not m["a_calculer"]

@@ -860,59 +860,73 @@ def latest_doc(conn, ref: str, appel: int | None = None) -> int:
 # catalog/dossiers.yaml) ; 2) à défaut, dossier majoritaire parmi les points analysés de ses soumissions
 # (part ≥ POINTS_SHARE, au moins POINTS_MIN points) ; 3) un rattachement « manuel » (CLI) prime et n'est jamais écrasé.
 
-RULES_VERSION = "1"
+RULES_VERSION = "2"
 POINTS_SHARE = 0.4
 POINTS_MIN = 3
 CALL_RULES: list[tuple[str, str, float]] = [
     # (dossier, motif sur le texte de l'appel en minuscules, score : 1 = spécifique, 0.6 = large)
     ("adaptation", r"global goal on adaptation|\bgga\b|adaptation indicator|national adaptation plan|\bnaps?\b|"
-                   r"adaptation committee|adaptation fund|nairobi work programme|bel[ée]m adaptation", 1.0),
+                   r"adaptation committee|adaptation fund|nairobi work programme|bel[ée]m adaptation|"
+                   r"adaptation communication", 1.0),
     ("adaptation", r"\badaptation\b", 0.6),
     ("transition-juste", r"just transition", 1.0),
+    # « operating entities of the Financial Mechanism » figure souvent dans la liste des INVITÉS : pas un signal.
     ("finance", r"new collective quantified goal|\bncqg\b|article 9|long-term (climate )?finance|"
                 r"standing committee on finance|\bscf\b|green climate fund|\bgcf\b|global environment facility|"
-                r"\bgef\b|financial mechanism|baku to bel[ée]m", 1.0),
+                r"\bgef\b|guidance to the (operating entities of the )?financial mechanism|"
+                r"review of the financial mechanism|baku to bel[ée]m", 1.0),
     ("finance", r"\bclimate finance\b|\bfinance\b", 0.6),
     ("flux-financiers", r"article 2,? paragraph 1\(c\)|2\.1\s?\(c\)|finance flows", 1.0),
     ("pertes-prejudices", r"loss and damage|warsaw international mechanism|santiago network|\bfrld\b|\bwim\b", 1.0),
-    ("article-6", r"article 6|non-market approach|crediting mechanism|\bitmos?\b|supervisory body|"
+    # Article 6 de l'ACCORD DE PARIS (marchés) ; l'article 6 de la CONVENTION, c'est l'ACE (technologie-capacites).
+    ("article-6", r"article 6,? paragraphs? [248]|article 6\.[248]|article 6 of the paris agreement|"
+                  r"non-market approach|crediting mechanism|\bitmos?\b|supervisory body|"
                   r"clean development mechanism|\bcdm\b|kyoto mechanism|joint implementation", 1.0),
     ("attenuation", r"mitigation work programme|\bmwp\b|mitigation ambition|transition(ing)? away from fossil|"
                     r"international aviation|maritime transport|bunker fuel", 1.0),
     ("attenuation", r"\bmitigation\b", 0.6),
-    ("bilan-ndc", r"global stocktake|\bgst\b|nationally determined contribution|\bndcs?\b|uae dialogue", 1.0),
+    ("bilan-ndc", r"global stocktake|\bgst\b|uae dialogue|ndc synthesis", 1.0),
+    ("bilan-ndc", r"nationally determined contribution|\bndcs?\b", 0.6),
     ("riposte-commerce", r"response measures|unilateral trade|trade and climate|\bkci\b", 1.0),
-    ("transparence", r"transparency|\betf\b|biennial|\bbtrs?\b|national communication|inventor(y|ies)|"
-                     r"\breporting\b|compliance|facilitative multilateral", 1.0),
-    ("technologie-capacites", r"technology|\bctcn\b|\btec\b|capacity[- ]building|\bpccb\b|"
-                              r"action for climate empowerment|\bace\b|climate education", 1.0),
+    ("transparence", r"transparency|\betf\b|biennial (transparency|update) report|\bbtrs?\b|\bbur\b|"
+                     r"national communication|facilitative multilateral|methodological issues under the paris|"
+                     r"article 13 of the paris agreement", 1.0),
+    ("transparence", r"\breporting\b|inventor(y|ies)|compliance", 0.6),
+    ("technologie-capacites", r"technology (mechanism|executive|implementation programme|needs|framework|transfer)|"
+                              r"\bctcn\b|\btec\b|capacity[- ]building|\bpccb\b|action for climate empowerment|"
+                              r"\bace\b|climate education|article 6 of the convention", 1.0),
+    ("technologie-capacites", r"\btechnology\b", 0.6),
     ("agriculture", r"agricultur|food security|sharm el-sheikh joint work", 1.0),
     ("genre", r"gender", 1.0),
     ("science-oceans", r"research|systematic observation|\bipcc\b|ocean|earth information day", 1.0),
     ("science-oceans", r"\bscience\b", 0.6),
     ("pma-vulnerables", r"least developed countr|\bleg\b|\bldc expert|small island", 1.0),
     ("organisation", r"arrangements for intergovernmental|programme budget|administrative, financial|"
-                     r"rules of procedure|\bagenda\b|cooperation with other international organi[sz]ations", 1.0),
+                     r"rules of procedure|cooperation with other international organi[sz]ations", 1.0),
+    ("organisation", r"provisional agenda", 0.6),
     ("couverture", r"cover decision|mutir[aã]o", 1.0),
 ]
 
 
-def _call_text(c) -> str:
-    return " ".join([c["title"] or "", c["issue"] or "", " ".join(db.jload(c["themes"])),
-                     ]).lower()
-
-
 def rule_dossiers(call) -> dict[str, float]:
-    """Dossiers d'un appel selon les règles : {slug: score}. Une règle spécifique (1.0) d'un dossier efface les
-    correspondances larges (0.6) des autres dossiers (« adaptation » dans un appel sur les pertes et préjudices)."""
-    text = _call_text(call)
-    found: dict[str, float] = {}
+    """Dossiers d'un appel selon les règles : {slug: score}.
+    1. Motifs spécifiques (1.0) sur le point de l'ordre du jour (OBJET), à défaut sur le TITRE : ils suffisent.
+    2. Sinon, motifs larges (0.6) sur titre et objet, et tous les motifs sur les THÈMES du portail (génériques,
+       souvent multiples), à 0.6 : dernier recours, jamais en plus d'un rattachement spécifique."""
+    issue, title = (call["issue"] or "").lower(), (call["title"] or "").lower()
+    main = f"{title} {issue}"
+    themes = " ".join(db.jload(call["themes"])).lower()
+    # Le point de l'ordre du jour (`issue`) est court et précis ; le titre est souvent une longue description qui
+    # cite des sujets voisins (« …and available capacity-building… »). D'abord l'un, puis l'autre.
+    for text in (issue, title):
+        specific = {slug: 1.0 for slug, pattern, score in CALL_RULES if score >= 1.0 and re.search(pattern, text)}
+        if specific:
+            return specific
+    broad: dict[str, float] = {}
     for slug, pattern, score in CALL_RULES:
-        if re.search(pattern, text):
-            found[slug] = max(found.get(slug, 0.0), score)
-    if any(v >= 1.0 for v in found.values()):
-        found = {k: v for k, v in found.items() if v >= 1.0}
-    return found
+        if (score < 1.0 and re.search(pattern, main)) or (themes and re.search(pattern, themes)):
+            broad[slug] = 0.6
+    return broad
 
 
 def points_dossier(conn, call_id: int) -> tuple[str, float] | None:
@@ -958,8 +972,12 @@ def map_calls(conn) -> dict[str, int]:
     return out
 
 
+NO_DOSSIER = "aucun"  # rattachement manuel « cet appel ne relève d'aucun dossier » (bloque les règles)
+
+
 def set_manual(conn, call_id: int, dossiers: list[str]) -> list[str]:
-    """Rattachement à la main (remplace tout rattachement de l'appel ; liste vide = « aucun dossier »)."""
+    """Rattachement à la main (remplace tout rattachement de l'appel). Liste vide : ligne NO_DOSSIER, qui empêche
+    les règles de le rattacher et n'apparaît dans aucun dossier."""
     ensure_schema(conn)
     slugs = [live.dossier_from_alias(d) or d for d in dossiers]
     unknown = [d for d in slugs if not live.dossier(d)]
@@ -967,7 +985,7 @@ def set_manual(conn, call_id: int, dossiers: list[str]) -> list[str]:
         raise ValueError(f"dossier(s) inconnu(s) : {', '.join(unknown)}")
     conn.execute("DELETE FROM sub_call_dossiers WHERE call_id=?", (call_id,))
     conn.executemany("INSERT INTO sub_call_dossiers(call_id,dossier,methode,score,at) VALUES(?,?,'manuel',1,?)",
-                     [(call_id, d, live.now_iso()) for d in slugs or ["-"]])
+                     [(call_id, d, live.now_iso()) for d in slugs or [NO_DOSSIER]])
     conn.commit()
     return slugs
 
@@ -980,9 +998,12 @@ def dossier_call_ids(conn, slug: str) -> list[int]:
 def _alignment(conn, call_id: int) -> list[dict[str, Any]]:
     """Comparaisons DÉJÀ en cache entre soumissions de l'appel (aucune nouvelle n'est lancée)."""
     docs = {r[0] for r in conn.execute("SELECT doc_id FROM sub_items WHERE call_id=? AND doc_id IS NOT NULL", (call_id,))}
-    out = []
+    out, seen = [], set()
     for r in conn.execute("SELECT a_doc, b_doc, verdict, counts, key FROM sub_comparisons ORDER BY at DESC"):
+        if (r["a_doc"], r["b_doc"]) in seen:
+            continue  # plus récente seulement (une ré-analyse laisse d'anciennes comparaisons en cache)
         if r["a_doc"] in docs and r["b_doc"] in docs and r["key"].split("|")[2] == PROMPT_VERSION:
+            seen.add((r["a_doc"], r["b_doc"]))
             out.append({"a": _who(conn, r["a_doc"]), "b": _who(conn, r["b_doc"]), "indication": r["verdict"],
                         "indication_libelle": VERDICTS[r["verdict"]][0], "indication_en": VERDICTS[r["verdict"]][1],
                         "regle": json.loads(r["counts"]).get("regle")})
@@ -1036,11 +1057,13 @@ def alignment_matrix(conn, slug: str, actors: list[str]) -> dict[str, Any]:
         docs[a] = [(r["submitted"] or "", r["call_id"], r["doc_id"]) for r in conn.execute(
             """SELECT DISTINCT i.submitted, i.call_id, i.doc_id FROM sub_actors x JOIN sub_items i ON i.id=x.sub_id
                WHERE x.actor=? AND i.doc_id IS NOT NULL""", (a,)) if r["call_id"] in calls]
-    pairs, missing = [], []
+    pairs, missing, no_common = [], [], []
     for i, a in enumerate(names):
         for b in names[i + 1:]:
             common = sorted({c for _, c, _ in docs[a]} & {c for _, c, _ in docs[b]}, reverse=True)
             if not common:
+                if docs[a] and docs[b]:
+                    no_common.append({"a": a, "b": b})
                 continue
             found = None
             for call in common:
@@ -1058,5 +1081,6 @@ def alignment_matrix(conn, slug: str, actors: list[str]) -> dict[str, Any]:
             else:
                 missing.append({"a": a, "b": b, "appel": common[0]})
     return {"dossier": slug, "acteurs": names, "comparees": pairs, "a_calculer": missing,
-            "sans_appel_commun": [a for a in names if not docs[a]],
+            "sans_appel_commun": no_common or None,
+            "absents_du_dossier": [a for a in names if not docs[a]] or None,
             "note": "Lecture du cache seulement ; lancer comparer_soumissions(a, b, dossier=…) pour une paire « à calculer »."}

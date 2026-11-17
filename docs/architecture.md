@@ -391,13 +391,14 @@ langue, date), `/api/files/download?serverRelativeFilePath=…` (original). C'es
   AGN… ; sigle entre parenthèses ; parenthèse finale retirée seulement si c'est un sigle). Partagé par `positions`,
   `soumissions`, `comparer_soumissions` : égalité stricte, jamais de sous-chaîne (« Mali » ≠ « Somalia ») ; nom
   inconnu → noms proches proposés.
-- **Lien dossier ↔ appels** (sans IA) : règles versionnées `CALL_RULES` sur titre, objet et thèmes de l'appel
-  (slugs de `catalog/dossiers.yaml` ; une règle spécifique efface les correspondances larges des autres dossiers ;
-  un appel peut relever de plusieurs dossiers) ; à défaut, dossier majoritaire parmi les points analysés de ses
+- **Lien dossier ↔ appels** (sans IA) : règles versionnées `CALL_RULES` (slugs de `catalog/dossiers.yaml`) :
+  motifs spécifiques sur le point de l'ordre du jour (`issue`), à défaut sur le titre (souvent une description qui
+  cite des sujets voisins) ; sinon motifs larges et thèmes du portail (génériques) à 0.6, en dernier recours ; un
+  appel peut relever de plusieurs dossiers ; à défaut, dossier majoritaire parmi les points analysés de ses
   soumissions (≥ 40 %, au moins 3 points) ; `cop soumissions rattacher --appel N --dossier slug` (manuel) prime
   et survit aux recalculs. Recalcul après chaque relève de l'index et chaque lot d'analyses. Couverture mesurée le
-  17/11/2026 : 71 appels sur 87 ayant reçu des dépôts en 2025-2026 ; non rattachés : déclarations en plénière et
-  soumissions volontaires (multi-sujets), LCIPP (pas de dossier). Rubrique `soumissions` de `dossier(slug)` et de la
+  17/11/2026 : 69 appels sur 87 ayant reçu des dépôts en 2025-2026 (3 sur deux dossiers, vérifiés) ; non rattachés :
+  déclarations en plénière et soumissions volontaires (multi-sujets), LCIPP, Champions de haut niveau (pas de dossier). Rubrique `soumissions` de `dossier(slug)` et de la
   page web du dossier : 8 appels au plus, auteurs canoniques (groupe quand une Partie soumet en son nom) pour les
   appels de la session ou des 12 derniers mois, alignements déjà calculés (aucune comparaison lancée depuis le
   dossier). `soumissions(dossier=…, acteurs=[…])` : matrice d'alignement lue dans le cache (paires comparées et
