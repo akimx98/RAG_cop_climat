@@ -353,9 +353,9 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
       soumis (acteurs canoniques ; groupe quand une Partie soumet en son nom), alignements déjà calculés.
     - groupe=« LDC », « AOSIS », « G77 »… : soumissions du groupe en son nom ET de ses membres (liste sourcée),
       avec dossier= pour se limiter à un dossier.
-    - document=<doc_id> : ANALYSE de la soumission (calculée une fois puis en cache) : résumé, points soulevés avec
-      la position de l'auteur, la force du langage (1 constate, 2 suggère, 3 demande, 4 exige ; fort ≥ 3), le verbe
-      et une citation vérifiée mot pour mot. Analyse par IA : le dire et citer les extraits.
+    - document=<doc_id> : TEXTE de la soumission (passages, liens) et consigne d'analyse, à faire par toi : résumé,
+      points soulevés, force du langage (1 constate, 2 suggère, 3 demande, 4 exige), citations mot pour mot. Si une
+      analyse existe déjà en cache, elle est jointe.
     Niveau : soumission d'une Partie = 2 (position officielle écrite, non adoptée), observateur = 5.
     Pour « qui veut quoi » pendant la COP, voir aussi `positions` ; pour comparer deux acteurs : comparer_soumissions."""
     from . import soumissions as sm
@@ -367,11 +367,16 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
             row = search.find_doc(conn, document, _user(ctx))
             if not row:
                 return {"erreur": f"document introuvable : {document}"}
+            item = sm.item_for_doc(conn, row["id"])
+            out = {"document": search.doc_public(row), **sm.client_text(conn, row["id"]),
+                   "consigne": sm.CLIENT_ANALYSE_GUIDE}
+            if item:
+                out["auteur"] = sm.speaks_for(item)
+                out["appel"] = item["call_id"]
             cached = sm.analysis(conn, row["id"])
             if cached and not cached.get("erreur"):
-                return {"document": search.doc_public(row), **cached}
-            _need_user(ctx)
-            return {"document": search.doc_public(row), **sm.analyze(conn, row["id"])}
+                out["analyse_existante"] = cached
+            return out
         if appel:
             return sm.call_detail(conn, appel, parties_only=parties_seulement) or {"erreur": f"appel {appel} inconnu"}
         if groupe:
@@ -408,12 +413,17 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
 
 @mcp.tool(annotations=READ)
 def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int | None = None,
-                         dossier: str | None = None, acteurs: list[str] | None = None, max_comparaisons: int = 6,
+                         dossier: str | None = None, acteurs: list[str] | None = None,
+                         qualifications: list[dict] | None = None, max_comparaisons: int = 6,
                          ctx: Context | None = None) -> dict[str, Any]:
-    """Compare les positions écrites de deux acteurs (soumissions officielles), point par point : chaque point est
-    qualifié accord / partiel / conflit / un seul côté, avec ce que dit chacun et la force de son langage ;
-    l'indication d'ensemble (alignées, partiellement, non alignées, pas de position commune) est calculée par
-    règles fixes à partir de ces qualifications (decompte.regle).
+    """Compare les positions écrites de deux acteurs (soumissions officielles), en deux temps :
+    1. comparer_soumissions(a, b) : les deux soumissions retenues (appel commun), leurs textes et la consigne ; TU
+       qualifies chaque point (accord / partiel / conflit / un seul côté, force du langage de chacun, citations
+       mot pour mot). Si une comparaison existe déjà en cache, elle est renvoyée directement.
+    2. comparer_soumissions(a=<doc_id A>, b=<doc_id B>, qualifications=[{point, a_position, b_position, a_force,
+       b_force, relation, a_citation, b_citation, explication}]) : le serveur vérifie chaque citation dans le
+       document (force ramenée à 2 si elle n'y est pas) et calcule l'indication d'ensemble par règles fixes
+       (alignées, partiellement, non alignées, pas de position commune ; decompte.regle).
     - a, b : nom d'acteur (« EU », « LMDC », « Saudi Arabia », « AOSIS » ; un groupe qui a soumis en son nom
       compte ; un groupe qui n'a pas soumis : comparaison avec les soumissions de ses MEMBRES, présentée comme
       telle, avec la couverture) ou doc_id. On prend l'appel le plus récent auquel les deux ont répondu (ou `appel`, ou le plus récent
@@ -423,7 +433,6 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
       d'abord, quelques nouvelles par requête ; relancer pour la suite).
     - acteurs=["EU","LMDC","AOSIS",…] + dossier=… : matrice d'alignement LUE DANS LE CACHE (paires déjà comparées,
       paires « à calculer » avec leur appel commun) ; aucune comparaison lancée.
-    Analyses et comparaisons sont calculées une fois puis gardées en cache (coût plafonné).
     Présenter comme une aide à l'analyse (pas un jugement), avec les citations et liens des deux documents."""
     from . import soumissions as sm
 
@@ -438,7 +447,11 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
             return sm.alignment_matrix(conn, slug, acteurs)
         if not a:
             return {"erreur": "préciser a (et b), ou acteurs=[…] avec dossier=…"}
-        _need_user(ctx)
+        if qualifications is not None:
+            _need_user(ctx)
+            if not (str(a).isdigit() and str(b or "").isdigit()):
+                return {"erreur": "qualifications=… demande les doc_id des deux soumissions (a=…, b=…)"}
+            return sm.score_client(conn, int(a), int(b), qualifications)
         if not b:
             return sm.compare_in_call(conn, sm.latest_doc(conn, a, appel), max_n=max(1, min(max_comparaisons, 10)))
         try:
@@ -450,7 +463,10 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
                 raise
             # Groupe sans soumission propre : comparaison avec les soumissions de ses membres.
             return sm.compare_actors(conn, a, b, appel=appel, dossier=dossier)
-        out = sm.compare(conn, da, dbb)
+        out = sm.cached_comparison(conn, da, dbb) or {
+            "a": {"doc_id": da, "auteur": sm._who(conn, da), **sm.client_text(conn, da, 20000)},
+            "b": {"doc_id": dbb, "auteur": sm._who(conn, dbb), **sm.client_text(conn, dbb, 20000)},
+            "consigne": sm.CLIENT_COMPARE_GUIDE}
         call = conn.execute("SELECT * FROM sub_calls WHERE id=?", (common,)).fetchone() if common else None
         out["appel_commun"] = sm._call_public(call) if call else None
         if not common:

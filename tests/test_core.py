@@ -1119,7 +1119,8 @@ def test_compare_group_through_members(env, monkeypatch):
     monkeypatch.setattr(llm, "json_call", fake_llm)
     out = mcp_server.comparer_soumissions("EU", "PMA")
     assert out["b"]["mode"] == "membres" and out["b"]["couverture"] == "2 membre(s) sur 3 listés"
-    assert out["b"]["membres_ayant_soumis"] == ["Nepal", "Tuvalu"] and len(out["comparaisons"]) == 2
+    assert out["b"]["membres_ayant_soumis"] == ["Nepal", "Tuvalu"]
+    assert out["comparaisons"] == [] and len(out["a_comparer"]) == 2  # rien calculé côté serveur
     assert "pas une position de groupe" in out["avertissement"]
     g = mcp_server.soumissions(groupe="LDC")
     assert g["soumissions_du_groupe"] == [] and len(g["soumissions_des_membres"]) == 2
@@ -1322,3 +1323,56 @@ def test_submissions_harvest_has_its_own_thread(monkeypatch):
     monkeypatch.setattr(worker, "submissions_once", lambda conn, client: (calls.append(1), stop.set()))
     worker.submissions_forever(stop, interval=0)
     assert calls == [1]
+
+
+def test_client_side_analysis_and_scoring(env, monkeypatch):
+    """Analyse et comparaison par le LLM du client : le serveur ne fait aucun appel IA, fournit le texte et la
+    consigne, vérifie les citations et calcule l'indication par règles fixes ; résultat en cache."""
+    import json
+
+    from cop_corpus import fetch, live, llm, mcp_server, soumissions as sm
+
+    conn = env
+    live._ready.clear()
+    monkeypatch.setattr(llm, "json_call", lambda *a, **k: (_ for _ in ()).throw(AssertionError("appel IA serveur")))
+    calls = [{"Id": 1, "Title": "Views on GGA indicators", "Issue": "", "SessionName": "SB 65", "Mandate": "N/A",
+              "Deadline": None, "Themes": [], "Bodies": [], "TargetAudience": [], "CallType": "CallForSubmission",
+              "OpenCall": True, "IsUpcomingSession": True, "ModifiedDate": "2026-09-01T00:00:00Z"}]
+    texts = {"EU": "The European Union urges Parties to adopt a limited set of headline indicators. " * 4,
+             "LMDC": "The LMDC cannot accept headline indicators that burden developing countries. " * 4}
+    subs = [{"Id": i + 1, "CallForSubmissionId": 1, "Title": e, "FileName": f"{k}.txt",
+             "ServerRelativeURL": f"/submissions/Archive/{k}.txt", "Language": "English",
+             "SubmissionDate": f"2026-09-0{i + 1}T00:00:00Z", "Description": d, "Entity": e, "EntityType": "Party"}
+            for i, (k, e, d) in enumerate([("EU", "European Union", ""), ("LMDC", "Saudi Arabia", "on behalf of the LMDC")])]
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            if url.endswith("/CallForSubmissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(calls).encode(), mime="application/json")
+            if url.endswith("/Submissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(subs).encode(), mime="application/json")
+            k = url.rsplit("/", 1)[1].split(".")[0]
+            return fetch.FetchResult(url=url, status=200, content=texts[k].encode(), mime="text/plain")
+
+    sm.sync_index(conn, FakeClient())
+    sm.download_pending(conn, FakeClient(), limit=10)
+    eu = conn.execute("SELECT doc_id FROM sub_items WHERE entity='European Union'").fetchone()[0]
+    lm = conn.execute("SELECT doc_id FROM sub_items WHERE entity='Saudi Arabia'").fetchone()[0]
+    a = mcp_server.soumissions(document=str(eu))
+    assert a["passages"] and "MOT POUR MOT" in a["consigne"] and "analyse_existante" not in a
+    step1 = mcp_server.comparer_soumissions("EU", "LMDC")
+    assert step1["a"]["doc_id"] == eu and step1["b"]["passages"] and "qualifications" in step1["consigne"]
+    quals = [{"point": "headline indicators", "a_position": "pour", "b_position": "contre", "a_force": 4, "b_force": 4,
+              "relation": "conflit", "a_citation": "urges Parties to adopt a limited set of headline indicators",
+              "b_citation": "cannot accept headline indicators that burden developing countries"},
+             {"point": "finance", "a_position": "", "b_position": "x", "a_force": 3, "b_force": 4, "relation": "conflit",
+              "a_citation": "invented sentence not in the text", "b_citation": "cannot accept headline indicators"}]
+    out = mcp_server.comparer_soumissions(a=str(eu), b=str(lm), qualifications=quals)
+    assert out["decompte"]["citations_non_retrouvees"] == 1
+    finance = next(p for p in out["points"] if p["point"] == "finance")
+    assert finance["a_force"] == 2 and finance["a_citation_verifiee"] is False  # citation inventée : plus « forte »
+    # 1 conflit central, 0 % d'accord → non alignées ; le conflit sur « finance » devient secondaire.
+    assert out["indication"] == "non_aligne" and out["qualifie_par"].startswith("le LLM")
+    again = mcp_server.comparer_soumissions("EU", "LMDC")
+    assert again["indication"] == "non_aligne"  # en cache, plus de texte à relire
+    assert mcp_server.comparer_soumissions(acteurs=["EU", "LMDC"], dossier="gga")["comparees"]

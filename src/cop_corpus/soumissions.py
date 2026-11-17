@@ -789,11 +789,26 @@ def compare(conn, doc_a: int, doc_b: int, *, force: bool = False) -> dict[str, A
                                                  json.dumps(counts), llm.EXTRACT_MODEL, live.now_iso()))
         conn.commit()
         row = conn.execute("SELECT * FROM sub_comparisons WHERE key=?", (key,)).fetchone()
+    return _format_comparison(conn, row, doc_a, doc_b)
+
+
+def cached_comparison(conn, doc_a: int, doc_b: int) -> dict[str, Any] | None:
+    """Dernière comparaison en cache pour la paire (calculée par le serveur ou qualifiée par le LLM d'un client)."""
+    ensure_schema(conn)
+    lo, hi = sorted((doc_a, doc_b))
+    row = conn.execute("SELECT * FROM sub_comparisons WHERE a_doc=? AND b_doc=? AND key LIKE ? ORDER BY at DESC LIMIT 1",
+                       (lo, hi, f"{lo}|{hi}|{PROMPT_VERSION}|%")).fetchone()
+    return _format_comparison(conn, row, doc_a, doc_b) if row else None
+
+
+def _format_comparison(conn, row, doc_a: int, doc_b: int) -> dict[str, Any]:
+    lo = min(doc_a, doc_b)
     pts = json.loads(row["points"])
     swap = doc_a != lo  # présenter dans l'ordre demandé
     if swap:
         pts = [{**p, "a_position": p["b_position"], "b_position": p["a_position"], "a_force": p["b_force"],
-                "b_force": p["a_force"]} for p in pts]
+                "b_force": p["a_force"], "a_citation": p.get("b_citation"), "b_citation": p.get("a_citation")}
+               for p in pts]
     from . import config
 
     for p in pts:
@@ -815,6 +830,8 @@ def compare(conn, doc_a: int, doc_b: int, *, force: bool = False) -> dict[str, A
         "tronque": [x["doc_id"] for x in (analysis(conn, doc_a) or {}, analysis(conn, doc_b) or {}) if x.get("tronque")]
                    or None,
         "compare_le": row["at"], "modele": row["model"],
+        "qualifie_par": "le LLM d'un utilisateur (citations vérifiées par le serveur)" if row["model"] == "client"
+                        else "le serveur",
     }
 
 
@@ -825,7 +842,7 @@ def _cached_pair(conn, x: int, y: int) -> bool:
 
 
 def compare_in_call(conn, doc_id: int, *, max_n: int = 6, parties_only: bool = True,
-                    max_new: int = MAX_NEW_COMPARISONS) -> dict[str, Any]:
+                    max_new: int = MAX_NEW_COMPARISONS, compute: bool = False) -> dict[str, Any]:
     """Compare une soumission avec les autres soumissions (de Parties) du même appel. Les comparaisons déjà en
     cache passent d'abord ; au plus `max_new` nouvelles (appels IA) par requête, pour rester rapide et sobre."""
     item = item_for_doc(conn, doc_id)
@@ -836,9 +853,12 @@ def compare_in_call(conn, doc_id: int, *, max_n: int = 6, parties_only: bool = T
              AND (?=0 OR kind='party') GROUP BY doc_id ORDER BY MAX(submitted) DESC""",
         (item["call_id"], doc_id, int(parties_only))).fetchall()
     others = sorted(others, key=lambda r: not _cached_pair(conn, doc_id, r["doc_id"]))
-    results, skipped, new = [], [], 0
+    results, skipped, new, todo = [], [], 0, []
     for r in others:
         cached = _cached_pair(conn, doc_id, r["doc_id"])
+        if not cached and not compute:
+            todo.append({"doc_id": r["doc_id"], "auteur": r["entity"]})
+            continue
         if len(results) >= max_n or (not cached and new >= max_new):
             skipped.append(r["entity"])
             continue
@@ -857,8 +877,9 @@ def compare_in_call(conn, doc_id: int, *, max_n: int = 6, parties_only: bool = T
     return {"soumission": {"doc_id": doc_id, "auteur": _who(conn, doc_id)},
             "appel": _call_public(call) if call else item["call_id"], "comparaisons": results,
             "non_comparees": skipped or None,
-            "suite": "Relancer la même demande pour comparer les suivantes (les comparaisons faites restent en cache)."
-                     if skipped else None,
+            "a_comparer": todo or None,
+            "suite": ("Pour chaque soumission de `a_comparer` : comparer_soumissions(a=<doc_id>, b=<doc_id>) renvoie les "
+                      "deux textes et la consigne ; renvoyer ensuite les qualifications pour le calcul.") if todo else None,
             "methode": "Détail point par point : comparer_soumissions(a, b)."}
 
 
@@ -1173,7 +1194,7 @@ def _side(conn, ref: str, call_ids: set[int] | None, force_members: bool = False
 
 
 def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: str | None = None,
-                   max_new: int = MAX_NEW_COMPARISONS, max_total: int = 12) -> dict[str, Any]:
+                   max_new: int = MAX_NEW_COMPARISONS, max_total: int = 12, compute: bool = False) -> dict[str, Any]:
     """Comparaison qui accepte des groupes sans soumission propre : on compare alors avec les soumissions de leurs
     MEMBRES sur l'appel commun le plus récent (présentées comme telles, avec la couverture), en cache d'abord."""
     call_ids: set[int] | None = None
@@ -1221,9 +1242,12 @@ def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: s
 
     pairs = [(x, y) for x in docs(sa) for y in docs(sb) if x != y]
     pairs.sort(key=lambda p: not _cached_pair(conn, *p))
-    results, skipped, new = [], [], 0
+    results, skipped, new, todo = [], [], 0, []
     for x, y in pairs:
         cached = _cached_pair(conn, x, y)
+        if not cached and not compute:
+            todo.append({"a": x, "b": y, "a_auteur": _who(conn, x), "b_auteur": _who(conn, y)})
+            continue
         if len(results) >= max_total or (not cached and new >= max_new):
             skipped.append(f"{_who(conn, x)} / {_who(conn, y)}")
             continue
@@ -1247,9 +1271,98 @@ def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: s
 
     out = {"appel": _call_public(row) if row else call, "a": side_out(sa), "b": side_out(sb), "repli": note,
            "comparaisons": results, "repartition": counts, "non_comparees": skipped or None,
-           "suite": "Relancer pour comparer les suivantes (cache)." if skipped else None,
+           "a_comparer": todo or None,
+           "suite": ("Paires de `a_comparer` : comparer_soumissions(a=<doc_id>, b=<doc_id>) pour chacune (texte + "
+                     "consigne), puis renvoyer les qualifications.") if todo else None,
            "methode": "Chaque comparaison : comparer_soumissions(doc_a, doc_b) pour le détail point par point."}
     if "membres" in (sa["mode"], sb["mode"]):
         out["avertissement"] = ("Soumissions de MEMBRES du groupe, pas une position de groupe : le groupe n'a pas soumis "
                                 "en son nom sur cet appel. Ne pas présenter la répartition comme l'avis du groupe.")
     return {k: v for k, v in out.items() if v is not None}
+
+
+
+# --- analyse et comparaison faites par le LLM du CLIENT (MCP) : le serveur fournit le texte et applique les règles ------
+
+CLIENT_ANALYSE_GUIDE = (
+    "Analyse à faire par toi, à partir des passages ci-dessous (lire_passage pour la suite si tronque=true) : "
+    "1) résumé neutre en 3–5 phrases (ce que l'auteur demande, propose, refuse) ; 2) points soulevés, du plus au "
+    "moins important, chacun avec : l'enjeu, la position de l'auteur, la FORCE du langage employé par l'auteur "
+    "(1 constate : notes, welcomes ; 2 suggère : invites, encourages, could ; 3 demande : calls for, supports, "
+    "should, requests ; 4 exige : urges, insists, must, cannot accept), le verbe qui la fonde et une citation "
+    "recopiée MOT POUR MOT (sinon ne pas retenir le point). Citer avec lien_passage ; niveau 2 pour une Partie, "
+    "5 pour un observateur. Présenter comme une analyse faite à partir du texte, pas comme un fait établi.")
+
+CLIENT_COMPARE_GUIDE = (
+    "Comparaison à faire par toi, à partir des deux textes : 1) fusionne les points soulevés par A et par B en une "
+    "liste (même enjeu = un point ; un point d'un seul côté est gardé) ; 2) pour chaque point : a_position, "
+    "b_position (une phrase, \"\" si muet), a_force, b_force (0 muet, 1 constate, 2 suggère, 3 demande, 4 exige : "
+    "langage EMPLOYÉ), relation parmi accord | partiel (différence matérielle sans exclusion) | conflit (négation "
+    "directe, exigences exclusives, calendriers ou mécanismes incompatibles, mise en garde contre ce que l'autre "
+    "demande) | un_seul, et a_citation / b_citation recopiées MOT POUR MOT. Ne conclus pas toi-même : renvoie la "
+    "liste à comparer_soumissions(a=<doc_id A>, b=<doc_id B>, qualifications=[…]) ; le serveur vérifie les citations "
+    "et calcule l'indication d'ensemble par règles fixes.")
+
+
+def client_text(conn, doc_id: int, max_chars: int = 30000) -> dict[str, Any]:
+    """Passages d'un document pour le LLM du client (identifiants pour lire_passage et liens)."""
+    from . import config
+
+    out, total, cut = [], 0, False
+    for r in conn.execute("SELECT id, page, para, text FROM passages WHERE doc_id=? ORDER BY seq", (doc_id,)):
+        if total + len(r["text"]) > max_chars and out:
+            cut = True
+            break
+        total += len(r["text"])
+        out.append({"passage_id": r["id"], "page": r["page"], "paragraphe": r["para"], "texte": r["text"],
+                    "lien_passage": f"{config.PUBLIC_BASE}/doc/{doc_id}?passage={r['id']}#p{r['id']}"})
+    return {"passages": out, "tronque": cut}
+
+
+def _norm_quote_ok(quote: str | None, doc_id: int, conn) -> bool:
+    from .positions import _norm
+
+    q = (quote or "").strip()
+    return len(q) >= 15 and _norm(q) in _norm(_doc_text(conn, doc_id, 400000))
+
+
+def score_client(conn, doc_a: int, doc_b: int, qualifications: list[dict]) -> dict[str, Any]:
+    """Qualifications fournies par le LLM du client → citations vérifiées → indication par règles fixes (verdict).
+    Une force ≥ 3 sans citation retrouvée mot pour mot dans le document est ramenée à 2 (ne compte pas comme
+    « langage fort ») et signalée. Résultat gardé en cache (`model='client'`) pour les alignements des dossiers."""
+    ensure_schema(conn)
+    if doc_a == doc_b:
+        raise ValueError("deux documents différents sont nécessaires")
+    pts, unverified = [], 0
+    for q in qualifications or []:
+        rel = q.get("relation") if q.get("relation") in RELATIONS else None
+        if not rel or not q.get("point"):
+            continue
+        p = {"point": str(q["point"])[:200], "a_position": str(q.get("a_position") or "")[:400],
+             "b_position": str(q.get("b_position") or "")[:400], "relation": rel,
+             "explication": str(q.get("explication") or "")[:300],
+             "a_citation": (q.get("a_citation") or "")[:400] or None, "b_citation": (q.get("b_citation") or "")[:400] or None}
+        for side, doc in (("a", doc_a), ("b", doc_b)):
+            f = max(0, min(4, int(q.get(f"{side}_force") or 0)))
+            ok = _norm_quote_ok(p[f"{side}_citation"], doc, conn) if f else True
+            if f and not ok:
+                p[f"{side}_citation_verifiee"] = False
+                unverified += 1
+                f = min(f, 2)
+            p[f"{side}_force"] = f
+        pts.append(p)
+    if not pts:
+        raise ValueError("aucune qualification exploitable (point, relation, forces, citations)")
+    lo, hi = sorted((doc_a, doc_b))
+    stored = pts if doc_a == lo else [{**p, "a_position": p["b_position"], "b_position": p["a_position"],
+                                        "a_force": p["b_force"], "b_force": p["a_force"],
+                                        "a_citation": p["b_citation"], "b_citation": p["a_citation"]} for p in pts]
+    v, counts = verdict(stored)
+    counts["citations_non_retrouvees"] = unverified
+    key = f"{lo}|{hi}|{PROMPT_VERSION}|client|{live.now_iso()}"
+    conn.execute("INSERT OR REPLACE INTO sub_comparisons(key,a_doc,b_doc,points,verdict,counts,model,at) "
+                 "VALUES(?,?,?,?,?,?,'client',?)", (key, lo, hi, json.dumps(stored, ensure_ascii=False), v,
+                                                   json.dumps(counts), live.now_iso()))
+    conn.commit()
+    row = conn.execute("SELECT * FROM sub_comparisons WHERE key=?", (key,)).fetchone()
+    return _format_comparison(conn, row, doc_a, doc_b)

@@ -76,15 +76,21 @@ devient un document (`soumission` ou `declaration`, cote `UNFCCC-SUB/<id>`, Part
 Le stock historique est tenu à l'écart : exclu par défaut de `rechercher`, des nouveautés, des briefs et des
 alertes s'il a été déposé il y a plus de 14 jours ; seules les soumissions de 2026 sont vectorisées.
 
-- **Analyse** (IA, documents publics) : résumé, points soulevés, force du langage (1 constate, 2 suggère,
-  3 demande, 4 exige), citation vérifiée mot pour mot (sinon le point est rejeté). À la demande (`soumissions(document=…)`,
-  comparaisons) ; en tâche de fond seulement si `COP_SUB_AUTO_ANALYSE=1`. Les 6 points les plus forts d'une soumission récente de Partie entrent
-  dans `positions` (`source_kind='soumission'`, rubrique « positions écrites » du dossier).
-- **Comparaison** : l'IA qualifie chaque point (accord / partiel / conflit / un seul côté) ; l'indication d'ensemble
-  est calculée par règles fixes (`soumissions.verdict`) : points centraux = langage fort des deux côtés ; ≥ 2
-  conflits centraux, ou 1 avec ≤ 40 % d'accord → non alignées ; aucun point central → pas de position commune ;
-  ≥ 50 % de différences partielles, conflit secondaire, ou 1 conflit avec > 40 % d'accord → partiellement ;
-  sinon alignées. À la demande seulement (pas de calcul en tâche de fond), mise en cache.
+- **Analyse et comparaison par le LLM du client** (coût porté par l'abonnement de l'utilisateur, aucun appel IA du
+  serveur) : `soumissions(document=…)` renvoie les passages et une consigne (résumé, points soulevés, force du
+  langage 1 constate / 2 suggère / 3 demande / 4 exige, citations mot pour mot) ; `comparer_soumissions(a, b)`
+  renvoie les deux textes et la consigne de comparaison, puis `comparer_soumissions(a=<doc>, b=<doc>,
+  qualifications=[…])` reçoit la qualification de chaque point (accord / partiel / conflit / un seul côté, forces,
+  citations). Le serveur vérifie chaque citation dans le document (force ramenée à 2 si elle n'y figure pas mot pour
+  mot) et calcule l'indication d'ensemble par règles fixes (`soumissions.verdict`) : points centraux = langage fort
+  des deux côtés ; ≥ 2 conflits centraux, ou 1 avec ≤ 40 % d'accord → non alignées ; aucun point central → pas de
+  position commune ; ≥ 50 % de différences partielles, conflit secondaire, ou 1 conflit avec > 40 % d'accord →
+  partiellement ; sinon alignées. Le résultat est gardé en cache (`model='client'`) : alignements des dossiers et
+  matrice. « Contre tout l'appel » et le mode « membres d'un groupe » ne calculent rien : ils renvoient les
+  comparaisons en cache et les paires à comparer.
+- **Analyse par le serveur** (`soumissions.analyze` / `compare`, modèle `COP_LLM_EXTRACT_MODEL`) : seulement en ligne
+  de commande (`cop soumissions analyser|comparer`) ou en tâche de fond si `COP_SUB_AUTO_ANALYSE=1` ; ses points
+  les plus forts (6 par soumission récente de Partie) alimentent `positions` (rubrique « positions écrites »).
 - **Acteurs** : un seul résolveur, `positions.normalize_actor` (alias FR/EN, sigles), égalité stricte (« Mali »
   ≠ « Somalia ») ; une Partie qui soumet au nom d'un groupe est attribuée au groupe.
 - **Lien dossier ↔ appels** (sans IA) : règles `CALL_RULES` sur le point de l'ordre du jour puis le titre, thèmes
@@ -210,8 +216,10 @@ tableau couvre toutes les variables lues.
 ## 9. Coûts
 
 - Modèle de langage : plafond global `COP_LLM_BUDGET_USD` (30 $ par défaut), suivi dans `llm_usage`
-  (`llm.usage_summary`) ; extraction et analyses par `gpt-5.4-mini` (≈ 1 centime par analyse ou comparaison
-  de soumission), briefs par `gpt-5.6-luna`.
+  (`llm.usage_summary`). Côté serveur, le modèle sert aux tâches de fond qui tournent sans utilisateur : briefs
+  par dossier (`gpt-5.6-luna`, ≈ 3 $ sur la première semaine) et extraction des positions dans les comptes rendus
+  (`gpt-5.4-mini`, ≈ 2 $). `COP_LLM=0` les coupe : la clé ne sert plus qu'aux embeddings. Les analyses et
+  comparaisons de soumissions demandées par MCP sont faites par le LLM du client (aucun coût serveur).
 - Embeddings : `text-embedding-3-small` (512 dimensions), documents publics seulement ; vecteurs gardés en mémoire
   dans chaque processus (≈ 200 000 vecteurs aujourd'hui).
 - Hébergement : VPS partagé (3,8 Go de RAM), conteneurs plafonnés (app 700 Mo, worker 600 Mo, mail 150 Mo).
