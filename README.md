@@ -2,7 +2,11 @@
 
 Corpus vérifiable, veille en temps réel et alertes pour suivre les négociations de la COP31
 (Antalya, 9–20 novembre 2026). Projet indépendant, gratuit et non commercial, sans lien avec la CCNUCC
-ni avec une délégation. Code sous licence MIT ([LICENSE](LICENSE)). Architecture : [docs/architecture.md](docs/architecture.md).
+ni avec une délégation. Code sous licence MIT ([LICENSE](LICENSE)).
+
+**Documentation de référence : [docs/architecture.md](docs/architecture.md)** (niveaux de fiabilité, données,
+outils MCP, skills, tâches planifiées, réglages, confidentialité, coûts). Ce README couvre l'installation, les
+commandes et l'exploitation.
 
 ```
 sources (ODS/ONU, EUR-Lex, Conseil UE, GIEC, PNUE, ENB, Carbon Brief, OWID…)
@@ -34,6 +38,9 @@ cop search "transitioning away from fossil fuels" --level 1
 cop stats ; cop sources ; cop log --outcome antibot
 cop user-add prenom.nom@exemple.org --name "Prénom Nom"   # lien 24 h (choix du mot de passe) + adresse MCP
 cop user-link prenom.nom@exemple.org                        # mot de passe oublié : nouveau lien 24 h
+cop soumissions etat|index|telecharger|analyser|comparer|appels|appel|rattacher|dossiers   # soumissions CCNUCC
+cop groupes --sync ; cop groupes --groupe LDC ; cop groupes --partie China                 # groupes de négociation
+cop pavillons-sync ; cop pavillons --sujet "rainforest, Amazon"                           # programmes des pavillons
 cop programme --jour demain --sujet "water, indigenous"         # où aller (side events, réunions officielles)
 cop programme-sync                                               # relève le planner (fait toutes les 6 h par le worker)
 cop programme-seors releve.tsv                                   # importe un relevé SEORS (voir plus bas)
@@ -44,10 +51,9 @@ cop worker                                                       # veilleur + bo
 pytest
 ```
 
-## Niveaux de fiabilité
+## Niveaux de fiabilité, sources, programme
 
-1 texte adopté · 2 officiel non adopté · 3 science/données · 4 compte rendu de référence ·
-5 position d'un acteur · R document interne (accès restreint aux contributeurs).
+Voir la [documentation de référence](docs/architecture.md) (§2 niveaux, §3 données et sources, §6 tâches).
 
 ## Documents internes
 
@@ -62,25 +68,11 @@ titre ni un extrait (`COP_TELEGRAM_RESTRICTED_SNIPPETS=0`).
 
 ## Sources protégées par un anti-bot
 
-`unfccc.int` (pages et PDF) répond par un challenge Imperva aux clients automatisés. **Il n'est pas contourné.**
-Les documents à cote FCCC sont pris sur le Système de documents officiels de l'ONU
-(`documents.un.org`), y compris, pendant la COP, les documents « L » (projets de décision) par énumération
-des cotes. Les versions « unedited » publiées seulement sur unfccc.int, et le Daily Programme, se déposent à la
-main (Telegram ou tableau de bord) ; `cop log --outcome antibot` liste ce qui a été bloqué.
-
-## Programme (outil MCP `programme`)
-
-- **Planner** (https://unmai-planner-cop31.netlify.app/, non officiel, page publique) : side events, réunions
-  officielles du calendrier CCNUCC, ~1 000 événements hors site, résumé des négociations par jour. Relevé toutes les
-  6 h par le worker. C'est une copie figée à sa date de construction : les salles peuvent avoir changé.
-- **SEORS** (https://seors.unfccc.int/reports/events_list.html), programme officiel des side events, derrière
-  l'anti-bot Imperva : jamais relevé par le serveur. Chaque side event renvoyé par l'outil porte le lien SEORS du
-  jour. Pour mettre les salles à jour : ouvrir SEORS dans un navigateur, coller `agenda.SEORS_SNIPPET` dans la
-  console (le relevé, sans aucune coordonnée personnelle, part dans le presse-papiers), l'enregistrer dans
-  `releve.tsv`, puis `cop programme-seors releve.tsv` (dans le conteneur). Le relevé remplace les side events du
-  planner et liste les salles et horaires qui ont changé.
-- Les consultations informelles par point de l'ordre du jour ne figurent dans aucune des deux sources : seul le
-  Daily Programme les donne (dépôt manuel).
+Jamais contournées (`unfccc.int`, SEORS, page « Party groupings » de la CCNUCC). Les documents à cote FCCC passent
+par l'ODS de l'ONU ; le reste se dépose à la main (Telegram ou tableau de bord) ; `cop log --outcome antibot` liste
+ce qui a été bloqué. Relevé SEORS des salles des side events : ouvrir SEORS dans un navigateur, coller
+`agenda.SEORS_SNIPPET` dans la console, enregistrer le presse-papiers dans `releve.tsv`, puis
+`cop programme-seors releve.tsv` (dans le conteneur).
 
 ## Déploiement sur le VPS (en production depuis le 6 novembre 2026)
 

@@ -1265,3 +1265,26 @@ def test_retired_tools_not_cited_and_and_split():
     assert sm.co_submitters("Arab Group and ALBA", "X", known) == ["Arab Group", "ALBA"]
     assert sm.co_submitters("Antigua and Barbuda", "X", known) == ["Antigua and Barbuda"]
     assert sm.co_submitters("Arab Group and ALBA", "X") == ["Arab Group and ALBA"]  # sans liste : pas de découpe
+
+
+def test_docs_match_tool_registry():
+    """P4 : le tableau des outils de la documentation de référence = le registre MCP ; aucun outil retiré cité
+    dans la documentation (hors journal historique), le README et les instructions ChatGPT."""
+    import re as _re
+    from pathlib import Path
+
+    from cop_corpus import mcp_server
+
+    root = Path(__file__).resolve().parents[1]
+    tools = set(mcp_server.mcp._tool_manager._tools)
+    arch = (root / "docs/architecture.md").read_text(encoding="utf-8")
+    section = arch.split("## 4. Outils MCP", 1)[1].split("\n## ", 1)[0]
+    table = set(_re.findall(r"^\| `([a-z_]+)` \|", section, _re.M))
+    assert table == tools, {"absents de la doc": tools - table, "en trop": table - tools}
+    files = [p for p in (root / "docs").glob("*.md") if p.name != "historique.md"]
+    files += [root / "README.md", root / "clients/chatgpt-instructions.md"]
+    for f in files:
+        text = f.read_text(encoding="utf-8")
+        for tool in mcp_server.RETIRED_TOOLS:
+            pattern = rf"\b{tool}\b" if "_" in tool else rf"`{tool}[`(]|\b{tool}\("
+            assert not _re.search(pattern, text), (tool, f.name)
