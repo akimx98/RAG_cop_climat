@@ -710,27 +710,110 @@ def _lang(ctx, langue: str | None) -> str:
         return "en"
 
 
+# Étapes de chaque méthode, définies UNE fois (FR et EN) ; les prompts ci-dessous les mettent en forme, les skills du
+# plugin (clients/claude-plugin/skills) suivent les mêmes outils. Un test vérifie que chaque outil cité existe.
+METHODES: dict[str, dict[str, list[str]]] = {
+    "point_negociation": {
+        "fr": ["`dossier` (slug ou alias) : état, textes successifs, crochets et options, dernier brief, rubrique "
+               "« soumissions » (appels liés, qui a soumis, alignements connus).",
+               "`comparer_versions` sur la dernière version : paragraphes ajoutés, supprimés, options tranchées, crochets "
+               "levés — citer les paragraphes avant/après.",
+               "`positions(dossier=…, depuis=…)` : qui pousse quoi, qui bloque ; positions écrites : "
+               "`comparer_soumissions(<acteur>, <acteur>, dossier=…)` (aide à l'analyse).",
+               "`nouveautes(depuis=…)` et `rechercher` (termes onusiens en anglais) pour les comptes rendus (ENB, Carbon Brief)."],
+        "en": ["`dossier` (slug or alias): status, successive texts, brackets and options, latest brief, “soumissions” "
+               "section (linked calls, who submitted, known alignment).",
+               "`comparer_versions` on the latest version: paragraphs added or deleted, options settled, brackets removed "
+               "— quote paragraphs before/after.",
+               "`positions(dossier=…, depuis=…)`: who pushes what, who blocks; written positions: "
+               "`comparer_soumissions(<actor>, <actor>, dossier=…)` (an analytical aid).",
+               "`nouveautes(depuis=…)` and `rechercher` (UN terms in English) for daily reports (ENB, Carbon Brief)."],
+    },
+    "position_pays": {
+        "fr": ["A. Position OFFICIELLE ÉCRITE (niveaux 1–2) : `soumissions(auteur=…)` puis `soumissions(document=…)` "
+               "(points soulevés, force du langage, citations) ; NDC : `rechercher(…, partie=…, types=[\"ndc\"])` ; "
+               "groupes dont il est membre : `groupes(partie=…)`.",
+               "B. Ce qu'il dit et fait PENDANT la COP : `positions(acteur=…)`, comptes rendus (niveaux 4–5).",
+               "C. Les FAITS qui éclairent l'écart : `donnees` (émissions, production) et politiques nationales du corpus.",
+               "Terminer par les écarts entre A, B et C, et ce qui reste non documenté."],
+        "en": ["A. OFFICIAL WRITTEN position (levels 1–2): `soumissions(auteur=…)` then `soumissions(document=…)` "
+               "(points raised, strength of language, quotes); NDC: `rechercher(…, partie=…, types=[\"ndc\"])`; groups "
+               "it belongs to: `groupes(partie=…)`.",
+               "B. What it says and does DURING the COP: `positions(acteur=…)`, daily reports (levels 4–5).",
+               "C. The FACTS that shed light on the gap: `donnees` (emissions, production) and national policies in the corpus.",
+               "End with the gaps between A, B and C, and what remains undocumented."],
+    },
+    "preparer_rencontre": {
+        "fr": ["Où en est le texte (dernière version, ce qui a bougé : `dossier`, `comparer_versions`).",
+               "Qui est l'interlocuteur : `groupes(partie=…)` (ses groupes, liste sourcée) ; sa position écrite : "
+               "`soumissions(auteur=…)` ; écart avec l'UE ou d'autres blocs : `comparer_soumissions(…, dossier=…)` ; "
+               "ce qu'il dit en salle : `positions(acteur=…)`.",
+               "Les points de blocage identifiés et qui les porte.",
+               "Six à huit QUESTIONS précises, rattachées chacune à un paragraphe ou à une option du texte, pour comprendre "
+               "la position réelle, les lignes rouges et les marges de compromis (questions ouvertes, non accusatoires)."],
+        "en": ["Where the text stands (latest version, what moved: `dossier`, `comparer_versions`).",
+               "Who they are: `groupes(partie=…)` (their groups, sourced list); their written position: "
+               "`soumissions(auteur=…)`; gap with the EU or other blocs: `comparer_soumissions(…, dossier=…)`; what they "
+               "say in the room: `positions(acteur=…)`.",
+               "The sticking points identified and who holds them.",
+               "Six to eight precise QUESTIONS, each tied to a paragraph or option of the text, to understand the real "
+               "position, red lines and room for compromise (open, non-accusatory questions)."],
+    },
+    "plaidoyer": {
+        "fr": ["Appuyer chaque argument sur : le texte en négociation (`dossier`, paragraphe et option visés), le droit "
+               "déjà adopté (`rechercher`, niveaux 1), la science (GIEC) ou des données (`donnees`).",
+               "Alliés et opposants par écrit : `comparer_soumissions(…, dossier=…)` ; en salle : `positions(dossier=…)`.",
+               "Proposer une formulation de paragraphe concrète à défendre ; anticiper les deux objections les plus "
+               "probables avec leur réponse.",
+               "Terminer par la liste des sources (référence, niveau, lien)."],
+        "en": ["Base every argument on: the text under negotiation (`dossier`, paragraph and option targeted), law already "
+               "adopted (`rechercher`, level 1), science (IPCC) or data (`donnees`).",
+               "Allies and opponents in writing: `comparer_soumissions(…, dossier=…)`; in the room: `positions(dossier=…)`.",
+               "Propose concrete paragraph wording to defend; anticipate the two most likely objections with their answer.",
+               "End with the list of sources (reference, level, link)."],
+    },
+    "decouvrir_sujet": {
+        "fr": ["L'enjeu en clair (10 lignes au plus), sigles expliqués avec `glossaire`.",
+               "Ce qui est déjà décidé (décisions antérieures, niveau 1 : `rechercher`).",
+               "Ce qui se négocie à la COP31 : `dossier` (dernière version du texte, appels à soumissions liés).",
+               "Qui veut quoi : `positions(dossier=…)` ; les blocs : `groupes`.",
+               "Trois questions à poser pour aller plus loin."],
+        "en": ["The stakes in plain words (10 lines max), acronyms explained with `glossaire`.",
+               "What is already decided (past decisions, level 1: `rechercher`).",
+               "What is being negotiated at COP31: `dossier` (latest version of the text, linked calls for submissions).",
+               "Who wants what: `positions(dossier=…)`; the blocs: `groupes`.",
+               "Three questions to dig deeper."],
+    },
+    "quoi_de_neuf": {
+        "fr": ["`mes_sujets` (sujets et dossiers suivis).",
+               "Pour chaque dossier suivi : `dossier` ; puis `nouveautes(depuis=…)` (nouveaux textes, soumissions "
+               "récentes, comptes rendus).",
+               "Classer par importance, trois lignes par sujet au plus."],
+        "en": ["`mes_sujets` (topics and negotiation items followed).",
+               "For each item followed: `dossier`; then `nouveautes(depuis=…)` (new texts, recent submissions, daily reports).",
+               "Rank by importance, three lines per topic at most."],
+    },
+}
+
+
+def _steps(name: str, lg: str) -> str:
+    items = METHODES[name][lg]
+    if all(re.match(r"[A-C]\. ", x) for x in items[:3]):
+        return "\n".join(items)  # étapes déjà lettrées (A, B, C)
+    return "\n".join(f"{i}. {x}" for i, x in enumerate(items, 1))
+
+
 @mcp.prompt(title="Negotiation update / Point de négociation")
 def point_negociation(dossier: str, depuis: str = "24h", langue: str = "", ctx: Context | None = None) -> str:
     """Where a negotiation item stands and what moved (e.g. “ACE”, “GGA”, “finance”, “art6”)."""
     lg = _lang(ctx, langue)
-    steps = (f"1. `dossier` (slug or alias): status, successive texts, brackets and options, latest brief.\n"
-             f"2. `textes_en_cours` and `comparer_versions` on the latest version: paragraphs added or deleted, options "
-             f"settled, brackets removed — quote paragraphs before/after.\n"
-             f"3. `positions(dossier=…, depuis={depuis!r})`: who pushes what, who blocks.\n"
-             f"4. `nouveautes(depuis={depuis!r})` and `rechercher` (UN terms in English) for daily reports (ENB, Carbon Brief).\n")
     if lg == "en":
-        return (f"Give me an update on the COP31 negotiation “{dossier}”, focusing on what changed since {depuis}.\n{steps}"
-                f"Output: the gist in 3 lines; what moved; sticking points and who holds them; what is still in brackets; "
-                f"what to watch. {_RIGUEUR['en']}")
+        return (f"Give me an update on the COP31 negotiation “{dossier}”, focusing on what changed since {depuis}.\n"
+                f"{_steps('point_negociation', 'en')}\nOutput: the gist in 3 lines; what moved; sticking points and who "
+                f"holds them; what is still in brackets; what to watch. {_RIGUEUR['en']}")
     return (f"Fais le point sur la négociation « {dossier} » à la COP31, en insistant sur ce qui a changé depuis {depuis}.\n"
-            f"1. `dossier` (slug ou alias) : état, textes successifs, crochets et options, dernier brief.\n"
-            f"2. `textes_en_cours` et `comparer_versions` sur la dernière version : paragraphes ajoutés, supprimés, "
-            f"options tranchées, crochets levés — citer les paragraphes avant/après.\n"
-            f"3. `positions(dossier=…, depuis={depuis!r})` : qui pousse quoi, qui bloque.\n"
-            f"4. `nouveautes(depuis={depuis!r})` et `rechercher` (termes onusiens en anglais) pour les comptes rendus (ENB, Carbon Brief).\n"
-            f"Rendu : l'essentiel en 3 lignes ; ce qui a bougé ; points de blocage et qui les porte ; ce qui reste entre crochets ; "
-            f"à surveiller. {_RIGUEUR['fr']}")
+            f"{_steps('point_negociation', 'fr')}\nRendu : l'essentiel en 3 lignes ; ce qui a bougé ; points de blocage et "
+            f"qui les porte ; ce qui reste entre crochets ; à surveiller. {_RIGUEUR['fr']}")
 
 
 @mcp.prompt(title="Country position: official vs. in practice / Position d'un pays")
@@ -738,40 +821,19 @@ def position_pays(acteur: str, sujet: str, langue: str = "", ctx: Context | None
     """Official and actual position of a country or group (e.g. Brazil, fossil fuel phase-out)."""
     if _lang(ctx, langue) == "en":
         return (f"What is the position of “{acteur}” on “{sujet}”? Keep these clearly apart:\n"
-                f"A. The OFFICIAL position: NDC, submissions, group statements, signed texts (levels 1–2) — "
-                f"`rechercher` with the actor's name and UN terms, `document` for the NDC.\n"
-                f"B. What it says and does DURING the COP: `positions(acteur=…)`, statements picked up, daily reports (levels 4–5).\n"
-                f"C. The FACTS that shed light on the gap: `donnees` (emissions, production) and national policies in the corpus.\n"
-                f"End with the gaps between A, B and C, and what remains undocumented. {_RIGUEUR['en']}")
+                f"{_steps('position_pays', 'en')}\n{_RIGUEUR['en']}")
     return (f"Quelle est la position de « {acteur} » sur « {sujet} » ? Sépare nettement :\n"
-            f"A. La position OFFICIELLE : NDC, soumissions, déclarations de groupe, textes signés (niveaux 1–2) — "
-            f"`rechercher` avec le nom de l'acteur et les termes onusiens en anglais, `document` pour la NDC.\n"
-            f"B. Ce qu'il dit et fait PENDANT la COP : `positions(acteur=…)`, interventions relevées, comptes rendus (niveaux 4–5).\n"
-            f"C. Les FAITS qui éclairent l'écart : `donnees` (émissions, production) et politiques nationales du corpus.\n"
-            f"Termine par les écarts entre A, B et C, et ce qui reste non documenté. {_RIGUEUR['fr']}")
+            f"{_steps('position_pays', 'fr')}\n{_RIGUEUR['fr']}")
 
 
 @mcp.prompt(title="Prepare a meeting with a delegate / Préparer une rencontre")
 def preparer_rencontre(sujet: str, interlocuteur: str = "", langue: str = "", ctx: Context | None = None) -> str:
     """One-page brief and questions to ask a delegate (e.g. “ACE”, “a delegate from France”)."""
     if _lang(ctx, langue) == "en":
-        who = interlocuteur or "a delegate"
-        return (f"I am about to talk to {who} about “{sujet}”. Prepare a one-page brief:\n"
-                f"1. Where the text stands (latest version, what moved since yesterday: `dossier`, `comparer_versions`).\n"
-                f"2. The known position of their country or group (for an EU country: the EU position, Council conclusions) "
-                f"and that of the other blocs (`positions`).\n"
-                f"3. The sticking points identified and who holds them.\n"
-                f"4. Six to eight precise QUESTIONS to ask, each tied to a paragraph or option of the text, to understand the "
-                f"real position, red lines and room for compromise (open, non-accusatory questions).\n{_RIGUEUR['en']}")
-    who = interlocuteur or "un délégué"
-    return (f"Je vais parler à {who} sur « {sujet} ». Prépare-moi une fiche d'une page :\n"
-            f"1. Où en est le texte (dernière version, ce qui a bougé depuis hier : `dossier`, `comparer_versions`).\n"
-            f"2. La position connue de son pays ou de son groupe (pour un pays de l'UE : position de l'UE, conclusions du Conseil) "
-            f"et celle des autres blocs (`positions`).\n"
-            f"3. Les points de blocage identifiés et qui les porte.\n"
-            f"4. Six à huit QUESTIONS précises à poser, rattachées chacune à un paragraphe ou à une option du texte, "
-            f"pour comprendre la position réelle, les lignes rouges et les marges de compromis (questions ouvertes, non accusatoires).\n"
-            f"{_RIGUEUR['fr']}")
+        return (f"I am about to talk to {interlocuteur or 'a delegate'} about “{sujet}”. Prepare a one-page brief:\n"
+                f"{_steps('preparer_rencontre', 'en')}\n{_RIGUEUR['en']}")
+    return (f"Je vais parler à {interlocuteur or 'un délégué'} sur « {sujet} ». Prépare-moi une fiche d'une page :\n"
+            f"{_steps('preparer_rencontre', 'fr')}\n{_RIGUEUR['fr']}")
 
 
 @mcp.prompt(title="Sourced advocacy note / Plaidoyer sourcé")
@@ -780,40 +842,26 @@ def plaidoyer(sujet: str, demande: str = "", public: str = "", longueur: str = "
     """Advocacy note where every argument is sourced (text, science, data)."""
     if _lang(ctx, langue) == "en":
         return (f"Draft an advocacy note on “{sujet}”{f', asking for: {demande}' if demande else ''}, "
-                f"for {public or 'negotiators'}, {longueur or 'one page'} long.\n"
-                f"Base every argument on: the text under negotiation (paragraph and option targeted), law already adopted "
-                f"(COP/CMA decisions, Paris Agreement), science (IPCC) or data. Propose concrete paragraph wording to defend, "
-                f"and anticipate the two most likely objections with their answer.\n"
-                f"End with the list of sources (reference, level, link). {_RIGUEUR['en']}")
+                f"for {public or 'negotiators'}, {longueur or 'one page'} long.\n{_steps('plaidoyer', 'en')}\n"
+                f"{_RIGUEUR['en']}")
     return (f"Rédige un argumentaire de plaidoyer sur « {sujet} »{f', pour demander : {demande}' if demande else ''}, "
-            f"destiné à des {public or 'négociateurs'}, en {longueur or 'une page'}.\n"
-            f"Appuie chaque argument sur : le texte en négociation (paragraphe et option visés), le droit déjà adopté "
-            f"(décisions COP/CMA, Accord de Paris), la science (GIEC) ou des données. Propose une formulation de "
-            f"paragraphe concrète à défendre, et anticipe les deux objections les plus probables avec leur réponse.\n"
-            f"Termine par la liste des sources (référence, niveau, lien). {_RIGUEUR['fr']}")
+            f"destiné à des {public or 'négociateurs'}, en {longueur or 'une page'}.\n{_steps('plaidoyer', 'fr')}\n"
+            f"{_RIGUEUR['fr']}")
 
 
 @mcp.prompt(title="Discover a topic / Découvrir un sujet")
 def decouvrir_sujet(sujet: str, langue: str = "", ctx: Context | None = None) -> str:
     """A negotiation topic explained to a newcomer (e.g. “climate education”)."""
     if _lang(ctx, langue) == "en":
-        return (f"Explain “{sujet}” to someone new to climate negotiations, in 10 lines max, then the details:\n"
-                f"the stakes in plain words; what is already decided (past decisions, level 1); what is being negotiated at "
-                f"COP31 (`dossier`, latest version of the text); who wants what (`positions`); three questions to dig deeper. "
-                f"Explain acronyms with `glossaire`. {_RIGUEUR['en']}")
-    return (f"Explique « {sujet} » à quelqu'un qui découvre les négociations climat, en 10 lignes maximum puis le détail :\n"
-            f"l'enjeu en clair ; ce qui est déjà décidé (décisions antérieures, niveau 1) ; ce qui se négocie à la COP31 "
-            f"(`dossier`, dernière version du texte) ; qui veut quoi (`positions`) ; trois questions à poser pour aller plus loin. "
-            f"Explique les sigles avec `glossaire`. {_RIGUEUR['fr']}")
+        return (f"Explain “{sujet}” to someone new to climate negotiations, then the details:\n"
+                f"{_steps('decouvrir_sujet', 'en')}\n{_RIGUEUR['en']}")
+    return (f"Explique « {sujet} » à quelqu'un qui découvre les négociations climat, puis le détail :\n"
+            f"{_steps('decouvrir_sujet', 'fr')}\n{_RIGUEUR['fr']}")
 
 
 @mcp.prompt(title="What's new on my topics? / Quoi de neuf ?")
 def quoi_de_neuf(depuis: str = "24h", langue: str = "", ctx: Context | None = None) -> str:
     """What happened since a given time on the topics and negotiation items I follow."""
     if _lang(ctx, langue) == "en":
-        return (f"What happened since {depuis} on my topics? `mes_sujets`, then for each item followed `dossier` and "
-                f"`nouveautes(depuis={depuis!r})`: new texts and what changed, notable positions, daily reports. "
-                f"Rank by importance, three lines per topic at most. {_RIGUEUR['en']}")
-    return (f"Que s'est-il passé depuis {depuis} sur mes sujets ? `mes_sujets` puis, pour chaque dossier suivi, "
-            f"`dossier` et `nouveautes(depuis={depuis!r})` : nouveaux textes et ce qui a changé, positions notables, "
-            f"comptes rendus. Classe par importance, trois lignes par sujet au plus. {_RIGUEUR['fr']}")
+        return f"What happened since {depuis} on my topics?\n{_steps('quoi_de_neuf', 'en')}\n{_RIGUEUR['en']}"
+    return f"Que s'est-il passé depuis {depuis} sur mes sujets ?\n{_steps('quoi_de_neuf', 'fr')}\n{_RIGUEUR['fr']}"

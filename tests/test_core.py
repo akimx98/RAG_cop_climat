@@ -1210,3 +1210,30 @@ def test_mcp_instructions_fit_client_limit():
     cited = {w for w in _re.findall(r"\b[a-z_]{5,}\b", outils) if "_" in w or w in tools}
     assert cited and cited <= tools, cited - tools
     assert {"soumissions", "comparer_soumissions", "groupes", "pavillons", "dossier"} <= cited
+
+
+def test_prompts_and_skills_cite_existing_tools():
+    """Chaque outil appelé (`nom(`) par une méthode MCP ou un skill du plugin existe ; les méthodes FR et EN ont les
+    mêmes étapes et citent les positions écrites là où elles servent."""
+    import re as _re
+    from pathlib import Path
+
+    from cop_corpus import mcp_server
+
+    tools = set(mcp_server.mcp._tool_manager._tools)
+    sources = {f"methode {k}/{lg}": "\n".join(v[lg]) for k, v in mcp_server.METHODES.items() for lg in ("fr", "en")}
+    for f in Path(__file__).resolve().parents[1].glob("clients/claude-plugin/skills/*/SKILL.md"):
+        sources[f.parent.name] = f.read_text(encoding="utf-8")
+    called = {}
+    for name, text in sources.items():
+        for tool in _re.findall(r"`([a-z_]+)\(", text):
+            called.setdefault(tool, set()).add(name)
+        for tool in _re.findall(r"`([a-z_]+)`", text):
+            if tool in tools or "_" in tool and tool.split("_")[0] in {"comparer", "lire", "mes", "suivre", "arreter"}:
+                called.setdefault(tool, set()).add(name)
+    missing = {t: sorted(w) for t, w in called.items() if t not in tools}
+    assert not missing, missing
+    for k, v in mcp_server.METHODES.items():
+        assert len(v["fr"]) == len(v["en"]), k
+    assert "soumissions" in " ".join(mcp_server.METHODES["position_pays"]["fr"])
+    assert "groupes" in " ".join(mcp_server.METHODES["preparer_rencontre"]["en"])
