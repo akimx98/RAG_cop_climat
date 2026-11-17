@@ -1192,3 +1192,21 @@ def test_groupes_review_fixes(env, monkeypatch):
                         else {"summary": "r", "summary_en": "s", "matters": []})
     r = sm.compare_actors(conn, "EU", "LDC")
     assert r["b"]["mode"] == "membres" and r["b"]["membres_ayant_soumis"] == ["Nepal"] and "repli" in r
+
+
+def test_mcp_instructions_fit_client_limit():
+    """Les clients MCP ne gardent qu'environ 2 000 caractères des consignes : règles d'abord, carte des outils
+    entière, chaque outil cité existe."""
+    import re as _re
+
+    from cop_corpus import mcp_server
+
+    text = mcp_server.INSTRUCTIONS
+    assert len(text) < 1800
+    head = text[:1000]
+    assert "Citer le texte exact" in head and "NIVEAU" in head and "non adopté" in head
+    tools = set(mcp_server.mcp._tool_manager._tools)
+    outils = text.split("OUTILS", 1)[1].split("Méthodes", 1)[0]
+    cited = {w for w in _re.findall(r"\b[a-z_]{5,}\b", outils) if "_" in w or w in tools}
+    assert cited and cited <= tools, cited - tools
+    assert {"soumissions", "comparer_soumissions", "groupes", "pavillons", "dossier"} <= cited

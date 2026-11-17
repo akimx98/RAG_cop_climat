@@ -20,59 +20,27 @@ from mcp.types import ToolAnnotations
 
 from . import alerts, auth, config, data, db, diff, ingest, search
 
-INSTRUCTIONS = """Corpus documentaire vérifiable pour suivre la COP31 (Antalya, 9–20 novembre 2026). Outil indépendant,
-gratuit et non commercial, sans lien avec la CCNUCC ni avec une délégation : droit onusien (Convention, Accord de Paris, décisions COP/CMA/CMP), documents de
-session et projets de texte de la COP31, NDC, droit et positions de l'UE, science (GIEC, PNUE…), comptes
-rendus (ENB, Carbon Brief), données d'émissions, et documents internes (accès restreint :
-visibles des seuls contributeurs ; un compte invité n'y a pas accès et ne peut pas ajouter de documents).
+INSTRUCTIONS = """Corpus vérifiable pour suivre la COP31 (Antalya, 9–20 nov. 2026). Outil indépendant et gratuit, sans lien
+avec la CCNUCC ni avec une délégation.
 
-RÈGLES NON NÉGOCIABLES
-1. Ne rien affirmer de factuel sans un passage renvoyé par un outil. Rien trouvé → le dire
-   (« non trouvé dans le corpus »), puis proposer une autre requête ; ne jamais combler de mémoire.
-2. Citer : texte exact entre guillemets + référence (cote, décision et paragraphe, ex. « 1/CMA.5 §28 », page)
-   + lien direct : `lien_source` (l'original ouvert à la bonne page ou surligné au bon paragraphe) s'il existe,
-   sinon `lien_passage` (le passage surligné dans le tableau de bord ; seul lien pour un document interne).
-   Pour un chiffre, citer la source et l'année.
-3. Toujours indiquer le NIVEAU de fiabilité de chaque source :
-   1 = texte adopté (droit) ; 2 = document officiel non adopté (projet de texte, NDC, conclusions du Conseil) ;
-   3 = science/données ; 4 = compte rendu de référence ; 5 = position/communiqué d'un acteur (jamais une preuve) ;
-   R = document interne (confidentiel : ne pas recopier hors des contributeurs).
-   Une source de niveau 5 ne peut pas démentir une source de niveau 1–3.
-4. Un projet de texte se cite TOUJOURS avec sa version et sa date de récupération, et la mention « non adopté ».
-5. Les requêtes : `rechercher` est hybride (mots + sens) et multilingue ; formuler en anglais les termes
-   onusiens (« global stocktake », « transitioning away from fossil fuels ») améliore la précision. Pour une
-   expression exacte, mettre des guillemets. Lancer 2–3 formulations si le premier résultat est maigre.
-6. Distinguer ce que dit le texte (niveau 1–2) de ce qu'en disent les acteurs (niveau 4–5).
-7. Langage juridique : « shall » = obligation ; « should » = recommandation ; « urges/encourages/invites » =
-   incitation sans obligation ; « notes/acknowledges » = simple constat.
-8. Répondre court, l'essentiel d'abord ; adapter au public (négociateur : références précises ; novice :
-   enjeu en clair, sigles expliqués via `glossaire`).
+RÈGLES
+1. Rien de factuel sans un passage renvoyé par un outil. Rien trouvé → « non trouvé dans le corpus » ; jamais de mémoire.
+2. Citer le texte exact entre guillemets + référence (cote, décision et §, page) + lien (lien_source, sinon lien_passage).
+3. Donner le NIVEAU : 1 adopté ; 2 officiel non adopté (projet, NDC, soumission d'une Partie) ; 3 science, données ;
+4 compte rendu ; 5 acteur (jamais une preuve, ne dément pas 1–3) ; R interne (ne pas recopier hors contributeurs).
+4. Projet de texte : toujours sa version, sa date et « non adopté ».
+5. Distinguer ce que dit le texte (1–2) de ce qu'en disent les acteurs (4–5). Brief ou analyse IA : le dire.
+6. shall = obligation ; should = recommandation ; urges/encourages/invites = incitation ; notes = constat.
+7. Requêtes en anglais onusien, 2–3 formulations si c'est maigre.
+8. Court, l'essentiel d'abord, dans la langue de l'utilisateur (citer dans la langue d'origine).
 
-OUTILS : rechercher → lire_passage (contexte exact) ; document (métadonnées + versions) ;
-comparer_versions (ce qui a bougé entre deux versions d'un texte) ; nouveautes (ce qui est entré récemment) ;
-donnees (chiffres d'émissions) ; glossaire ; programme(jour, sujet) (side events, réunions officielles, où et
-quand aller ; toujours donner le lien SEORS de vérification) ; pavillons(sujet, pavillon) (programmes de tous les
-pavillons et side events : titres, résumés, intervenants ; comptages « combien de pavillons ont parlé de… ») ; mes_sujets / suivre / suivre_dossier / arreter_suivi
-(alertes) ;
-deposer_url (ajouter une page au corpus) ; etat_corpus.
-SOUMISSIONS OFFICIELLES (portail CCNUCC, depuis 2015 ; Partie = niveau 2, observateur = niveau 5) : positions
-ÉCRITES des Parties et groupes, avant ou pendant la session. soumissions (appels, qui a soumis quoi ;
-document=<id> : résumé et points soulevés classés par force du langage, citations exactes) → comparer_soumissions
-(« EU » contre « LMDC », dossier=… pour l'appel commun le plus récent du dossier, ou une soumission contre tout son
-appel : accords, différences, conflits ; indication d'alignement calculée par règles fixes, à présenter comme une
-aide à l'analyse, pas un jugement ; un groupe sans soumission propre est comparé via les soumissions de ses
-membres, présentées comme telles). groupes(groupe | partie) : membres des groupes de négociation, liste sourcée
-et datée (AGN et Groupe arabe par équivalence ; LMDC, AILAC, ALBA, CfRN : pas de liste vérifiée). dossier(slug) inclut la rubrique « soumissions » (appels liés, qui a soumis,
-alignements connus) ; soumissions(dossier=…, acteurs=[…]) : matrice d'alignement lue dans le cache. Exclues par défaut
-de rechercher : texte intégral avec rechercher(types=["soumission"]) ou partie=…
-NÉGOCIATIONS EN DIRECT : dossiers (vue d'ensemble) → dossier(slug ou alias : GGA, finance, MWP, art6…) : état,
-textes successifs avec crochets/options et diff, brief, positions relevées (citation exacte + source), notes de
-terrain internes ; textes_en_cours ; positions(acteur, dossier, depuis) pour « qui veut quoi / qui a bougé » ;
-noter (consigner une note de terrain interne). Index des textes et positions de référence : Carbon Brief, à citer
-(« selon le suivi de Carbon Brief »). Un brief est rédigé par IA : le présenter comme tel et s'appuyer sur ses sources.
-MÉTHODES (prompts du connecteur) : point_negociation, position_pays, preparer_rencontre, plaidoyer, decouvrir_sujet,
-quoi_de_neuf. Répondre dans la langue de l'utilisateur (anglais si sa question est en anglais : les outils
-renvoient les passages dans leur langue d'origine, à citer tels quels puis traduire si utile)."""
+OUTILS
+- Corpus : rechercher → lire_passage ; document ; comparer_versions ; nouveautes ; donnees ; glossaire.
+- Négociations : dossiers → dossier (état, textes, brief, positions, soumissions) ; positions ; textes_en_cours ; noter.
+- Positions écrites : soumissions (appels, auteurs, analyse) ; comparer_soumissions ; groupes (membres sourcés).
+- Événements : programme (où et quand) ; pavillons (contenu des événements, comptages).
+- Alertes et ajout : mes_sujets ; suivre ; suivre_dossier ; arreter_suivi ; deposer_url ; etat_corpus.
+Méthodes : point_negociation, position_pays, preparer_rencontre, plaidoyer, decouvrir_sujet, quoi_de_neuf."""
 
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
@@ -149,7 +117,12 @@ def rechercher(
     limite: int = 10,
     ctx: Context | None = None,
 ) -> dict[str, Any]:
-    """Recherche hybride (mots-clés + sens, multilingue) dans tout le corpus.
+    """Recherche hybride (mots-clés + sens, multilingue) dans tout le corpus : droit onusien (Convention, Accord de
+    Paris, décisions), documents de session et projets de texte, NDC, droit et positions de l'UE, science, comptes
+    rendus, données ; documents internes réservés aux contributeurs (invités : pas d'accès).
+    Formuler les termes onusiens en anglais (« global stocktake », « transitioning away from fossil fuels »),
+    guillemets pour une expression exacte, 2–3 formulations si le premier résultat est maigre. Soumissions
+    officielles : exclues par défaut (stock historique), voir types/partie/groupe ou l'outil `soumissions`.
 
     - requete : question ou mots-clés ; guillemets pour une expression exacte ; OR possible.
     - niveaux : ex. ["1","2"] pour ne garder que le droit et les documents officiels ; "R" n'existe pas
@@ -593,7 +566,9 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
     """Tout un dossier : état, textes de négociation successifs (crochets, options, lien vers le document et
     le diff), dernier brief (sources numérotées), positions relevées pendant la COP (citation exacte et source),
     positions écrites et appels à soumissions liés (qui a soumis, alignements déjà calculés),
-    positions de référence (Carbon Brief) et, pour les contributeurs, notes de terrain. `slug` ou alias (ex. GGA, finance, MWP)."""
+    positions de référence (Carbon Brief) et, pour les contributeurs, notes de terrain. `slug` ou alias (ex. GGA, finance, MWP).
+    Index des textes et positions de référence : citer « selon le suivi de Carbon Brief ». Le brief est rédigé par IA :
+    le présenter comme tel et s'appuyer sur ses sources numérotées."""
     live, positions, briefs = _live()
     conn = db.get()
     user = _user(ctx)
