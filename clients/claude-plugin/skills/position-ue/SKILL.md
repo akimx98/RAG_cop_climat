@@ -12,7 +12,9 @@ Suivre `protocole-cop31`.
    (`acces="restreint"`) s'ils existent.
 2. Ce que l'UE a demandé par écrit à la CCNUCC : `soumissions(auteur="EU")` puis `soumissions(document=<id>)`
    (points soulevés, force du langage, citations exactes ; niveau 2). Pour anticiper une attaque :
-   `comparer_soumissions("EU", "<groupe ou Partie>")` montre où les positions écrites divergent.
+   `comparer_soumissions("EU", "<groupe ou Partie>")` montre où les positions écrites divergent. Qui est dans quel
+   groupe : `groupes(groupe=…)` / `groupes(partie=…)` (listes sourcées ; AGN, Groupe arabe, LMDC, AILAC : liste non
+   vérifiée, ne pas déduire leur composition).
 3. Engagements : NDC de l'UE (`types=["ndc"]`, `partie="EU"`), loi climat et objectif 2040 (`types=["loi_ue"]`).
 4. Réalité : `donnees(pays="European Union (27)")` et rapports de l'AEE (niveau 3).
 5. Attaques prévisibles : MACF/CBAM « protectionniste », finance (art. 9), responsabilité historique (émissions

@@ -133,7 +133,15 @@ def _filters_sql(f: dict[str, Any], user: dict | None) -> tuple[str, list[Any]]:
     # Les dépôts des 14 derniers jours restent visibles partout (nouveautés, briefs, recherche) : même règle que
     # pour les alertes.
     wants_subs = (set(f.get("doc_types") or []) & {"soumission", "declaration"}) or f.get("party") or f.get("org") \
-        or f.get("source") == SUBMISSIONS_SOURCE or f.get("include_submissions")
+        or f.get("source") == SUBMISSIONS_SOURCE or f.get("include_submissions") or f.get("group")
+    if f.get("group"):
+        # Membres d'un groupe à liste sourcée (noms CCNUCC des soumissions, ISO3 des NDC) : élément exact du JSON.
+        from . import groupes, db as _db
+
+        gid = groupes.group_id(f["group"]) or f["group"]
+        values = groupes.party_filter_values(_db.get(), gid)
+        clauses.append("(" + " OR ".join("d.parties LIKE ?" for _ in values) + ")")
+        params += [f'%"{v}"%' for v in values]
     if not wants_subs:
         clauses.append(f"NOT (COALESCE(d.source_id,'')='{SUBMISSIONS_SOURCE}' "
                        "AND COALESCE(d.published,'') < date('now','-14 days'))")

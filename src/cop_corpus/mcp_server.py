@@ -60,7 +60,9 @@ SOUMISSIONS OFFICIELLES (portail CCNUCC, depuis 2015 ; Partie = niveau 2, observ
 document=<id> : résumé et points soulevés classés par force du langage, citations exactes) → comparer_soumissions
 (« EU » contre « LMDC », dossier=… pour l'appel commun le plus récent du dossier, ou une soumission contre tout son
 appel : accords, différences, conflits ; indication d'alignement calculée par règles fixes, à présenter comme une
-aide à l'analyse, pas un jugement). dossier(slug) inclut la rubrique « soumissions » (appels liés, qui a soumis,
+aide à l'analyse, pas un jugement ; un groupe sans soumission propre est comparé via les soumissions de ses
+membres, présentées comme telles). groupes(groupe | partie) : membres des groupes de négociation, liste sourcée
+et datée (AGN, Groupe arabe, LMDC, AILAC, ALBA, CfRN : pas de liste vérifiée). dossier(slug) inclut la rubrique « soumissions » (appels liés, qui a soumis,
 alignements connus) ; soumissions(dossier=…, acteurs=[…]) : matrice d'alignement lue dans le cache. Exclues par défaut
 de rechercher : texte intégral avec rechercher(types=["soumission"]) ou partie=…
 NÉGOCIATIONS EN DIRECT : dossiers (vue d'ensemble) → dossier(slug ou alias : GGA, finance, MWP, art6…) : état,
@@ -139,6 +141,7 @@ def rechercher(
     session: str | None = None,
     organisation: str | None = None,
     partie: str | None = None,
+    groupe: str | None = None,
     depuis: str | None = None,
     jusqu_a: str | None = None,
     langue: str | None = None,
@@ -156,11 +159,13 @@ def rechercher(
       compte_rendu, communique, analyse, programme, soumission (soumission officielle à la CCNUCC),
       declaration (déclaration en plénière déposée sur le portail).
     - session : COP29, CMA6, COP31… ; organisation : UNFCCC, Council of the EU… ; partie : EU, FRA, CHN…
+    - groupe : LDC, AOSIS, G77, EU, Umbrella… : documents (NDC, soumissions) de ses membres (liste sourcée, voir groupes)
     - depuis / jusqu_a : date ISO (AAAA-MM-JJ) sur la date de publication (ou de récupération).
     Renvoie des passages avec niveau, cote, paragraphe, page, extrait et liens. Utiliser lire_passage pour le texte complet.
     """
     user = _user(ctx)
     filters = {"levels": niveaux, "doc_types": types, "session": session, "org": organisation, "party": partie,
+               "group": groupe,
                "since": depuis, "until": jusqu_a, "lang": langue, "access": acces}
     hits = search.search(db.get(), requete, {k: v for k, v in filters.items() if v}, user, limit=min(limite, 30))
     return {"requete": requete, "nb": len(hits), "resultats": hits,
@@ -351,7 +356,7 @@ def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str |
 
 @mcp.tool(annotations=WRITE)
 def soumissions(appel: int | None = None, auteur: str | None = None, document: str | None = None,
-                dossier: str | None = None, acteurs: list[str] | None = None,
+                dossier: str | None = None, acteurs: list[str] | None = None, groupe: str | None = None,
                 requete: str | None = None, theme: str | None = None, session: str | None = None,
                 ouverts: bool = False, parties_seulement: bool = False, limite: int = 40,
                 ctx: Context | None = None) -> dict[str, Any]:
@@ -368,6 +373,8 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
       soumis (acteurs canoniques ; groupe quand une Partie soumet en son nom), alignements déjà calculés.
       Avec acteurs=["EU","LMDC","AOSIS",…] : matrice d'alignement LUE DANS LE CACHE (paires comparées, paires
       « à calculer » avec l'appel commun ; rien n'est calculé ici).
+    - groupe=« LDC », « AOSIS », « G77 »… : soumissions du groupe en son nom ET de ses membres (liste sourcée),
+      avec dossier= pour se limiter à un dossier.
     - document=<doc_id> : ANALYSE de la soumission (calculée une fois puis en cache) : résumé, points soulevés avec
       la position de l'auteur, la force du langage (1 constate, 2 suggère, 3 demande, 4 exige ; fort ≥ 3), le verbe
       et une citation vérifiée mot pour mot. Analyse par IA : le dire et citer les extraits.
@@ -389,6 +396,23 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
             return {"document": search.doc_public(row), **sm.analyze(conn, row["id"])}
         if appel:
             return sm.call_detail(conn, appel, parties_only=parties_seulement) or {"erreur": f"appel {appel} inconnu"}
+        if groupe:
+            from . import groupes as grp
+
+            gid = grp.group_id(groupe)
+            if not gid:
+                return {"erreur": f"groupe inconnu : {groupe}"}
+            calls = set(sm.dossier_call_ids(conn, dossier)) if dossier else None
+            own = []
+            try:
+                own = [x for x in sm._actor_items(conn, gid) if calls is None or x["call_id"] in calls]
+            except sm.UnknownActor:
+                pass
+            mem, n = sm.group_member_items(conn, gid, calls)
+            return {"groupe": grp.group_info(conn, gid),
+                    "soumissions_du_groupe": [sm._item_public(conn, x, with_analysis=True) for x in own[:limite]],
+                    "soumissions_des_membres": [{**sm._item_public(conn, x), "appel": x["call_id"]} for x in mem[:limite]],
+                    "note": "Soumissions des membres : positions de chaque Partie, pas du groupe."}
         if dossier:
             from . import live
 
@@ -414,7 +438,8 @@ def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None,
     l'indication d'ensemble (alignées, partiellement, non alignées, pas de position commune) est calculée par
     règles fixes à partir de ces qualifications (decompte.regle).
     - a, b : nom d'acteur (« EU », « LMDC », « Saudi Arabia », « AOSIS » ; un groupe qui a soumis en son nom
-      compte) ou doc_id. On prend l'appel le plus récent auquel les deux ont répondu (ou `appel`, ou le plus récent
+      compte ; un groupe qui n'a pas soumis : comparaison avec les soumissions de ses MEMBRES, présentée comme
+      telle, avec la couverture) ou doc_id. On prend l'appel le plus récent auquel les deux ont répondu (ou `appel`, ou le plus récent
       des appels du `dossier` : GGA, finance, JTWP…) ; sans appel commun, on compare leurs dernières soumissions et
       on le signale.
     - b absent : compare la soumission de `a` avec les autres Parties du même appel (comparaisons en cache
@@ -427,7 +452,15 @@ def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None,
     try:
         if not b:
             return sm.compare_in_call(conn, sm.latest_doc(conn, a, appel), max_n=max(1, min(max_comparaisons, 10)))
-        da, dbb, common = sm.resolve_pair(conn, a, b, appel, dossier=dossier)
+        try:
+            da, dbb, common = sm.resolve_pair(conn, a, b, appel, dossier=dossier)
+        except sm.UnknownActor:
+            from . import groupes as grp
+
+            if not (grp.group_id(a) or grp.group_id(b)):
+                raise
+            # Groupe sans soumission propre : comparaison avec les soumissions de ses membres.
+            return sm.compare_actors(conn, a, b, appel=appel, dossier=dossier)
         out = sm.compare(conn, da, dbb)
         call = conn.execute("SELECT * FROM sub_calls WHERE id=?", (common,)).fetchone() if common else None
         out["appel_commun"] = sm._call_public(call) if call else None
@@ -437,6 +470,21 @@ def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None,
         return out
     except Exception as exc:
         return {"erreur": str(exc)}
+
+
+@mcp.tool(annotations=READ)
+def groupes(groupe: str | None = None, partie: str | None = None) -> dict[str, Any]:
+    """Groupes de négociation : qui est membre de quoi, avec la SOURCE et la date de chaque liste.
+    - groupe=« LDC » / « PMA », « AOSIS », « G77 », « EU », « Umbrella », « BASIC », « EIG », « LLDC », « SIDS » :
+      membres (nom, ISO3, année d'adhésion si la source la donne).
+    - partie=« China », « Brazil », « Tuvalu »… : groupes dont elle est membre.
+    - sans argument : tous les groupes et l'état de leur liste.
+    Statut : verifie (liste sourcée, nombre conforme) ; ecart (à vérifier) ; non_verifie (AGN, Groupe arabe, LMDC,
+    AILAC, ALBA, CfRN : pas de liste officielle publiée — ne JAMAIS en déduire la composition, citer seulement le
+    nombre annoncé par la source)."""
+    from . import groupes as grp
+
+    return grp.query(db.get(), groupe=groupe, partie=partie)
 
 
 @mcp.tool(annotations=READ)

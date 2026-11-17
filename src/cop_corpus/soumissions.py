@@ -1084,3 +1084,103 @@ def alignment_matrix(conn, slug: str, actors: list[str]) -> dict[str, Any]:
             "sans_appel_commun": no_common or None,
             "absents_du_dossier": [a for a in names if not docs[a]] or None,
             "note": "Lecture du cache seulement ; lancer comparer_soumissions(a, b, dossier=…) pour une paire « à calculer »."}
+
+
+# --- groupes de négociation : position d'un groupe à partir des soumissions de ses membres ----------------------------
+
+def group_member_items(conn, gid: str, call_ids: set[int] | None = None) -> tuple[list, int]:
+    """Soumissions de Parties MEMBRES d'un groupe (liste sourcée, voir groupes.py), et nombre de membres listés."""
+    from . import groupes
+
+    isos = groupes.member_isos(conn, gid)
+    if not isos:
+        return [], 0
+    idx = groupes.iso_index(conn)
+    rows = conn.execute("SELECT * FROM sub_items WHERE kind='party' AND doc_id IS NOT NULL ORDER BY submitted DESC").fetchall()
+    out = [r for r in rows if (call_ids is None or r["call_id"] in call_ids) and groupes.to_iso3(r["entity"], idx) in isos]
+    return out, len(isos)
+
+
+def _side(conn, ref: str, call_ids: set[int] | None) -> dict[str, Any]:
+    """Un côté d'une comparaison : soumission(s) propres de l'acteur, sinon soumissions des membres du groupe."""
+    from . import groupes
+
+    if str(ref).strip().isdigit():
+        it = item_for_doc(conn, int(ref))
+        if not it:
+            raise ValueError(f"le document {ref} n'est pas une soumission CCNUCC connue")
+        return {"acteur": _who(conn, int(ref)), "mode": "propre", "items": [it]}
+    try:
+        items = [x for x in _actor_items(conn, ref, indexed_only=True) if call_ids is None or x["call_id"] in call_ids]
+        if items:
+            return {"acteur": items and speaks_for(items[0]), "mode": "propre", "items": items}
+    except UnknownActor:
+        pass
+    gid = groupes.group_id(ref)
+    if not gid:
+        raise UnknownActor(f"aucune soumission pour « {ref} »" + (" dans ce périmètre" if call_ids else ""))
+    items, n = group_member_items(conn, gid, call_ids)
+    if not n:
+        raise UnknownActor(f"« {gid} » n'a pas soumis en son nom dans ce périmètre et sa liste de membres n'est pas "
+                           "vérifiée (voir groupes) : impossible de reconstituer sa position")
+    if not items:
+        raise UnknownActor(f"ni « {gid} » ni aucun de ses {n} membres listés n'a soumis dans ce périmètre")
+    return {"acteur": gid, "mode": "membres", "items": items, "membres_listes": n}
+
+
+def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: str | None = None,
+                   max_new: int = MAX_NEW_COMPARISONS, max_total: int = 12) -> dict[str, Any]:
+    """Comparaison qui accepte des groupes sans soumission propre : on compare alors avec les soumissions de leurs
+    MEMBRES sur l'appel commun le plus récent (présentées comme telles, avec la couverture), en cache d'abord."""
+    call_ids: set[int] | None = None
+    if appel:
+        call_ids = {appel}
+    elif dossier:
+        call_ids = set(dossier_call_ids(conn, live.dossier_from_alias(dossier) or dossier))
+    sa, sb = _side(conn, a, call_ids), _side(conn, b, call_ids)
+    common = sorted({x["call_id"] for x in sa["items"]} & {x["call_id"] for x in sb["items"]},
+                    key=lambda c: max(x["submitted"] or "" for x in sa["items"] + sb["items"] if x["call_id"] == c),
+                    reverse=True)
+    if not common:
+        raise UnknownActor(f"pas d'appel auquel « {sa['acteur']} » et « {sb['acteur']} » ont tous deux répondu"
+                           + (" dans ce périmètre" if call_ids else ""))
+    call = common[0]
+
+    def docs(side):
+        ds = list(dict.fromkeys(x["doc_id"] for x in side["items"] if x["call_id"] == call))
+        return ds[:1] if side["mode"] == "propre" else ds
+
+    pairs = [(x, y) for x in docs(sa) for y in docs(sb) if x != y]
+    pairs.sort(key=lambda p: not _cached_pair(conn, *p))
+    results, skipped, new = [], [], 0
+    for x, y in pairs:
+        cached = _cached_pair(conn, x, y)
+        if len(results) >= max_total or (not cached and new >= max_new):
+            skipped.append(f"{_who(conn, x)} / {_who(conn, y)}")
+            continue
+        new += int(not cached)
+        c = compare(conn, x, y)
+        results.append({"a": c["a"], "b": c["b"], "indication": c["indication"],
+                        "indication_libelle": c["indication_libelle"], "regle": c["decompte"].get("regle"),
+                        "conflits": [p["point"] for p in c["points"] if p["relation"] == "conflit"][:5]})
+    counts: dict[str, int] = {}
+    for r in results:
+        counts[r["indication_libelle"]] = counts.get(r["indication_libelle"], 0) + 1
+    row = conn.execute("SELECT * FROM sub_calls WHERE id=?", (call,)).fetchone()
+
+    def side_out(side):
+        o = {"acteur": side["acteur"], "mode": side["mode"]}
+        if side["mode"] == "membres":
+            members = sorted({x["entity"] for x in side["items"] if x["call_id"] == call})
+            o.update({"membres_ayant_soumis": members,
+                      "couverture": f"{len(members)} membre(s) sur {side['membres_listes']} listés"})
+        return o
+
+    out = {"appel": _call_public(row) if row else call, "a": side_out(sa), "b": side_out(sb),
+           "comparaisons": results, "repartition": counts, "non_comparees": skipped or None,
+           "suite": "Relancer pour comparer les suivantes (cache)." if skipped else None,
+           "methode": "Chaque comparaison : comparer_soumissions(doc_a, doc_b) pour le détail point par point."}
+    if "membres" in (sa["mode"], sb["mode"]):
+        out["avertissement"] = ("Soumissions de MEMBRES du groupe, pas une position de groupe : le groupe n'a pas soumis "
+                                "en son nom sur cet appel. Ne pas présenter la répartition comme l'avis du groupe.")
+    return {k: v for k, v in out.items() if v is not None}

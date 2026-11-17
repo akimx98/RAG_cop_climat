@@ -407,7 +407,32 @@ langue, date), `/api/files/download?serverRelativeFilePath=…` (original). C'es
 - **Outils MCP** : `soumissions` (appels, qui a soumis quoi, `dossier=`, `document=` : analyse),
   `comparer_soumissions` (`dossier=` : appel commun le plus récent du dossier).
   CLI : `cop soumissions etat|index|telecharger|analyser|comparer|appels|appel|rattacher|dossiers`.
-- **Pas encore** : groupes de négociation (listes de membres sourcées), vue web de l'analyse d'une soumission.
+- **Pas encore** : vue web de l'analyse d'une soumission ; calcul en tâche de fond des comparaisons (décision :
+  à la demande seulement).
+
+## 10 sexies. Groupes de négociation (17 novembre 2026)
+
+Module `groupes.py`, définitions et sources dans `catalog/groupes.yaml`, tables `grp_groups` (statut, nombre lu et
+annoncé, date) et `grp_members` (membre, ISO3, nom tel qu'écrit par la source, année d'adhésion si la source la
+donne, source, date). Règle : **pas de liste sourcée, pas de membres**.
+
+| Groupe | Source de la liste | Lecture |
+|---|---|---|
+| G77 et Chine (134, Chine incluse) | g77.org | relève quotidienne |
+| UE (27, année d'adhésion) | european-union.europa.eu (2 pages) | relève quotidienne |
+| PMA/LDC (44), PDSL/LLDC (32), PEID/SIDS (39) | un.org/ohrlls | relève quotidienne |
+| AOSIS (39) | aosis.org | relève quotidienne |
+| EIG (6), Umbrella Group (11, Royaume-Uni depuis 2023), BASIC (4) | page « Party groupings » de la CCNUCC | relevé daté du 17/11/2026, phrase source citée (la page est derrière un anti-bot Incapsula intermittent : jamais contourné) |
+| AGN (54), Groupe arabe (22), LMDC (≈24), AILAC (8), ALBA (5), CfRN (52) | — | **non vérifié** : nombre annoncé par la CCNUCC, aucun membre listé |
+
+Nombre lu ≠ nombre annoncé → statut `ecart` (liste à vérifier) ; source en échec → dernière liste gardée, statut
+`erreur`. Noms ramenés à l'ISO3 (noms Our World in Data + variantes onusiennes : Naoero, St. Lucia…) ; un nom non
+résolu est signalé, jamais écarté. Usages : outil MCP `groupes(groupe | partie)` ; `rechercher(groupe=…)` (élément
+exact de `documents.parties` : noms CCNUCC et ISO3 ; « Niger » ≠ « Nigeria ») ; `soumissions(groupe=…)` (soumissions
+du groupe en son nom ET de ses membres, séparées) ; `comparer_soumissions` avec un groupe qui n'a pas soumis :
+comparaison avec les soumissions de ses MEMBRES sur l'appel commun le plus récent, présentée comme telle (couverture
+« k membres sur N listés », avertissement « pas une position de groupe »). CLI : `cop groupes [--sync] [--groupe X]
+[--partie Y]` ; relève quotidienne par `live_worker`.
 
 ## 11. Coûts
 

@@ -15,7 +15,7 @@ import traceback
 
 from . import agenda, briefs, db, fetch, live, llm, positions, telegram
 
-EVERY = {"texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "pavillons": 21600, "soumissions": 600}
+EVERY = {"texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "pavillons": 21600, "soumissions": 600, "groupes": 86400}
 
 
 def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
@@ -57,6 +57,10 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
                 live.log(f"positions : {out}")
         except llm.BudgetExceeded as exc:
             live.log(str(exc))
+    if due("groupes"):
+        from . import groupes
+
+        groupes.log(str(groupes.sync(conn, client)))
     if due("soumissions") and llm.enabled() and os.environ.get("COP_SUB", "1") != "0":
         from . import soumissions
 

@@ -1,0 +1,126 @@
+# Groupes de négociation de la CCNUCC : définition et SOURCE de la liste des membres.
+# Règle : pas de liste sourcée → pas de membres (statut « non_verifie »), jamais de liste de mémoire.
+#   id        nom canonique (celui de positions.normalize_actor : « LDC », « G77 and China »…)
+#   type      onu (catégorie définie par l'ONU) | negociation (groupe qui négocie d'une voix) | coalition (informelle)
+#   source    page publique qui liste les membres ; parser : méthode de lecture (groupes.PARSERS)
+#   attendu   nombre de membres annoncé par la source ou par la page « Party groupings » de la CCNUCC ; un écart est
+#             signalé (statut « ecart ») et la liste n'est pas présentée comme vérifiée
+#   alias     autres noms (FR / EN / sigles)
+#   membres   (au lieu de parser) relevé daté d'une page qui ne peut pas être relue automatiquement (page de la CCNUCC
+#             protégée par un anti-bot, jamais contourné) : liste recopiée de la phrase citée (`citation`) le jour `releve`
+#   depuis    (optionnel) {membre: année d'adhésion} quand la source la donne
+# Page de référence des groupes : https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+
+- id: G77 and China
+  nom: Groupe des 77 et la Chine
+  type: negociation
+  source: https://www.g77.org/doc/members.html
+  parser: g77
+  attendu: 134
+  note: "La liste de g77.org (134 États) inclut la Chine."
+  alias: [G77, G-77, G77+China, Groupe des 77]
+- id: EU
+  nom: Union européenne (27 États membres)
+  type: negociation
+  source: https://european-union.europa.eu/principles-countries-history/eu-countries_en
+  parser: eu
+  attendu: 27
+  alias: [UE, European Union, Union européenne]
+- id: LDC
+  nom: Pays les moins avancés (PMA)
+  type: onu
+  source: https://www.un.org/ohrlls/content/list-ldcs
+  parser: ohrlls_ldc
+  attendu: 44
+  alias: [PMA, LDCs, Least Developed Countries]
+- id: LLDC
+  nom: Pays en développement sans littoral
+  type: onu
+  source: https://www.un.org/ohrlls/content/list-lldcs
+  parser: ohrlls_numbered
+  attendu: 32
+  alias: [LLDCs, PDSL, Landlocked Developing Countries]
+- id: SIDS
+  nom: Petits États insulaires en développement (liste de l'ONU, membres de l'ONU)
+  type: onu
+  source: https://www.un.org/ohrlls/content/list-sids
+  parser: ohrlls_numbered
+  attendu: 39
+  alias: [PEID, Small Island Developing States]
+  note: "Catégorie de l'ONU ; le groupe qui négocie est l'AOSIS."
+- id: AOSIS
+  nom: Alliance des petits États insulaires
+  type: negociation
+  source: https://www.aosis.org/about/member-states/
+  parser: aosis
+  attendu: 39
+  alias: [Alliance of Small Island States, AOSIS]
+- id: EIG
+  nom: Groupe pour l'intégrité environnementale
+  type: negociation
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  releve: "2026-11-17"
+  citation: "The Environmental Integrity Group (EIG), formed in 2000, comprises Mexico, Liechtenstein, Monaco, the Republic of Korea, Switzerland, and Georgia."
+  membres: [Mexico, Liechtenstein, Monaco, Republic of Korea, Switzerland, Georgia]
+  attendu: 6
+  alias: [Environmental Integrity Group, GIE]
+- id: Umbrella Group
+  nom: Groupe parapluie
+  type: coalition
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  releve: "2026-11-17"
+  citation: "The Group is made up of Australia, Canada, Iceland, Israel, Japan, New Zealand, Kazakhstan, Norway, Ukraine, and the United States. The United Kingdom is the latest addition to the groups, when it formally joined in 2023."
+  membres: [Australia, Canada, Iceland, Israel, Japan, New Zealand, Kazakhstan, Norway, Ukraine, United States, United Kingdom]
+  depuis: {United Kingdom: "2023"}
+  attendu: 11
+  note: "Coalition informelle, composition variable : liste valable à la date du relevé."
+  alias: [Umbrella, Groupe parapluie]
+- id: BASIC
+  nom: Brésil, Afrique du Sud, Inde, Chine
+  type: coalition
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  releve: "2026-11-17"
+  citation: "The BASIC Group is a coalition of four major emerging economies - Brazil, South Africa, India, and China - that coordinate their positions in international climate change negotiations."
+  membres: [Brazil, South Africa, India, China]
+  attendu: 4
+  alias: [BASIC]
+# Groupes sans liste officielle publiée trouvée : décrits par la CCNUCC (nombre de membres), membres non listés.
+- id: AGN
+  nom: Groupe africain des négociateurs
+  type: negociation
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  attendu: 54
+  alias: [African Group, Groupe africain, African Group of Negotiators]
+  note: "« 54 pays africains » selon la CCNUCC ; pas de liste nominative publiée par le groupe."
+- id: Arab Group
+  nom: Groupe arabe
+  type: negociation
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  attendu: 22
+  alias: [Arab States, Groupe arabe]
+  note: "« 22 pays arabes » selon la CCNUCC ; liste nominative non publiée sur cette page."
+- id: LMDC
+  nom: Pays en développement aux vues similaires
+  type: coalition
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  attendu: 24
+  alias: [Like-Minded Developing Countries, LMDCs]
+  note: "« environ 24 pays » selon la CCNUCC ; composition variable, pas de liste officielle."
+- id: AILAC
+  nom: Association indépendante de l'Amérique latine et des Caraïbes
+  type: negociation
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  attendu: 8
+  alias: [Independent Association of Latin America and the Caribbean]
+- id: ALBA
+  nom: Alliance bolivarienne pour les peuples de notre Amérique
+  type: coalition
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  attendu: 5
+  alias: [Bolivarian Alliance]
+- id: CfRN
+  nom: Coalition des nations à forêts tropicales
+  type: coalition
+  source: https://unfccc.int/process-and-meetings/parties-non-party-stakeholders/parties/party-groupings
+  attendu: 52
+  alias: [Coalition for Rainforest Nations]

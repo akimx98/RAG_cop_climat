@@ -992,3 +992,120 @@ def test_soumissions_dossier_link(env, monkeypatch):
     assert m["comparees"][0]["indication"] == "aligne" and not m["a_calculer"]
     assert sm.dossier_section(conn, "adaptation")["appels"][0]["alignements_connus"][0]["indication"] == "aligne"
     assert mcp_server.dossier("gga")["soumissions"]["nb_appels_lies"] == 1
+
+
+def test_groupes_sources_parsers_and_membership(env, monkeypatch):
+    """Groupes : listes sourcées et datées, contrôle du nombre de membres (écart signalé), groupes sans liste
+    vérifiée jamais complétés ; une Partie dans plusieurs groupes ; filtre groupe= exact (Niger ≠ Nigeria)."""
+    from cop_corpus import fetch, groupes, ingest, search
+
+    conn = env
+    conn.execute("CREATE TABLE IF NOT EXISTS emissions(iso3 TEXT, country TEXT, year INT, indicator TEXT, value REAL, "
+                 "unit TEXT, source TEXT)")
+    conn.executemany("INSERT INTO emissions(iso3,country) VALUES(?,?)", [
+        ("CHN", "China"), ("BRA", "Brazil"), ("IND", "India"), ("ZAF", "South Africa"), ("NER", "Niger"),
+        ("NGA", "Nigeria"), ("TUV", "Tuvalu"), ("NRU", "Nauru"), ("LCA", "Saint Lucia"), ("FRA", "France")])
+    # Parseurs sur des extraits de la forme des pages réelles.
+    numbered = "<div>1. Afghanistan * 3. Niger * 2. Plurinational State of Bolivia Also Least Developed Country</div>"
+    assert [n for n, _ in groupes.parse_ohrlls_numbered(numbered)] == ["Afghanistan", "Plurinational State of Bolivia", "Niger"]
+    eu = "<p>France EU Member State since 1958, Euro area member since 1999 Croatia EU Member State since 2013, and</p>"
+    assert groupes.parse_eu(eu) == [("France", "1958"), ("Croatia", "2013")]
+    aosis = "<p>Pacific 3 🇹🇻 Tuvalu 🇳🇷 Naoero Caribbean 1 🇱🇨 St Lucia PALAU AOSIS Chair</p>"
+    assert [n for n, _ in groupes.parse_aosis(aosis)] == ["Tuvalu", "Naoero", "St Lucia"]
+    assert groupes.to_iso3("Naoero", groupes.iso_index(conn)) == "NRU"
+    cat = [
+        {"id": "LDC", "nom": "PMA", "type": "onu", "source": "https://un.test/ldc", "parser": "ohrlls_numbered",
+         "attendu": 3, "alias": ["PMA"]},
+        {"id": "AOSIS", "nom": "AOSIS", "type": "negociation", "source": "https://aosis.test", "parser": "aosis",
+         "attendu": 39},
+        {"id": "BASIC", "nom": "BASIC", "type": "coalition", "source": "https://unfccc.test", "releve": "2026-11-17",
+         "membres": ["Brazil", "South Africa", "India", "China"], "attendu": 4, "citation": "…Brazil, South Africa…"},
+        {"id": "LMDC", "nom": "LMDC", "type": "coalition", "source": "https://unfccc.test", "attendu": 24}]
+    monkeypatch.setattr(groupes, "catalog", lambda: cat)
+    pages = {"https://un.test/ldc": numbered, "https://aosis.test": aosis}
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            return fetch.FetchResult(url=url, status=200, content=pages[url].encode(), mime="text/html")
+
+    out = groupes.sync(conn, FakeClient())
+    assert out["LDC"].startswith("verifie 3") and out["AOSIS"].startswith("ecart 3") and out["LMDC"] == "non_verifie"
+    assert "Afghanistan" in out["LDC"]  # nom non résolu (absent de la table pays du test) : signalé, pas écarté
+    info = groupes.query(conn, groupe="LMDC")
+    assert info["membres"] == [] and "avertissement" in info and info["membres_annonces"] == 24
+    assert groupes.query(conn, groupe="AOSIS")["statut"] == "ecart"
+    assert [g["groupe"] for g in groupes.query(conn, partie="China")["groupes"]] == ["BASIC"]
+    assert groupes.query(conn, groupe="PMA")["groupe"] == "LDC"
+    m = {x["nom"]: x for x in groupes.members(conn, "BASIC")}
+    assert m["China"]["iso3"] == "CHN" and m["China"]["recupere_le"] == "2026-11-17"
+    # Source en échec : la dernière liste connue est gardée, statut « erreur ».
+    pages.pop("https://un.test/ldc")
+
+    class Broken(FakeClient):
+        def get(self, url, *_, **__):
+            if url not in pages:
+                return fetch.FetchResult(url=url, status=503)
+            return super().get(url)
+
+    groupes.sync(conn, Broken())
+    assert groupes.query(conn, groupe="LDC")["statut"] == "erreur" and len(groupes.members(conn, "LDC")) == 3
+    # Filtre groupe= : élément exact de la liste des Parties (Niger membre des PMA, pas le Nigeria).
+    for country in ("NER", "NGA"):
+        ingest.ingest_bytes(conn, f"NDC {country} adaptation finance targets for 2035. ".encode() * 20,
+                            url=f"https://ndc.test/{country}", filename=f"{country}.txt",
+                            meta={"doc_type": "ndc", "parties": [country], "level": "2"})
+    hits = search.search(conn, "adaptation finance", {"group": "LDC"}, None, limit=10)
+    assert hits
+    docs = {conn.execute("SELECT parties FROM documents WHERE id=?", (h["doc_id"],)).fetchone()[0] for h in hits}
+    assert docs == {'["NER"]'}
+
+
+def test_compare_group_through_members(env, monkeypatch):
+    """Groupe sans soumission propre : comparaison avec les soumissions de ses MEMBRES, présentée comme telle."""
+    import json
+
+    from cop_corpus import fetch, groupes, live, llm, mcp_server, soumissions as sm
+
+    conn = env
+    live._ready.clear()
+    conn.execute("CREATE TABLE IF NOT EXISTS emissions(iso3 TEXT, country TEXT, year INT, indicator TEXT, value REAL, "
+                 "unit TEXT, source TEXT)")
+    conn.executemany("INSERT INTO emissions(iso3,country) VALUES(?,?)", [("TUV", "Tuvalu"), ("NPL", "Nepal"), ("MLI", "Mali")])
+    monkeypatch.setattr(groupes, "catalog", lambda: [
+        {"id": "LDC", "nom": "PMA", "type": "onu", "source": "https://un.test", "releve": "2026-11-17",
+         "membres": ["Tuvalu", "Nepal", "Mali"], "attendu": 3, "alias": ["PMA"]}])
+    groupes.sync(conn, None)
+    calls = [{"Id": 1, "Title": "Views on GGA indicators", "Issue": "", "SessionName": "SB 65", "Mandate": "N/A",
+              "Deadline": None, "Themes": [], "Bodies": [], "TargetAudience": [], "CallType": "CallForSubmission",
+              "OpenCall": True, "IsUpcomingSession": True, "ModifiedDate": "2026-09-01T00:00:00Z"}]
+    subs = [{"Id": i + 1, "CallForSubmissionId": 1, "Title": e, "FileName": f"{e}.txt",
+             "ServerRelativeURL": f"/submissions/Archive/{e}.txt", "Language": "English",
+             "SubmissionDate": f"2026-09-0{i + 1}T00:00:00Z", "Description": "", "Entity": e, "EntityType": "Party"}
+            for i, e in enumerate(["European Union", "Tuvalu", "Nepal"])]
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            if url.endswith("/CallForSubmissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(calls).encode(), mime="application/json")
+            if url.endswith("/Submissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(subs).encode(), mime="application/json")
+            return fetch.FetchResult(url=url, status=200, mime="text/plain",
+                                     content=(("We call for robust adaptation indicators. " * 8) + url).encode())
+
+    sm.sync_index(conn, FakeClient())
+    sm.download_pending(conn, FakeClient(), limit=10)
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+
+    def fake_llm(conn_, **k):
+        if k["purpose"] == "soumission-comparaison":
+            return {"points": [{"point": "indicators", "a_position": "a", "b_position": "b", "a_force": 3, "b_force": 3,
+                                "relation": "accord", "explication": "e"}]}
+        return {"summary": "r", "summary_en": "s", "matters": []}
+
+    monkeypatch.setattr(llm, "json_call", fake_llm)
+    out = mcp_server.comparer_soumissions("EU", "PMA")
+    assert out["b"]["mode"] == "membres" and out["b"]["couverture"] == "2 membre(s) sur 3 listés"
+    assert out["b"]["membres_ayant_soumis"] == ["Nepal", "Tuvalu"] and len(out["comparaisons"]) == 2
+    assert "pas une position de groupe" in out["avertissement"]
+    g = mcp_server.soumissions(groupe="LDC")
+    assert g["soumissions_du_groupe"] == [] and len(g["soumissions_des_membres"]) == 2

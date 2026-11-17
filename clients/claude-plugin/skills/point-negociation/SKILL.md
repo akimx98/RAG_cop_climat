@@ -18,7 +18,9 @@ Suivre `protocole-cop31`.
    dossier, qui a soumis, alignements déjà calculés) et `positions_ecrites` de `dossier(...)` ; détail d'un appel :
    `soumissions(appel=<id>)` ; accords et conflits entre deux acteurs :
    `comparer_soumissions("EU", "<groupe>", dossier="<alias>")` (indication calculée par règles, à présenter comme
-   une aide à l'analyse) ; vue d'ensemble : `soumissions(dossier="<alias>", acteurs=[…])` (paires déjà comparées). Une soumission dit ce qu'un acteur a demandé par
+   une aide à l'analyse) ; vue d'ensemble : `soumissions(dossier="<alias>", acteurs=[…])` (paires déjà comparées).
+   Un groupe qui n'a pas soumis en son nom : la comparaison passe par les soumissions de ses membres — le dire
+   (« soumissions de membres, pas une position de groupe », avec la couverture). Une soumission dit ce qu'un acteur a demandé par
    écrit avant ou pendant la session ; `positions` dit ce qui a été relevé en salle et dans la presse.
 4. Compléter par `rechercher` (anglais onusien, `session="CMA8"`…) et `nouveautes(depuis="48h")` si besoin.
 5. Position de l'UE : conclusions du Conseil (niveau 2) — voir `position-ue`. Notes internes (R) : à utiliser,

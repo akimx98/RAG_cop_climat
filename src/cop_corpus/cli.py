@@ -247,6 +247,16 @@ def cmd_soumissions(args) -> None:
         _print(sm.stats(conn))
 
 
+def cmd_groupes(args) -> None:
+    from . import fetch, groupes
+
+    conn = db.get()
+    if args.sync:
+        _print(groupes.sync(conn, fetch.Client()))
+    else:
+        _print(groupes.query(conn, groupe=args.groupe, partie=args.partie))
+
+
 def cmd_mcp_stdio(args) -> None:
     from . import mcp_server
 
@@ -373,6 +383,12 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--embed", action="store_true", help="vectoriser après téléchargement")
     s.add_argument("--dossier", action="append", help="slug ou alias de dossier (rattacher : répétable)")
     s.set_defaults(func=cmd_soumissions)
+
+    s = sub.add_parser("groupes", help="groupes de négociation : membres sourcés")
+    s.add_argument("--sync", action="store_true", help="relever les listes de membres")
+    s.add_argument("--groupe")
+    s.add_argument("--partie")
+    s.set_defaults(func=cmd_groupes)
 
     sub.add_parser("mcp-stdio", help="serveur MCP en stdio (usage local)").set_defaults(func=cmd_mcp_stdio)
 
