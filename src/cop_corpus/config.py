@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -57,3 +58,35 @@ TELEGRAM_ALLOW_UPLOAD = os.environ.get("COP_TELEGRAM_ALLOW_UPLOAD", "1") == "1"
 # Fuseau de la COP (Antalya) pour l'affichage et le digest du matin.
 TIMEZONE = os.environ.get("COP_TZ", "Europe/Istanbul")
 DIGEST_HOUR = int(os.environ.get("COP_DIGEST_HOUR", "7"))
+
+# --- Serveur MCP --------------------------------------------------------------------------------------------------
+MCP_ALLOWED_HOSTS = [h for h in re.split(r"[,\s]+", os.environ.get("MCP_ALLOWED_HOSTS", "")) if h]
+LOCAL_ADMIN = os.environ.get("COP_LOCAL_ADMIN", "1") == "1"  # MCP en stdio (usage local) : administrateur local
+
+# --- Courrier sortant (code de connexion par e-mail) ----------------------------------------------------------------
+MAIL_PROVIDER = os.environ.get("COP_MAIL_PROVIDER", "").strip().lower()   # resend | brevo | vide
+MAIL_API_KEY = os.environ.get("COP_MAIL_API_KEY", "").strip()
+MAIL_FROM = os.environ.get("COP_MAIL_FROM", f"COP31 tracker <noreply@{MAIL_DOMAIN}>")
+
+# --- Modèle de langage (positions, briefs, analyses de soumissions ; sources publiques seulement) --------------------
+LLM_EXTRACT_MODEL = os.environ.get("COP_LLM_EXTRACT_MODEL", "gpt-5.4-mini")
+LLM_WRITE_MODEL = os.environ.get("COP_LLM_WRITE_MODEL", "gpt-5.6-luna")
+LLM_BUDGET_USD = float(os.environ.get("COP_LLM_BUDGET_USD", "30"))
+
+
+def llm_enabled() -> bool:
+    """Lu à chaque appel (la clé peut être posée ou retirée sans redémarrer, et les tests la changent)."""
+    return bool(os.environ.get("OPENAI_API_KEY")) and os.environ.get("COP_LLM", "1") != "0"
+
+
+# --- Veille en direct ------------------------------------------------------------------------------------------------
+LIVE = os.environ.get("COP_LIVE", "1") != "0"                       # fil de la veille en direct
+LIVE_SINCE = os.environ.get("COP_LIVE_SINCE", "2026-11-01")         # positions : sources publiées depuis
+LIVE_UNDATED_SINCE = os.environ.get("COP_LIVE_UNDATED_SINCE", "2026-11-07T18:00:00Z")  # … ou reçues depuis (sans date)
+BRIEF_HOURS = [int(h) for h in os.environ.get("COP_BRIEF_HOURS", "7,19").split(",") if h.strip()]
+
+# --- Soumissions officielles (portail CCNUCC) ------------------------------------------------------------------------
+SUB = os.environ.get("COP_SUB", "1") != "0"                         # collecte et analyse
+SUB_ANALYSE_SINCE = os.environ.get("COP_SUB_ANALYSE_SINCE", "2026-01-01")   # analyse auto. des Parties depuis
+SUB_PER_TICK = int(os.environ.get("COP_SUB_PER_TICK", "60"))        # fichiers téléchargés par passage
+SUB_EMBED_SINCE = os.environ.get("COP_SUB_EMBED_SINCE", "2026-01-01").replace("'", "")  # vectorisées depuis

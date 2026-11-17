@@ -9,15 +9,14 @@ Jamais les documents restreints ni les notes de terrain.
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 from typing import Any
 
-from . import live, llm
+from . import config, live, llm
 
-SINCE = os.environ.get("COP_LIVE_SINCE", "2026-11-01")
+SINCE = config.LIVE_SINCE
 # Documents sans date de publication : seulement ceux reçus après la mise en service (pas l'ancien stock).
-UNDATED_SINCE = os.environ.get("COP_LIVE_UNDATED_SINCE", "2026-11-07T18:00:00Z")
+UNDATED_SINCE = config.LIVE_UNDATED_SINCE
 ACTORS = ("EU, G77 and China, AOSIS, LDC, AGN, LMDC, Arab Group, AILAC, ABU, EIG, Umbrella Group, BASIC, LLDC, "
           "CfRN, Présidence COP31 (présidence turque ou australienne des négociations, quand elle parle en tant que "
           "présidence), ou un pays par son nom anglais court sans parenthèse (Türkiye, Australia, China, India, "

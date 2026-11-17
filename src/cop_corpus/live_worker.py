@@ -9,11 +9,10 @@ Toutes les heures : état des dossiers et positions « Who wants what » de Carb
 
 from __future__ import annotations
 
-import os
 import time
 import traceback
 
-from . import agenda, briefs, db, fetch, live, llm, positions, telegram
+from . import agenda, briefs, config, db, fetch, live, llm, positions, telegram
 
 EVERY = {"texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "pavillons": 21600, "soumissions": 600, "groupes": 86400}
 
@@ -61,7 +60,7 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         from . import groupes
 
         groupes.log(str(groupes.sync(conn, client)))
-    if due("soumissions") and llm.enabled() and os.environ.get("COP_SUB", "1") != "0":
+    if due("soumissions") and llm.enabled() and config.SUB:
         from . import soumissions
 
         try:
@@ -77,7 +76,7 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
 
 
 def run_forever(stop=None, interval: int = 60) -> None:
-    if os.environ.get("COP_LIVE", "1") == "0":
+    if not config.LIVE:
         return
     conn = db.connect()
     live.ensure_schema(conn)

@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import html
 import json
-import os
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from . import config, db, live, llm, positions, search
 
-HOURS = [int(h) for h in os.environ.get("COP_BRIEF_HOURS", "7,19").split(",") if h.strip()]
+HOURS = config.BRIEF_HOURS
 
 SYSTEM = """Tu rédiges le brief d'un dossier de négociation pour les participants à la COP31 (négociateurs, observateurs, société civile).
 Lecteurs : des négociateurs pressés ET des novices. Français clair, phrases courtes, aucun jargon non expliqué.

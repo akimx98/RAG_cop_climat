@@ -7,16 +7,15 @@ Règle de confidentialité : seules des sources PUBLIQUES sont envoyées. Les ap
 from __future__ import annotations
 
 import json
-import os
 import time
 from datetime import datetime, timezone
 from typing import Any
 
-from . import live
+from . import config, live
 
-EXTRACT_MODEL = os.environ.get("COP_LLM_EXTRACT_MODEL", "gpt-5.4-mini")
-WRITE_MODEL = os.environ.get("COP_LLM_WRITE_MODEL", "gpt-5.6-luna")
-BUDGET_USD = float(os.environ.get("COP_LLM_BUDGET_USD", "30"))
+EXTRACT_MODEL = config.LLM_EXTRACT_MODEL
+WRITE_MODEL = config.LLM_WRITE_MODEL
+BUDGET_USD = config.LLM_BUDGET_USD
 # Prix publics (USD par million de tokens, entrée / sortie), pour le suivi du plafond.
 PRICES = {"gpt-5.4-mini": (0.75, 4.50), "gpt-5.6-luna": (1.00, 6.00), "gpt-5.4-nano": (0.20, 1.25),
           "gpt-5.5": (5.00, 30.00), "gpt-4.1-mini": (0.40, 1.60)}
@@ -27,7 +26,7 @@ class BudgetExceeded(RuntimeError):
 
 
 def enabled() -> bool:
-    return bool(os.environ.get("OPENAI_API_KEY")) and os.environ.get("COP_LLM", "1") != "0"
+    return config.llm_enabled()
 
 
 def spent(conn) -> float:

@@ -7,16 +7,15 @@ Sans réglage, rien n'est envoyé et l'appelant le signale à l'utilisateur.
 
 from __future__ import annotations
 
-import os
 from email.utils import parseaddr
 
 import httpx
 
 from . import config
 
-PROVIDER = os.environ.get("COP_MAIL_PROVIDER", "").strip().lower()
-API_KEY = os.environ.get("COP_MAIL_API_KEY", "").strip()
-FROM = os.environ.get("COP_MAIL_FROM", f"COP31 tracker <noreply@{config.MAIL_DOMAIN}>")
+PROVIDER = config.MAIL_PROVIDER
+API_KEY = config.MAIL_API_KEY
+FROM = config.MAIL_FROM
 
 
 def enabled() -> bool:

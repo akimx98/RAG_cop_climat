@@ -8,7 +8,6 @@ instructions ci-dessous et par les skills du plugin.
 
 from __future__ import annotations
 
-import os
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -52,7 +51,7 @@ WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint
 
 
 def _security() -> TransportSecuritySettings:
-    hosts = [h for h in re.split(r"[,\s]+", os.environ.get("MCP_ALLOWED_HOSTS", "")) if h]
+    hosts = config.MCP_ALLOWED_HOSTS
     if not hosts:
         return TransportSecuritySettings(enable_dns_rebinding_protection=False)
     return TransportSecuritySettings(enable_dns_rebinding_protection=True, allowed_hosts=hosts,
@@ -85,7 +84,7 @@ def _user(ctx: Context | None) -> dict | None:
             pass
         return None
     # stdio (usage local) : administrateur local.
-    return LOCAL_ADMIN if os.environ.get("COP_LOCAL_ADMIN", "1") == "1" else None
+    return LOCAL_ADMIN if config.LOCAL_ADMIN else None
 
 
 def _need_user(ctx) -> dict:

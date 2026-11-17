@@ -3,7 +3,7 @@
 Corpus vérifiable, veille en temps réel et alertes pour suivre les négociations de la COP31 (Antalya,
 9–20 novembre 2026). Outil indépendant, gratuit et non commercial, sans lien avec la CCNUCC ni avec une délégation.
 Ce document décrit l'état actuel ; l'historique de construction est dans [historique.md](historique.md),
-l'exploitation (commandes, déploiement, courrier) dans le [README](../README.md).
+l'exploitation (commandes, déploiement, courrier) dans le [README](../README.md). Réglages : §7.
 
 ## 1. Vue d'ensemble
 
@@ -163,7 +163,41 @@ depuis la page « Claude / ChatGPT » du tableau de bord.
 | Briefs par dossier | `live_worker` | 7 h et 19 h |
 | Bot Telegram, courrier entrant | fils dédiés | en continu |
 
-## 7. Confidentialité
+## 7. Réglages
+
+Tous lus dans `config.py` (variables d'environnement, fichier `deploy/.env` en production). Un test vérifie que ce
+tableau couvre toutes les variables lues.
+
+| Variable | Défaut | Effet |
+|---|---|---|
+| `COP_DATA_DIR`, `COP_DB`, `COP_CATALOG` | `data/`, `data/cop.sqlite3`, `catalog/` | emplacements des données, de la base, des catalogues |
+| `COP_PUBLIC_BASE` | `http://localhost:8000` | adresse publique (liens des alertes et des outils) |
+| `COP_SECRET` | (à définir) | signature des cookies et des liens ; obligatoire en production |
+| `COP_SOURCE_URL` | vide | dépôt public du code, affiché s'il est renseigné |
+| `COP_USER_AGENT`, `COP_HOST_DELAY`, `COP_MAX_DOWNLOAD_MB` | agent du projet, 1 s, 60 Mo | collecte polie |
+| `OPENAI_API_KEY` | vide | embeddings et modèle de langage ; vide → recherche lexicale seule, pas d'IA |
+| `COP_EMBED_PROVIDER`, `COP_EMBED_MODEL`, `COP_EMBED_DIM` | `openai` si clé, `text-embedding-3-small`, 512 | embeddings |
+| `COP_EMBED_RESTRICTED` | 0 | 1 = envoyer aussi les documents internes à l'API d'embeddings |
+| `COP_LLM` | 1 | 0 = aucun appel au modèle de langage |
+| `COP_LLM_EXTRACT_MODEL`, `COP_LLM_WRITE_MODEL` | `gpt-5.4-mini`, `gpt-5.6-luna` | extraction et analyses ; briefs |
+| `COP_LLM_BUDGET_USD` | 30 | plafond de dépense cumulée |
+| `COP_LIVE` | 1 | 0 = pas de veille en direct (textes, positions, briefs, programme, pavillons, groupes, analyses) |
+| `COP_LIVE_SINCE`, `COP_LIVE_UNDATED_SINCE` | 2026-11-01, 2026-11-07T18:00Z | sources prises pour l'extraction des positions |
+| `COP_BRIEF_HOURS` | 7,19 | heures des briefs (fuseau `COP_TZ`) |
+| `COP_SUB` | 1 | 0 = ni collecte ni analyse des soumissions |
+| `COP_SUB_ANALYSE_SINCE` | 2026-01-01 | analyse automatique des soumissions de Parties déposées depuis |
+| `COP_SUB_PER_TICK` | 60 | fichiers de soumissions téléchargés par passage |
+| `COP_SUB_EMBED_SINCE` | 2026-01-01 | soumissions vectorisées seulement depuis cette date |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_NAME` | vide | bot Telegram |
+| `COP_TELEGRAM_RESTRICTED_SNIPPETS` | 0 | 1 = titres et extraits des documents internes dans Telegram |
+| `COP_TELEGRAM_ALLOW_UPLOAD` | 1 | dépôt de documents par le bot |
+| `COP_TZ`, `COP_DIGEST_HOUR` | `Europe/Istanbul`, 7 | fuseau de la COP, heure du récapitulatif |
+| `COP_MAIL_DOMAIN`, `COP_MAIL_CERT`, `COP_MAIL_KEY`, `COP_MAIL_MAX_MB` | domaine public, certificat de Caddy, 40 Mo | courrier entrant |
+| `COP_MAIL_PROVIDER`, `COP_MAIL_API_KEY`, `COP_MAIL_FROM` | vide | envoi des codes de connexion par e-mail (resend, brevo) |
+| `MCP_ALLOWED_HOSTS` | vide | hôtes admis par le MCP (protection DNS rebinding) |
+| `COP_LOCAL_ADMIN` | 1 | MCP en stdio : utilisateur administrateur local |
+
+## 8. Confidentialité
 
 - Documents internes (`acces='restreint'`) : visibles des seuls contributeurs ; jamais envoyés à l'API
   d'embeddings (sauf `COP_EMBED_RESTRICTED=1`), ni à un modèle de langage (analyse, positions, briefs) ;
@@ -172,7 +206,7 @@ depuis la page « Claude / ChatGPT » du tableau de bord.
 - Les invités consultent le corpus public et ne peuvent pas déposer.
 - Aucune coordonnée personnelle n'est conservée dans les programmes (intervenants : noms tels que publiés).
 
-## 8. Coûts
+## 9. Coûts
 
 - Modèle de langage : plafond global `COP_LLM_BUDGET_USD` (30 $ par défaut), suivi dans `llm_usage`
   (`llm.usage_summary`) ; extraction et analyses par `gpt-5.4-mini` (≈ 1 centime par analyse ou comparaison

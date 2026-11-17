@@ -1288,3 +1288,21 @@ def test_docs_match_tool_registry():
         for tool in mcp_server.RETIRED_TOOLS:
             pattern = rf"\b{tool}\b" if "_" in tool else rf"`{tool}[`(]|\b{tool}\("
             assert not _re.search(pattern, text), (tool, f.name)
+
+
+def test_settings_centralized_and_documented():
+    """P5 : variables d'environnement lues seulement dans config.py, toutes listées dans la doc de référence."""
+    import re as _re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    src = root / "src" / "cop_corpus"
+    for f in src.glob("*.py"):
+        if f.name != "config.py":
+            assert "os.environ" not in f.read_text(encoding="utf-8"), f.name
+    cfg = (src / "config.py").read_text(encoding="utf-8")
+    names = set(_re.findall(r'(?:os\.environ\.get|_path)\(\s*"([A-Z_]+)"', cfg))
+    assert len(names) > 30
+    doc = (root / "docs/architecture.md").read_text(encoding="utf-8").split("## 7. Réglages", 1)[1].split("\n## ", 1)[0]
+    documented = set(_re.findall(r"`([A-Z][A-Z_]+)`", doc))
+    assert names <= documented, names - documented

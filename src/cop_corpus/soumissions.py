@@ -22,23 +22,22 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
-from . import db, fetch, ingest, live, llm
+from . import config, db, fetch, ingest, live, llm
 
 API = "https://submissions.unfccc.int/api"
 PORTAL = "https://submissions.unfccc.int/"
 SOURCE_ID = "unfccc-submissions"
 # Analyse automatique (le reste à la demande) : soumissions de Parties déposées depuis cette date.
-AUTO_SINCE = os.environ.get("COP_SUB_ANALYSE_SINCE", "2026-01-01")
+AUTO_SINCE = config.SUB_ANALYSE_SINCE
 # Fichiers téléchargés par passage de la veille (le stock historique arrive progressivement, du plus récent au
 # plus ancien) ; 0 = pas de téléchargement automatique.
-DOWNLOAD_PER_TICK = int(os.environ.get("COP_SUB_PER_TICK", "60"))
+DOWNLOAD_PER_TICK = config.SUB_PER_TICK
 DOC_EXT = {"pdf", "docx", "doc", "rtf", "odt", "txt", "htm", "html", "pptx", "xlsx"}
 PROMPT_VERSION = "1"
 ANALYSE_CHARS = 60000      # texte envoyé à l'analyse (au-delà : signalé « tronque »)

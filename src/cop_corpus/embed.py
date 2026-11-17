@@ -81,7 +81,7 @@ def _embed_pending(conn, owner: str, batch: int, limit: int | None, progress) ->
     access_clause = "" if config.EMBED_RESTRICTED else "AND d.access='public'"
     # Soumissions CCNUCC : seules les récentes sont vectorisées (le stock entier ajouterait ~190 000 vecteurs en
     # mémoire dans chaque processus) ; les plus anciennes restent cherchables par mots-clés.
-    since = os.environ.get("COP_SUB_EMBED_SINCE", "2026-01-01").replace("'", "")
+    since = config.SUB_EMBED_SINCE
     access_clause += (f" AND NOT (COALESCE(d.source_id,'')='unfccc-submissions' "
                       f"AND COALESCE(d.published,'') < '{since}')")
     done = 0
