@@ -109,6 +109,8 @@ def generate(conn, slug: str, since: str, force: bool = False) -> int | None:
 
 
 def latest(conn, slug: str) -> dict | None:
+    if not config.BRIEFS:
+        return None  # briefs désactivés : les anciens ne sont plus montrés
     live.ensure_schema(conn)
     r = conn.execute("SELECT * FROM briefs WHERE dossier=? ORDER BY id DESC LIMIT 1", (slug,)).fetchone()
     if not r:
@@ -159,6 +161,8 @@ def due_slot(conn) -> str | None:
 
 def run_slot(conn, send) -> int:
     """Génère les briefs des dossiers actifs et les envoie à leurs abonnés Telegram."""
+    if not config.BRIEFS:
+        return 0
     slot = due_slot(conn)
     if not slot or not llm.enabled():
         return 0

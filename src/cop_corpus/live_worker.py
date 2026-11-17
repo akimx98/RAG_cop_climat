@@ -69,7 +69,7 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
                 live.log(f"soumissions : {n} analysées")
         except llm.BudgetExceeded as exc:
             live.log(str(exc))
-    if llm.enabled():
+    if config.BRIEFS and llm.enabled():
         n = briefs.run_slot(conn, telegram.send)
         if n:
             live.log(f"briefs : {n} dossiers")

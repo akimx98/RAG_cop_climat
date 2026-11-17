@@ -13,6 +13,7 @@
 
 <div class="grid wide">
 <section>
+{% if BRIEFS %}
 <div class="spread"><h2>Brief</h2>{% if brief %}<span class="small muted">{{ when(brief.created_at) }} UTC · {{ L('depuis', 'since') }} {{ when(brief.period_start) }}</span>{% endif %}</div>
 <div class="card">
 {% if brief %}
@@ -26,6 +27,7 @@
 {% if can_contribute(user) %}<form method="post" action="/dossiers/{{ d.slug }}/brief" style="margin-top:12px"><button class="secondary">{{ L('Rédiger le brief maintenant (24 h)', 'Write the brief now (last 24 h)') }}</button></form>{% endif %}
 <p class="small muted" style="margin-bottom:0">{{ L('Rédigé par IA à partir des seules sources publiques citées ; vérifiez avant de reprendre.', 'Written by AI from the cited public sources only; check before reusing.') }}</p>
 </div>
+{% endif %}
 
 <h2>{{ L('Textes de négociation', 'Negotiating texts') }}</h2>
 {% if spark %}<div class="card"><div class="small muted">{{ L('Crochets au fil des versions', 'Brackets across versions') }}</div>{{ spark|safe }}</div>{% endif %}

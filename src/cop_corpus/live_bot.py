@@ -32,6 +32,14 @@ HELP_EN = (
     "/texts — latest negotiation texts announced\n"
     "/brief — latest briefs of my items"
 )
+def _no_briefs(text: str) -> str:
+    """Textes d'aide sans les briefs quand ils sont désactivés (COP_BRIEFS=0)."""
+    text = text.replace(" (alertes textes + briefs 7 h et 19 h)", " (alerte à chaque nouveau texte)")
+    text = text.replace(" (new-text alerts + 7am and 7pm briefs)", " (an alert for each new text)")
+    text = text.replace(", dernier brief d'un dossier", " d'un dossier").replace(", latest brief of an item", " of an item")
+    return "\n".join(l for l in text.split("\n") if not l.startswith("/brief"))
+
+
 COMMANDS_EN = [
     {"command": "negotiations", "description": "negotiation items"},
     {"command": "negotiation", "description": "one item (e.g. /negotiation GGA)"},
@@ -47,6 +55,11 @@ COMMANDS = [
     {"command": "note", "description": "note de terrain (ex. /note GGA …)"},
     {"command": "brief", "description": "briefs de mes dossiers"},
 ]
+
+if not config.BRIEFS:  # briefs désactivés : ni commande /brief ni mention dans l'aide
+    HELP, HELP_GUEST, HELP_EN = (_no_briefs(HELP), _no_briefs(HELP_GUEST), _no_briefs(HELP_EN))
+    COMMANDS = [c for c in COMMANDS if c["command"] != "brief"]
+    COMMANDS_EN = [c for c in COMMANDS_EN if c["command"] != "brief"]
 
 
 def _slug(arg: str) -> str | None:
@@ -132,8 +145,10 @@ def handle(conn, chat_id, user: dict, cmd: str, arg: str, send) -> bool:
         live.follow(conn, user["id"], slug, on)
         d = live.dossier(slug)
         name = html.escape(_name(d, lang))
-        send(chat_id, (T(f"✓ Vous suivez « {name} » : alerte à chaque nouveau texte, brief à 7 h et 19 h.",
-                         f"✓ You now follow “{name}”: an alert for each new text, a brief at 7am and 7pm.")
+        send(chat_id, (T(f"✓ Vous suivez « {name} » : alerte à chaque nouveau texte"
+                         + (", brief à 7 h et 19 h." if config.BRIEFS else "."),
+                         f"✓ You now follow “{name}”: an alert for each new text"
+                         + (", a brief at 7am and 7pm." if config.BRIEFS else "."))
                        if on else T(f"Vous ne suivez plus « {name} ».", f"You no longer follow “{name}”.")))
         return True
     if cmd == "/textes":
@@ -146,6 +161,10 @@ def handle(conn, chat_id, user: dict, cmd: str, arg: str, send) -> bool:
              + f"\n<i>Index : {live.CB_CREDIT}</i>")
         return True
     if cmd == "/brief":
+        if not config.BRIEFS:
+            send(chat_id, T("Les briefs par dossier sont désactivés : /dossier GGA donne l'état et les derniers textes.",
+                            "Item briefs are turned off: /negotiation GGA gives the status and latest texts."))
+            return True
         slugs = [s for s in ([_slug(arg)] if arg else sorted(live.followed(conn, user["id"]))) if s]
         if not slugs:
             send(chat_id, T("Suivez d'abord un dossier (/suivi finance) ou précisez-en un : /brief GGA",

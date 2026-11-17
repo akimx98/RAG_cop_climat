@@ -65,8 +65,8 @@ lignées de versions et diff, recherche hybride (paliers lexicaux + sens, priori
 
 Index public de Carbon Brief (textes de session, positions de référence « Who wants what », cité) ; récupération
 des textes par leur adresse puis par l'ODS, sinon « à récupérer » (dépôt manuel) ; positions extraites des sources
-publiques récentes, gardées seulement si la citation figure mot pour mot dans la source ; briefs par dossier à 7 h
-et 19 h (heure d'Antalya), seulement s'il y a du nouveau, sources numérotées ; notes de terrain restreintes, jamais
+publiques récentes, gardées seulement si la citation figure mot pour mot dans la source ; briefs IA par dossier à
+7 h et 19 h, désactivés par défaut (`COP_BRIEFS`) ; notes de terrain restreintes, jamais
 envoyées à un modèle.
 
 ### Soumissions officielles
@@ -166,7 +166,7 @@ depuis la page « Claude / ChatGPT » du tableau de bord.
 | État des dossiers, positions de référence Carbon Brief | `live_worker` | 1 h |
 | Programme (planner), pavillons | `live_worker` | 6 h |
 | Groupes de négociation | `live_worker` | 24 h |
-| Briefs par dossier | `live_worker` | 7 h et 19 h |
+| Briefs par dossier (si `COP_BRIEFS=1`) | `live_worker` | 7 h et 19 h |
 | Bot Telegram, courrier entrant | fils dédiés | en continu |
 
 ## 7. Réglages
@@ -189,7 +189,8 @@ tableau couvre toutes les variables lues.
 | `COP_LLM_BUDGET_USD` | 30 | plafond de dépense cumulée |
 | `COP_LIVE` | 1 | 0 = pas de veille en direct (textes, positions, briefs, programme, pavillons, groupes, analyses) |
 | `COP_LIVE_SINCE`, `COP_LIVE_UNDATED_SINCE` | 2026-11-01, 2026-11-07T18:00Z | sources prises pour l'extraction des positions |
-| `COP_BRIEF_HOURS` | 7,19 | heures des briefs (fuseau `COP_TZ`) |
+| `COP_BRIEFS` | 0 | 1 = briefs IA par dossier (Telegram, page dossier, outil `dossier`) ; 0 = désactivés et masqués |
+| `COP_BRIEF_HOURS` | 7,19 | heures des briefs, s'ils sont activés (fuseau `COP_TZ`) |
 | `COP_SUB` | 1 | 0 = ni collecte ni analyse des soumissions |
 | `COP_SUB_AUTO_ANALYSE` | 0 | 1 = analyser en tâche de fond les soumissions de Parties récentes (sinon à la demande seulement) |
 | `COP_SUB_ANALYSE_SINCE` | 2026-01-01 | analyse automatique (si activée) des soumissions de Parties déposées depuis |
@@ -217,7 +218,7 @@ tableau couvre toutes les variables lues.
 
 - Modèle de langage : plafond global `COP_LLM_BUDGET_USD` (30 $ par défaut), suivi dans `llm_usage`
   (`llm.usage_summary`). Côté serveur, le modèle sert aux tâches de fond qui tournent sans utilisateur : briefs
-  par dossier (`gpt-5.6-luna`, ≈ 3 $ sur la première semaine) et extraction des positions dans les comptes rendus
+  par dossier (`gpt-5.6-luna`, ≈ 3 $ sur la première semaine ; désactivés depuis le 17/11, `COP_BRIEFS=0`) et extraction des positions dans les comptes rendus
   (`gpt-5.4-mini`, ≈ 2 $). `COP_LLM=0` les coupe : la clé ne sert plus qu'aux embeddings. Les analyses et
   comparaisons de soumissions demandées par MCP sont faites par le LLM du client (aucun coût serveur).
 - Embeddings : `text-embedding-3-small` (512 dimensions), documents publics seulement ; vecteurs gardés en mémoire

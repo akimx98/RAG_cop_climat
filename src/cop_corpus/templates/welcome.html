@@ -23,7 +23,7 @@
 <form class="card step" method="post" id="sujets">
 <h2><span class="n">1</span>{{ L('Choisissez vos sujets', 'Pick your topics') }}</h2>
 {% if saved %}<p class="banner">✓ {{ L('Enregistré. Vous serez prévenu de chaque nouveau texte sur ces dossiers, sur le site, dans Telegram et dans votre assistant (« quoi de neuf sur mes sujets ? »).', 'Saved. You will be notified of every new text on these negotiations: on the site, in Telegram, and in your assistant (“what\'s new on my topics?”).') }}</p>{% endif %}
-<p class="small muted" style="margin-top:0">{{ L('Un dossier = un point de négociation : chaque nouveau projet de texte, ce qui a changé, un brief matin et soir.', 'One negotiation = one agenda item: every new draft, what changed, and a morning and evening brief.') }}</p>
+<p class="small muted" style="margin-top:0">{{ L('Un dossier = un point de négociation : chaque nouveau projet de texte, ce qui a changé, qui veut quoi.', 'One negotiation = one agenda item: every new draft, what changed, who wants what.') }}</p>
 <div class="chips row" style="margin-bottom:14px">
 {% for d in dossiers %}<label title="{{ DN(d, 'enjeu') }}"><input type="checkbox" name="dossiers" value="{{ d.slug }}" {{ 'checked' if d.slug in followed }}>{{ DN(d) }}</label>{% endfor %}
 </div>
@@ -80,14 +80,14 @@
 {% elif BOT %}<p style="margin-top:0"><a class="btn" href="https://t.me/{{ BOT }}?start={{ user.telegram_code }}">{{ L('Ouvrir', 'Open') }} @{{ BOT }} {{ L('dans Telegram', 'in Telegram') }}</a></p>
 <p class="small muted">{{ L('Puis appuyez sur Démarrer : c\'est relié. Sinon envoyez au bot', 'Then tap Start: you are linked. Otherwise send the bot') }} <code>/start {{ user.telegram_code }}</code>.</p>
 {% else %}<p class="muted">{{ L('Bot Telegram non configuré.', 'Telegram bot not configured.') }}</p>{% endif %}
-<p class="small">{{ L('Vous recevez : une alerte à chaque nouveau texte ou document sur vos sujets, et le brief de vos dossiers à 7 h et 19 h (heure d\'Antalya). Sans assistant IA, le bot suffit :', 'You get: an alert for every new text or document on your topics, and your negotiations\' brief at 7am and 7pm (Antalya time). No AI assistant? The bot is enough on its own:') }}
-<code>/cherche …</code> {{ L('recherche', 'search') }} · <code>/dossier GGA</code> · <code>/brief</code> · <code>/suivre fossil fuels</code> · <code>/aide</code></p>
+<p class="small">{{ L('Vous recevez : une alerte à chaque nouveau texte ou document sur vos sujets et vos dossiers. Sans assistant IA, le bot suffit :', 'You get: an alert for every new text or document on your topics and negotiations. No AI assistant? The bot is enough on its own:') }}
+<code>/cherche …</code> {{ L('recherche', 'search') }} · <code>/dossier GGA</code> · <code>/suivre fossil fuels</code> · <code>/aide</code></p>
 </div>
 
 <div class="card step">
 <h2><span class="n">4</span>{{ L('Directement sur le site', 'Right here on the website') }}</h2>
 <div class="site">
-<a href="/dossiers"><b>{{ L('Dossiers', 'Negotiations') }}</b><span>{{ L('Par point : état, versions et crochets, positions, brief IA sourcé', 'Per item: status, versions and brackets, positions, sourced AI brief') }}</span></a>
+<a href="/dossiers"><b>{{ L('Dossiers', 'Negotiations') }}</b><span>{{ L('Par point : état, versions et crochets, positions, soumissions', 'Per item: status, versions and brackets, positions, submissions') }}</span></a>
 <a href="/textes"><b>{{ L('Textes', 'Draft texts') }}</b><span>{{ L('Chaque projet de texte publié, et « ce qui a changé » depuis la version précédente', 'Every draft published, and “what changed” since the previous version') }}</span></a>
 <a href="/recherche"><b>{{ L('Recherche', 'Search') }}</b><span>{{ L('Mots et sens, multilingue ; chaque résultat ouvre le passage surligné', 'Keywords and meaning, multilingual; every result opens the highlighted passage') }}</span></a>
 <a href="/"><b>{{ L('Fil', 'Feed') }}</b><span>{{ L('Vos alertes et les derniers documents entrés, par niveau de fiabilité', 'Your alerts and the latest documents, by reliability level') }}</span></a>
@@ -99,7 +99,7 @@
 <ul class="small" style="padding-left:18px;margin:0">
 <li>{{ L('Niveaux de fiabilité : 1 texte adopté · 2 document officiel non adopté (projet de texte, NDC) · 3 science et données · 4 compte rendu de référence · 5 position d\'un acteur (jamais une preuve).', 'Reliability levels: 1 adopted text · 2 official, not adopted (draft, NDC) · 3 science and data · 4 reference report · 5 an actor\'s position (never proof).') }}</li>
 <li>{{ L('Un projet de texte n\'est pas adopté : citez toujours sa version et sa date.', 'A draft is not adopted: always cite its version and date.') }}</li>
-<li>{{ L('Les briefs et les réponses de votre assistant sont rédigés par IA : ouvrez le passage cité avant de le reprendre.', 'Briefs and your assistant\'s answers are written by AI: open the quoted passage before reusing it.') }}</li>
+<li>{{ L('Les réponses de votre assistant sont rédigées par IA : ouvrez le passage cité avant de le reprendre.', 'Your assistant\'s answers are written by AI: open the quoted passage before reusing it.') }}</li>
 <li>{{ L('Positions : positions de référence d\'avant la COP (Carbon Brief) et déclarations relevées pendant la COP, citation vérifiée dans la source.', 'Positions: pre-COP reference positions (Carbon Brief) and statements picked up during the COP, quote checked against the source.') }}</li>
 </ul>
 </div>

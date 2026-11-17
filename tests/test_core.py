@@ -1376,3 +1376,18 @@ def test_client_side_analysis_and_scoring(env, monkeypatch):
     again = mcp_server.comparer_soumissions("EU", "LMDC")
     assert again["indication"] == "non_aligne"  # en cache, plus de texte à relire
     assert mcp_server.comparer_soumissions(acteurs=["EU", "LMDC"], dossier="gga")["comparees"]
+
+
+def test_briefs_off_by_default(env):
+    """Briefs désactivés par défaut : pas de génération, aucun ancien brief montré, ni commande /brief."""
+    from cop_corpus import briefs, config, live, live_bot
+
+    conn = env
+    live._ready.clear()
+    live.ensure_schema(conn)
+    assert config.BRIEFS is False
+    conn.execute("INSERT INTO briefs(dossier, created_at, period_start, body, sources) VALUES('adaptation', "
+                 "'2026-11-17T07:00:00Z', '2026-11-16T19:00:00Z', '{}', '[]')")
+    conn.commit()
+    assert briefs.latest(conn, "adaptation") is None and briefs.run_slot(conn, lambda *a: None) == 0
+    assert "brief" not in [c["command"] for c in live_bot.COMMANDS] and "/brief" not in live_bot.HELP

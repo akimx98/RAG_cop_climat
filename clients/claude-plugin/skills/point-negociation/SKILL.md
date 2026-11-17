@@ -8,7 +8,7 @@ description: Faire le point sur l'état d'un point de négociation de la COP31 (
 Suivre `protocole-cop31`.
 
 1. **`dossier(<alias>)`** d'abord (ex. `dossier("GGA")`, `dossier("finance")`, liste : `dossiers()`) : état du
-   dossier, textes successifs avec crochets et options, dernier brief, positions relevées pendant la COP
+   dossier, textes successifs avec crochets et options, positions relevées pendant la COP
    (citation exacte + source), positions de référence (Carbon Brief), notes de terrain internes.
 2. Dernière version du texte : le texte le plus récent de `dossier(...)`. S'il est « à récupérer », le dire et
    donner son lien unfccc.int (un contributeur l'ouvre et le transfère au bot). Sinon
@@ -25,8 +25,7 @@ Suivre `protocole-cop31`.
 4. Compléter par `rechercher` (anglais onusien, `session="CMA8"`…) et `nouveautes(depuis="48h")` si besoin.
 5. Position de l'UE : conclusions du Conseil (niveau 2) — voir `position-ue`. Notes internes (R) : à utiliser,
    jamais à recopier à l'extérieur.
-6. Citer « selon le suivi de Carbon Brief » pour l'index des textes et les positions de référence ; présenter
-   le brief comme rédigé par IA et s'appuyer sur ses sources.
+6. Citer « selon le suivi de Carbon Brief » pour l'index des textes et les positions de référence.
 
 ## Rendu
 ```
@@ -40,4 +39,4 @@ Positions écrites : <appels liés, qui a soumis ; alignements connus (aide à l
 À surveiller : <prochaine étape, réunion>
 ```
 Proposer de suivre le dossier (`/suivi <alias>` dans Telegram ou bouton « Suivre » de la page dossier) pour
-recevoir chaque nouveau texte et le brief de 7 h et 19 h ; `noter(...)` pour consigner ce qui a été entendu en salle.
+recevoir chaque nouveau texte ; `noter(...)` pour consigner ce qui a été entendu en salle.

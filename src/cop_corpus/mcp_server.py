@@ -35,7 +35,7 @@ RÈGLES
 
 OUTILS
 - Corpus : rechercher → lire_passage ; document ; comparer_versions ; nouveautes ; donnees ; glossaire.
-- Négociations : dossiers (textes annoncés) → dossier (état, textes, brief, positions, soumissions) ; positions ; noter.
+- Négociations : dossiers (textes annoncés) → dossier (état, textes, positions, soumissions) ; positions ; noter.
 - Positions écrites : soumissions (appels, auteurs, analyse) ; comparer_soumissions (et matrice) ; groupes.
 - Événements : programme (où et quand) ; pavillons (contenu des événements, comptages).
 - Alertes et ajout : mes_sujets ; suivre (mots-clés, dossier, arrêt) ; deposer_url ; etat_corpus.
@@ -517,8 +517,8 @@ def suivre(mots_cles: str | None = None, dossier: str | None = None, arreter: in
     - mots_cles=… : alerte sur chaque nouveau document correspondant ; expressions séparées par des virgules, en
       anglais ET en français (« fossil fuels, combustibles fossiles, transition away ») ; « * » + types = tout
       nouveau document de ces types (ex. types=["projet_texte"]).
-    - dossier=… (slug ou alias : GGA, finance, ACE, art6…) : alerte à chaque nouveau texte du dossier et brief de
-      7 h et 19 h ; ne_plus_suivre=true pour arrêter.
+    - dossier=… (slug ou alias : GGA, finance, ACE, art6…) : alerte à chaque nouveau texte du dossier ;
+      ne_plus_suivre=true pour arrêter.
     - arreter=<id> : supprimer une alerte par mots-clés (identifiant donné par mes_sujets)."""
     user = _need_user(ctx)
     conn = db.get()
@@ -602,10 +602,10 @@ def dossiers(textes: bool = False, a_recuperer: bool = False, limite: int = 30,
 @mcp.tool(annotations=READ)
 def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
     """Tout un dossier : état, textes de négociation successifs (crochets, options, lien vers le document et
-    le diff), dernier brief (sources numérotées), positions relevées pendant la COP (citation exacte et source),
+    le diff), brief IA s'il est activé, positions relevées pendant la COP (citation exacte et source),
     positions écrites et appels à soumissions liés (qui a soumis, alignements déjà calculés),
     positions de référence (Carbon Brief) et, pour les contributeurs, notes de terrain. `slug` ou alias (ex. GGA, finance, MWP).
-    Index des textes et positions de référence : citer « selon le suivi de Carbon Brief ». Le brief est rédigé par IA :
+    Index des textes et positions de référence : citer « selon le suivi de Carbon Brief ». Un brief éventuel est rédigé par IA :
     le présenter comme tel et s'appuyer sur ses sources numérotées."""
     live, positions, briefs = _live()
     conn = db.get()
@@ -737,14 +737,14 @@ def _lang(ctx, langue: str | None) -> str:
 # plugin (clients/claude-plugin/skills) suivent les mêmes outils. Un test vérifie que chaque outil cité existe.
 METHODES: dict[str, dict[str, list[str]]] = {
     "point_negociation": {
-        "fr": ["`dossier` (slug ou alias) : état, textes successifs, crochets et options, dernier brief, rubrique "
+        "fr": ["`dossier` (slug ou alias) : état, textes successifs, crochets et options, rubrique "
                "« soumissions » (appels liés, qui a soumis, alignements connus).",
                "`comparer_versions` sur la dernière version : paragraphes ajoutés, supprimés, options tranchées, crochets "
                "levés — citer les paragraphes avant/après.",
                "`positions(dossier=…, depuis=…)` : qui pousse quoi, qui bloque ; positions écrites : "
                "`comparer_soumissions(<acteur>, <acteur>, dossier=…)` (aide à l'analyse).",
                "`nouveautes(depuis=…)` et `rechercher` (termes onusiens en anglais) pour les comptes rendus (ENB, Carbon Brief)."],
-        "en": ["`dossier` (slug or alias): status, successive texts, brackets and options, latest brief, “soumissions” "
+        "en": ["`dossier` (slug or alias): status, successive texts, brackets and options, “soumissions” "
                "section (linked calls, who submitted, known alignment).",
                "`comparer_versions` on the latest version: paragraphs added or deleted, options settled, brackets removed "
                "— quote paragraphs before/after.",

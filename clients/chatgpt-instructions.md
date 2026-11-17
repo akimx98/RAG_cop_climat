@@ -16,7 +16,7 @@ Règles
 
 Outils
 - Corpus : rechercher → lire_passage ; document ; comparer_versions ; nouveautes ; donnees ; glossaire.
-- Négociations : dossiers → dossier (état, textes, brief, positions, soumissions liées) ; positions ; noter.
+- Négociations : dossiers → dossier (état, textes, positions, soumissions liées) ; positions ; noter.
 - Positions écrites : soumissions (appels, qui a soumis quoi, analyse d'une soumission) ; comparer_soumissions
   (accords et conflits entre deux acteurs ; indication calculée par règles, aide à l'analyse) ; groupes (membres
   sourcés des groupes de négociation).

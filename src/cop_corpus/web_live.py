@@ -8,10 +8,11 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
-from . import auth, briefs, db, ingest, live, llm, positions, search
+from . import auth, briefs, config, db, ingest, live, llm, positions, search
 from .web import TEMPLATES, contributor_required, login_required, render
 
 TEMPLATES.filters["briefclean"] = briefs.clean
+TEMPLATES.globals["BRIEFS"] = config.BRIEFS
 
 
 def _since(hours: int) -> str:
@@ -102,6 +103,8 @@ async def dossier_note(request: Request):
 @contributor_required
 async def dossier_brief(request: Request):
     """Régénérer le brief à la demande (au plus une fois toutes les 20 minutes)."""
+    if not config.BRIEFS:
+        return RedirectResponse(f"/dossiers/{request.path_params['slug']}", status_code=303)
     conn = db.get()
     slug = request.path_params["slug"]
     if not live.dossier(slug) or not llm.enabled():
