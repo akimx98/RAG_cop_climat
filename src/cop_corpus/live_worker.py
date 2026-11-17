@@ -15,7 +15,7 @@ import traceback
 
 from . import agenda, briefs, db, fetch, live, llm, positions, telegram
 
-EVERY = {"texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "soumissions": 600}
+EVERY = {"texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "pavillons": 21600, "soumissions": 600}
 
 
 def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
@@ -33,6 +33,10 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         live.log(f"référence Carbon Brief : {n} positions")
     if due("agenda"):
         agenda.log(str(agenda.sync_planner(conn, client)))
+    if due("pavillons"):
+        from . import pavillons
+
+        pavillons.log(str(pavillons.sync(conn, client)))
     if due("texts"):
         new = live.sync_texts(conn, client)
         linked = live.link_existing(conn)

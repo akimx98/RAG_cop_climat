@@ -609,6 +609,32 @@ def test_forgot_password_code(env, monkeypatch):
     assert auth.check_password(conn, "p@ngo.org", "nouveau-mot-de-passe") and not auth.check_password(conn, "p@ngo.org", "ancien-mot-de-passe")
 
 
+PAV_PAGE = r'''<html><script>self.__next_f.push([1,"7c:T34,<div class=\"payload-richtext\"><p>Long text</p></div>"])</script>
+<script>self.__next_f.push([1,"[{\"id\":1,\"title\":\"Forests and finance\",\"organizer\":null,\"date\":\"2026-11-14\",\"startTime\":\"10:00\",\"endTime\":\"11:00\",\"place\":\"Area B2 Delegation Pavilions › Brazil Pavilion\",\"hub\":\"Area B2 Delegation Pavilions\",\"typeLabel\":\"Panel\",\"themes\":[],\"descriptionHtml\":\"<div><p>Tropical rainforest protection and REDD+.</p><p>Moderator: Jane Doe, WRI</p><p>Speakers:</p><ul><li>H.E. John Smith, Minister of Environment</li><li>Ana Lima, Amazon Fund</li></ul><p>Agenda</p><p>10:00 opening</p></div>\",\"zone\":\"blue\",\"nitelikIdleri\":[\"9\"],\"iptal\":false},{\"id\":2,\"title\":\"Steel\",\"organizer\":\"X\",\"date\":\"2026-11-15\",\"startTime\":\"12:00\",\"endTime\":\"13:00\",\"place\":\"Resilient Cities Hub › Resilient Cities Programming Area 2\",\"hub\":\"Resilient Cities\",\"typeLabel\":null,\"themes\":[],\"descriptionHtml\":\"$7c\",\"zone\":\"green\",\"nitelikIdleri\":[],\"iptal\":false}],\"suzgecGruplari\":[{\"id\":\"15\",\"key\":\"keyword\",\"label\":\"Keyword\",\"secenekler\":[{\"id\":\"9\",\"key\":\"forests\",\"label\":\"Forests\"}]}]"])</script></html>'''
+
+
+def test_pavillons_parse_speakers_and_search(env):
+    from cop_corpus import pavillons
+
+    importlib.reload(pavillons)
+    evs = pavillons.parse_cop31tr(PAV_PAGE, "blue")
+    by_id = {e["key"]: e for e in evs}
+    e = by_id["cop31tr:blue:1"]
+    assert e["pavilion"] == "Brazil Pavilion" and e["keywords"] == ["Forests"]
+    assert {"role": "moderator", "name": "Jane Doe, WRI"} in e["speakers"]
+    assert [s["name"] for s in e["speakers"] if s["role"] == "speaker"] == [
+        "H.E. John Smith, Minister of Environment", "Ana Lima, Amazon Fund"]          # « Agenda » arrête la liste
+    assert by_id["cop31tr:blue:2"]["description"] == "Long text"                       # référence RSC résolue
+    pavillons.ensure_schema(env)
+    pavillons._store(env, evs, ["cop31.tr"], "2026-11-17T00:00:00Z")
+    pavillons._reindex(env)
+    from cop_corpus import db
+    db.meta_set(env, "pav_synced_at", "2026-11-17T00:00:00Z")
+    out = pavillons.query(env, sujet="rainforest, deforestation", mode="mots")
+    assert out["pavillons_concernes"] == 1 and out["par_pavillon"][0]["pavillon"] == "Brazil Pavilion"
+    assert pavillons.query(env, pavillon="Brazil")["evenements_trouves"] == 1
+
+
 def _pt(rel, a=3, b=3):
     return {"point": "p", "a_position": "x", "b_position": "y", "a_force": a, "b_force": b, "relation": rel,
             "explication": ""}

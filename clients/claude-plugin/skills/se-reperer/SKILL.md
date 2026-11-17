@@ -9,8 +9,11 @@ description: Se repérer pendant la COP31 — programme du jour, où et quand se
 1. `programme(jour="aujourd'hui", sujet="water, indigenous")` : side events officiels (salle, horaire,
    organisateurs, thèmes), réunions officielles du calendrier CCNUCC (dialogues, ateliers, coordinations de
    groupes), résumé des négociations du jour, et Daily Programme déposé s'il y en a un. Mots-clés en anglais,
-   séparés par des virgules ; `types=["hors_site"]` pour les pavillons et événements hors site. Pour les sujets
-   suivis par l'utilisateur, partir de `mes_sujets`.
+   séparés par des virgules ; `types=["hors_site"]` pour les événements hors site. La clé `pavillons` donne les
+   sessions des pavillons et hubs du jour (Blue et Green Zone) avec résumé et intervenants. Pour « quoi
+   aujourd'hui sur mes sujets ? » : `programme(jour="aujourd'hui", mes_sujets=true)` (un bloc par sujet suivi).
+   Questions transversales (« quels pavillons ont parlé de… », comptages, tout le programme d'un pavillon) :
+   outil `pavillons`.
    - Toujours donner, pour chaque side event, le lien SEORS (`lien`, programme officiel filtré sur le jour) :
      salles et horaires changent. Signaler la source et sa date (`source`, `releve_le`, `a_verifier`).
    - Les consultations informelles par point de l'ordre du jour ne sont dans aucune de ces listes : seul le

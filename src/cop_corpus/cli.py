@@ -193,6 +193,25 @@ def cmd_programme(args) -> None:
     _print(agenda.query(db.get(), jour=args.jour, sujet=args.sujet, types=args.types, limit=args.limit))
 
 
+def cmd_pavillons_sync(args) -> None:
+    from . import fetch, pavillons
+
+    _print(pavillons.sync(db.get(), fetch.Client()))
+
+
+def cmd_pavillons(args) -> None:
+    from . import pavillons
+
+    conn = db.get()
+    if args.couverture:
+        _print(pavillons.coverage(conn))
+    elif args.export:
+        print(f"{pavillons.export(conn, Path(args.export))} événements → {args.export}")
+    else:
+        _print(pavillons.query(conn, sujet=args.sujet, pavillon=args.pavillon, jour=args.jour, zone=args.zone,
+                               mode=args.mode, limite=args.limit))
+
+
 def cmd_soumissions(args) -> None:
     from . import fetch, soumissions as sm
 
@@ -314,6 +333,19 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--types", nargs="*")
     s.add_argument("--limit", type=int, default=40)
     s.set_defaults(func=cmd_programme)
+
+    sub.add_parser("pavillons-sync", help="relever les programmes des pavillons (cop31.tr) et side events").set_defaults(
+        func=cmd_pavillons_sync)
+    s = sub.add_parser("pavillons", help="chercher dans les programmes des pavillons / exporter")
+    s.add_argument("--sujet")
+    s.add_argument("--pavillon")
+    s.add_argument("--jour")
+    s.add_argument("--zone", choices=["blue", "green", "autre"])
+    s.add_argument("--mode", default="hybride", choices=["hybride", "mots", "sens"])
+    s.add_argument("--limit", type=int, default=80)
+    s.add_argument("--couverture", action="store_true", help="événements, résumés et intervenants par pavillon")
+    s.add_argument("--export", help="fichier .csv ou .jsonl")
+    s.set_defaults(func=cmd_pavillons)
 
     s = sub.add_parser("soumissions", help="soumissions officielles CCNUCC (submissions.unfccc.int)")
     s.add_argument("action", choices=["etat", "index", "telecharger", "analyser", "comparer", "appels", "appel"])

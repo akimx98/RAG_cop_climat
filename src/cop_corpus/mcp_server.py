@@ -51,7 +51,8 @@ RÈGLES NON NÉGOCIABLES
 OUTILS : rechercher → lire_passage (contexte exact) ; document (métadonnées + versions) ;
 comparer_versions (ce qui a bougé entre deux versions d'un texte) ; nouveautes (ce qui est entré récemment) ;
 donnees (chiffres d'émissions) ; glossaire ; programme(jour, sujet) (side events, réunions officielles, où et
-quand aller ; toujours donner le lien SEORS de vérification) ; mes_sujets / suivre / suivre_dossier / arreter_suivi
+quand aller ; toujours donner le lien SEORS de vérification) ; pavillons(sujet, pavillon) (programmes de tous les
+pavillons et side events : titres, résumés, intervenants ; comptages « combien de pavillons ont parlé de… ») ; mes_sujets / suivre / suivre_dossier / arreter_suivi
 (alertes) ;
 deposer_url (ajouter une page au corpus) ; etat_corpus.
 SOUMISSIONS OFFICIELLES (portail CCNUCC, depuis 2015 ; Partie = niveau 2, observateur = niveau 5) : positions
@@ -257,28 +258,93 @@ def glossaire(terme: str | None = None) -> dict[str, Any]:
 
 @mcp.tool(annotations=READ)
 def programme(sujet: str | None = None, jour: str | None = None, types: list[str] | None = None,
-              limite: int = 40, ctx: Context | None = None) -> dict[str, Any]:
+              limite: int = 40, mes_sujets: bool = False, pavillons: bool = True,
+              ctx: Context | None = None) -> dict[str, Any]:
     """Programme de la COP31 : où et quand aller. Side events officiels (salle, horaire, organisateurs, thèmes),
     réunions officielles du calendrier CCNUCC (dialogues et ateliers prévus par les décisions, coordinations de
-    groupes, événements spéciaux), résumé des négociations du jour, et documents de programme déposés (Daily
-    Programme, ordres du jour).
+    groupes, événements spéciaux), résumé des négociations du jour, documents de programme déposés (Daily
+    Programme, ordres du jour) ET événements des pavillons et hubs (Blue Zone et Green Zone, ≈5 000 sessions
+    avec résumé et intervenants : clé `pavillons`).
     `jour` : « aujourd'hui », « demain », « 2026-11-14 » ou « 14 ». `sujet` : mots-clés séparés par des virgules,
     de préférence en anglais (« indigenous, LCIPP », « water », « youth, ACE, education »).
-    `types` : side_event, reunion, hors_site (événements hors site et pavillons) ; par défaut side_event + reunion.
-    Chaque événement porte son lien de vérification (SEORS, programme officiel des side events, filtré sur le
-    jour) : salles et horaires changent, toujours donner ce lien."""
+    `mes_sujets=true` : utilise les sujets suivis par l'utilisateur (alertes) et ses dossiers suivis, un bloc par
+    sujet — pour « aujourd'hui, quels événements pour mes sujets ? ». `pavillons=false` : sans les pavillons.
+    `types` : side_event, reunion, hors_site (événements hors site) ; par défaut side_event + reunion.
+    Pavillons : correspondance « mots » (terme présent) ou « sens » (proximité sémantique : vérifier le résumé).
+    Chaque side event porte son lien de vérification (SEORS, filtré sur le jour) : salles et horaires changent,
+    toujours donner ce lien. Pour les questions transversales (comptages, par pavillon) : outil `pavillons`."""
     from . import agenda
+    from . import pavillons as pav
 
     conn = db.get()
     user = _user(ctx)
-    out: dict[str, Any] = agenda.query(conn, jour=jour, sujet=sujet, types=types, limit=max(1, min(limite, 100)))
+    lim = max(1, min(limite, 100))
+    if mes_sujets:
+        if not user or not user.get("id"):
+            return {"erreur": "mes_sujets demande d'être connecté ; sinon préciser `sujet`"}
+        subjects = [(s["libelle"], s["requete"]) for s in alerts.list_subscriptions(conn, user["id"])]
+        live, _, _ = _live()
+        for slug in sorted(live.followed(conn, user["id"])):
+            d = live.dossier(slug) or {}
+            subjects.append((d.get("nom") or slug, d.get("requete") or d.get("nom_en") or slug))
+        if not subjects:
+            return {"erreur": "aucun sujet suivi : en ajouter avec `suivre`, ou préciser `sujet`"}
+        day = agenda.resolve_day(jour)
+        blocs = []
+        for label, q in subjects[:8]:
+            terms = ", ".join(t for t in re.split(r"[,;]| OR | AND ", q.replace('"', "")) if t.strip())
+            ag = agenda.query(conn, jour=jour, sujet=terms, types=types, limit=12)
+            bloc: dict[str, Any] = {"sujet": label, "requete": terms, "side_events_et_reunions": ag["evenements"],
+                                    "total_side_events_et_reunions": ag["total"]}
+            if pavillons:
+                bloc["pavillons"] = pav.for_programme(conn, terms, jour, limit=12)
+            blocs.append(bloc)
+        out = {"jour": agenda.iso_day(day) if day else None, "par_sujet": blocs}
+        ref = agenda.query(conn, jour=jour, limit=0)
+        out.update({k: ref[k] for k in ("negociations_du_jour", "a_verifier", "sources") if k in ref})
+        return out
+    out: dict[str, Any] = agenda.query(conn, jour=jour, sujet=sujet, types=types, limit=lim)
+    if pavillons:
+        out["pavillons"] = pav.for_programme(conn, sujet, jour, limit=min(lim, 30))
     docs = search.latest(conn, user, {"doc_types": ["programme", "ordre_du_jour"]}, limit=5)
     out["documents"] = docs
     if sujet:
         out["passages"] = search.search(conn, sujet, {"doc_types": ["programme", "ordre_du_jour"]}, user, limit=5)
-    if not out["evenements"] and not out["total"]:
+    if not out["evenements"] and not out["total"] and not (out.get("pavillons") or {}).get("evenements"):
         out["note"] = "Aucun événement trouvé pour ce jour et ce sujet dans le programme relevé."
     return out
+
+
+@mcp.tool(annotations=READ)
+def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str | None = None,
+              zone: str | None = None, mode: str = "hybride", limite: int = 80, evenement: str | None = None,
+              couverture: bool = False) -> dict[str, Any]:
+    """Programmes de TOUS les pavillons et side events de la COP31 (≈5 000 événements : titre, résumé,
+    intervenants, thèmes, mots-clés), pour des questions transversales : « combien de pavillons ont parlé des
+    forêts tropicales ? », « quels pavillons ont critiqué les solutions techniques (CCS, géo-ingénierie…) ? »,
+    « que fait le pavillon de l'Indonésie sur le méthane ? », « qui a parlé de minerais critiques ? ».
+    Résultat groupé par pavillon, avec le nombre d'événements par pavillon.
+    `sujet` : termes séparés par des virgules (OU), en anglais de préférence, avec synonymes
+    (« tropical forest, rainforest, Amazon, Congo Basin, REDD+, deforestation »). Mot entre guillemets = expression
+    exacte ; `mot*` = préfixe. `mode` : hybride (mots + sens, défaut), mots (comptage strict), sens (idées
+    proches : « critique du techno-solutionnisme »). `pavillon` : nom partiel (« Brazil », « WWF ») ; sans `sujet`,
+    renvoie tout son programme. `jour` : « 14 », « 2026-11-14 », « aujourd'hui ». `zone` : blue, green, autre.
+    `evenement` : identifiant renvoyé → résumé complet et fiche. `couverture=true` : liste des pavillons couverts
+    (événements, résumés, intervenants connus).
+    MÉTHODE pour compter : lancer 2–3 formulations, relire les résumés des correspondances « sens » avant de les
+    compter, annoncer le nombre de pavillons ET d'événements, et rappeler les limites (programmes déclaratifs,
+    résumés parfois absents, pavillons absents de la source). Citer le titre exact et le pavillon ; source de
+    niveau 5 (programme publié par les organisateurs)."""
+    from . import pavillons as pav
+
+    conn = db.get()
+    if evenement:
+        return pav.event(conn, evenement)
+    if couverture:
+        return pav.coverage(conn)
+    return pav.query(conn, sujet=sujet, pavillon=pavillon, jour=jour, zone=zone,
+                     mode=mode if mode in ("hybride", "mots", "sens") else "hybride",
+                     limite=max(1, min(limite, 300)))
 
 
 @mcp.tool(annotations=WRITE)

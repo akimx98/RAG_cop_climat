@@ -166,7 +166,8 @@ skills, pas dans le serveur : un serveur bête et traçable est plus fiable.
 | `comparer_versions` | Diff paragraphe par paragraphe entre deux versions d'un projet : ajouts, suppressions, **crochets et options** apparus ou levés |
 | `engagements` | Cibles et engagements d'un pays/groupe (NDC, droit UE), structurés et sourcés |
 | `donnees` | Série chiffrée (émissions, par habitant, cumulées, part mondiale…) avec source et millésime |
-| `programme` | Ce qui se passe aujourd'hui / à telle heure / sur tel sujet, et où |
+| `programme` | Ce qui se passe aujourd'hui / à telle heure / sur tel sujet, et où : side events, réunions officielles, événements de pavillons (`mes_sujets=true` : un bloc par sujet suivi) |
+| `pavillons` | Base des programmes de tous les pavillons et side events (titre, résumé, intervenants, mots-clés) : recherche mots + sens groupée par pavillon, comptages transversaux, fiche complète, couverture |
 | `glossaire` | Définition d'un sigle ou d'une notion, avec renvoi au texte |
 | `deposer` | Ajouter un document (URL ou fichier) avec niveau et accès — réservé à ton jeton |
 
@@ -319,6 +320,31 @@ bibliothèque ne suffit pas à suivre les textes et les positions heure par heur
 
 Bot : `/dossiers`, `/dossier`, `/suivi`, `/textes`, `/note`, `/brief`. MCP : `dossiers`, `dossier`,
 `textes_en_cours`, `positions`, `noter`. Comptes Bluesky suivis : `catalog/bluesky.yaml`.
+
+## 10 quater. Programmes des pavillons (17 novembre 2026)
+
+Module `pavillons.py` (+ collecteurs `pavillons_ext.py`), table `pav_events` + index FTS5 `pav_fts` + vecteurs
+(embeddings de titre + résumé, données publiques). But : répondre à « combien de pavillons ont parlé des forêts
+tropicales ? », « quels pavillons ont critiqué les solutions techniques ? », et ajouter les pavillons à
+`programme` (« aujourd'hui, quoi sur mes sujets ? »).
+
+| Source | Contenu | Fréquence |
+|---|---|---|
+| cop31.tr `/blue-zone-programme`, `/programme-calendar` (pages publiques Next.js : programme structuré embarqué ; `/api/` exclu par robots.txt, non utilisé) | ≈4 100 sessions Blue Zone (≈100 pavillons), ≈670 Green Zone ; résumé, organisateur, thèmes, sous-thèmes, mots-clés, type, public | 6 h |
+| `agenda_events` (SEORS ou planner) | 375 side events officiels (résumé, intervenants) + événements hors site du planner (dédoublonnés) | 6 h |
+| german-climate-pavilion.de (une page par session) | Pavillon allemand, absent de cop31.tr : résumés + intervenants | 24 h |
+| ec.europa.eu data.json + pages climate.ec.europa.eu | Pavillon UE : intervenants (schema.org) | 24 h |
+| cop-pavilion.gov.sg | Pavillon de Singapour, absent de cop31.tr | 24 h |
+| iccinet.org | Cryosphere Pavilion, absent de cop31.tr | 24 h |
+| api.lu.ma (calendrier public SFOC) | Asia Climate Solutions Pavilion : résumés | 24 h |
+| `catalog/pavillons/*.jsonl` | relevés manuels complémentaires (format dans `import_jsonl`) | à chaque relevé |
+
+Un événement externe déjà sur cop31.tr (même jour, même pavillon, titre proche) complète la fiche cop31.tr
+(résumé plus long, intervenants) au lieu d'être dupliqué. Intervenants : extraits des résumés (rubriques
+« Speakers: », « Moderator: », listes) — environ 15 % des sessions seulement en listent ; ne jamais conclure qu'une
+personne n'est pas intervenue. Non collectés : Brésil (connexion requise), Royaume-Uni, BMD, Finlande (rendu
+JavaScript), pavillon nordique, Danemark, PNUE (anti-bot Cloudflare, jamais contourné).
+CLI : `cop pavillons-sync`, `cop pavillons --sujet … | --pavillon … | --couverture | --export x.csv|x.jsonl`.
 
 ## 11. Coûts
 
