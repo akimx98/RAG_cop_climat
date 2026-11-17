@@ -228,12 +228,21 @@ def cmd_soumissions(args) -> None:
     elif args.action == "analyser":
         _print(sm.analyze(conn, args.doc, force=args.force) if args.doc else {"analysees": sm.analyse_tick(conn, args.limit)})
     elif args.action == "comparer":
-        a, b, call = sm.resolve_pair(conn, args.a, args.b, args.appel)
+        a, b, call = sm.resolve_pair(conn, args.a, args.b, args.appel, dossier=(args.dossier or [None])[0])
         _print({"appel_commun": call, **sm.compare(conn, a, b, force=args.force)})
     elif args.action == "appels":
         _print(sm.list_calls(conn, requete=args.requete, session=args.session, ouverts=args.ouverts, limite=args.limit))
     elif args.action == "appel":
         _print(sm.call_detail(conn, args.appel))
+    elif args.action == "rattacher":
+        if not args.appel:
+            raise SystemExit("--appel requis ; --dossier slug (répétable), aucun = « aucun dossier »")
+        _print({"appel": args.appel, "dossiers": sm.set_manual(conn, args.appel, args.dossier or [])})
+    elif args.action == "dossiers":
+        if args.dossier:
+            _print(sm.dossier_section(conn, args.dossier[0], limit=args.limit))
+        else:
+            _print(sm.map_calls(conn))
     else:
         _print(sm.stats(conn))
 
@@ -348,7 +357,8 @@ def main(argv: list[str] | None = None) -> None:
     s.set_defaults(func=cmd_pavillons)
 
     s = sub.add_parser("soumissions", help="soumissions officielles CCNUCC (submissions.unfccc.int)")
-    s.add_argument("action", choices=["etat", "index", "telecharger", "analyser", "comparer", "appels", "appel"])
+    s.add_argument("action", choices=["etat", "index", "telecharger", "analyser", "comparer", "appels", "appel",
+                                      "rattacher", "dossiers"])
     s.add_argument("--limit", type=int, default=50)
     s.add_argument("--depuis", help="AAAA-MM-JJ (date de dépôt)")
     s.add_argument("--parties", action="store_true", help="seulement les soumissions de Parties")
@@ -361,6 +371,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--ouverts", action="store_true")
     s.add_argument("--force", action="store_true")
     s.add_argument("--embed", action="store_true", help="vectoriser après téléchargement")
+    s.add_argument("--dossier", action="append", help="slug ou alias de dossier (rattacher : répétable)")
     s.set_defaults(func=cmd_soumissions)
 
     sub.add_parser("mcp-stdio", help="serveur MCP en stdio (usage local)").set_defaults(func=cmd_mcp_stdio)

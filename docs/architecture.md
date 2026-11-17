@@ -359,6 +359,7 @@ langue, date), `/api/files/download?serverRelativeFilePath=…` (original). C'es
 | `sub_items` | dépôts (auteur, `kind` party/observer, co-auteurs, date, chemin, `doc_id` une fois indexé, statut) |
 | `sub_actors` | (dépôt, nom canonique, rôle auteur/co-auteur) : recherche des soumissions d'un acteur par **égalité** |
 | `sub_analysis` | résumé FR/EN + points soulevés (force 1–4, verbe, attitude, dossier, citation vérifiée), version du prompt |
+| `sub_call_dossiers` | rattachement appel → dossier(s) : `methode` regle / points / manuel, `score` |
 | `sub_comparisons` | comparaisons (points qualifiés, indication, décompte et règle), clé = paire + version + date des analyses |
 
 - **Documents** : chaque fichier devient un document (`source_id='unfccc-submissions'`, `doc_type` `soumission` ou
@@ -390,9 +391,22 @@ langue, date), `/api/files/download?serverRelativeFilePath=…` (original). C'es
   AGN… ; sigle entre parenthèses ; parenthèse finale retirée seulement si c'est un sigle). Partagé par `positions`,
   `soumissions`, `comparer_soumissions` : égalité stricte, jamais de sous-chaîne (« Mali » ≠ « Somalia ») ; nom
   inconnu → noms proches proposés.
-- **Outils MCP** : `soumissions` (appels, qui a soumis quoi, `document=` : analyse), `comparer_soumissions`.
-  CLI : `cop soumissions etat|index|telecharger|analyser|comparer|appels|appel`.
-- **Pas encore** : lien dossier ↔ appel, groupes de négociation (listes de membres sourcées), vue web de l'analyse.
+- **Lien dossier ↔ appels** (sans IA) : règles versionnées `CALL_RULES` sur titre, objet et thèmes de l'appel
+  (slugs de `catalog/dossiers.yaml` ; une règle spécifique efface les correspondances larges des autres dossiers ;
+  un appel peut relever de plusieurs dossiers) ; à défaut, dossier majoritaire parmi les points analysés de ses
+  soumissions (≥ 40 %, au moins 3 points) ; `cop soumissions rattacher --appel N --dossier slug` (manuel) prime
+  et survit aux recalculs. Recalcul après chaque relève de l'index et chaque lot d'analyses. Couverture mesurée le
+  17/11/2026 : 71 appels sur 87 ayant reçu des dépôts en 2025-2026 ; non rattachés : déclarations en plénière et
+  soumissions volontaires (multi-sujets), LCIPP (pas de dossier). Rubrique `soumissions` de `dossier(slug)` et de la
+  page web du dossier : 8 appels au plus, auteurs canoniques (groupe quand une Partie soumet en son nom) pour les
+  appels de la session ou des 12 derniers mois, alignements déjà calculés (aucune comparaison lancée depuis le
+  dossier). `soumissions(dossier=…, acteurs=[…])` : matrice d'alignement lue dans le cache (paires comparées et
+  « à calculer »). Calcul en tâche de fond de la matrice des principaux acteurs : non activé (≈ 4 $ pour les
+  33 appels de la session en cours, à décider).
+- **Outils MCP** : `soumissions` (appels, qui a soumis quoi, `dossier=`, `document=` : analyse),
+  `comparer_soumissions` (`dossier=` : appel commun le plus récent du dossier).
+  CLI : `cop soumissions etat|index|telecharger|analyser|comparer|appels|appel|rattacher|dossiers`.
+- **Pas encore** : groupes de négociation (listes de membres sourcées), vue web de l'analyse d'une soumission.
 
 ## 11. Coûts
 

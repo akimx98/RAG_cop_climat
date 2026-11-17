@@ -70,6 +70,7 @@ async def dossier_page(request: Request):
         ref_actors=sorted(by_actor.items(), key=lambda kv: (-len(kv[1]), kv[0])),
         notes=live.notes(conn, slug) if restricted else [], restricted=restricted, hits=hits,
         social=live.social(conn, live.dossier_words(d), since=_since(24 * 4), limit=15),
+        subs=_sub_section(conn, slug),
         suivi=slug in live.followed(conn, user["id"]), credit=live.CB_CREDIT, cb_www=live.CB_WWW_PAGE,
         cb_texts=live.CB_TEXTS_PAGE, message=request.query_params.get("ok"))
 
@@ -154,3 +155,13 @@ routes = [
     Route("/textes", textes_page),
     Route("/textes/{tid:int}/deposer", texte_upload, methods=["POST"]),
 ]
+
+
+def _sub_section(conn, slug: str):
+    from . import soumissions as sm
+
+    try:
+        out = sm.dossier_section(conn, slug, limit=8)
+        return out if out["appels"] else None
+    except Exception:
+        return None

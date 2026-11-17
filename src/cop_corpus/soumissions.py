@@ -61,6 +61,10 @@ CREATE INDEX IF NOT EXISTS sub_items_entity ON sub_items(entity);
 CREATE INDEX IF NOT EXISTS sub_items_doc ON sub_items(doc_id);
 CREATE TABLE IF NOT EXISTS sub_actors (sub_id INTEGER, actor TEXT, role TEXT, PRIMARY KEY(sub_id, actor));
 CREATE INDEX IF NOT EXISTS sub_actors_actor ON sub_actors(actor);
+CREATE TABLE IF NOT EXISTS sub_call_dossiers (
+  call_id INTEGER, dossier TEXT, methode TEXT, score REAL, at TEXT, PRIMARY KEY(call_id, dossier)
+);
+CREATE INDEX IF NOT EXISTS sub_call_dossiers_dossier ON sub_call_dossiers(dossier);
 CREATE TABLE IF NOT EXISTS sub_analysis (
   doc_id INTEGER PRIMARY KEY, sub_id INTEGER, summary TEXT, summary_en TEXT, matters TEXT, rejected INTEGER,
   model TEXT, prompt TEXT, at TEXT, error TEXT
@@ -232,6 +236,7 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
     conn.executemany("UPDATE sub_items SET status='skipped' WHERE id=?", skip)
     conn.commit()
     db.meta_set(conn, "soumissions_index", db.now())
+    map_calls(conn)
     return {"appels": len(calls), "soumissions": len(subs), "nouvelles": sum(1 for x in subs if x["Id"] not in known)}
 
 
@@ -349,9 +354,12 @@ def _item_public(conn, it, with_analysis: bool = False) -> dict[str, Any]:
 
 
 def list_calls(conn, *, requete: str | None = None, theme: str | None = None, session: str | None = None,
-               ouverts: bool = False, limite: int = 40) -> list[dict[str, Any]]:
+               ouverts: bool = False, limite: int = 40, dossier: str | None = None) -> list[dict[str, Any]]:
     ensure_schema(conn)
     where, params = ["1=1"], []
+    if dossier:
+        where.append("c.id IN (SELECT call_id FROM sub_call_dossiers WHERE dossier=?)")
+        params.append(live.dossier_from_alias(dossier) or dossier)
     for word in (requete or "").split():
         where.append("(c.title LIKE ? OR c.issue LIKE ? OR c.themes LIKE ?)")
         params += [f"%{word}%"] * 3
@@ -608,6 +616,8 @@ def analyse_tick(conn, limit: int = 5) -> int:
             raise
         except Exception as exc:
             log(f"analyse {doc_id} : {exc}")
+    if n:
+        map_calls(conn)  # de nouveaux points peuvent rattacher un appel sans règle
     return n
 
 
@@ -809,7 +819,8 @@ def compare_in_call(conn, doc_id: int, *, max_n: int = 6, parties_only: bool = T
             "methode": "Détail point par point : comparer_soumissions(a, b)."}
 
 
-def resolve_pair(conn, a: str, b: str, appel: int | None = None) -> tuple[int, int, int | None]:
+def resolve_pair(conn, a: str, b: str, appel: int | None = None,
+                 dossier: str | None = None) -> tuple[int, int, int | None]:
     """Deux références (doc_id ou nom d'acteur : Partie ou groupe, « EU », « UE », « LDC »…) → deux documents,
     de préférence dans le même appel (le plus récent auquel les deux ont répondu, ou `appel`).
     Renvoie (doc_a, doc_b, appel commun ou None). Nom inconnu → UnknownActor avec des noms proches."""
@@ -824,6 +835,12 @@ def resolve_pair(conn, a: str, b: str, appel: int | None = None) -> tuple[int, i
         return _actor_items(conn, ref, appel, indexed_only=True)
 
     da, db_ = items(a), items(b)
+    if dossier:
+        calls = set(dossier_call_ids(conn, live.dossier_from_alias(dossier) or dossier))
+        da2, db2 = [x for x in da if x["call_id"] in calls], [x for x in db_ if x["call_id"] in calls]
+        if not da2 or not db2:
+            raise UnknownActor(f"pas de soumission de « {a if not da2 else b} » sur un appel du dossier « {dossier} »")
+        da, db_ = da2, db2
     calls_b = {x["call_id"]: x for x in db_}
     for x in da:  # du plus récent au plus ancien
         if x["call_id"] in calls_b:
@@ -835,3 +852,211 @@ def latest_doc(conn, ref: str, appel: int | None = None) -> int:
     if str(ref).strip().isdigit():
         return int(ref)
     return _actor_items(conn, ref, appel, indexed_only=True)[0]["doc_id"]
+
+
+
+# --- rattachement des appels aux dossiers de négociation ------------------------------------------------------
+# Sans IA. 1) règles sur titre, objet, thèmes et organes de l'appel (table versionnée ci-dessous, slugs de
+# catalog/dossiers.yaml) ; 2) à défaut, dossier majoritaire parmi les points analysés de ses soumissions
+# (part ≥ POINTS_SHARE, au moins POINTS_MIN points) ; 3) un rattachement « manuel » (CLI) prime et n'est jamais écrasé.
+
+RULES_VERSION = "1"
+POINTS_SHARE = 0.4
+POINTS_MIN = 3
+CALL_RULES: list[tuple[str, str, float]] = [
+    # (dossier, motif sur le texte de l'appel en minuscules, score : 1 = spécifique, 0.6 = large)
+    ("adaptation", r"global goal on adaptation|\bgga\b|adaptation indicator|national adaptation plan|\bnaps?\b|"
+                   r"adaptation committee|adaptation fund|nairobi work programme|bel[ée]m adaptation", 1.0),
+    ("adaptation", r"\badaptation\b", 0.6),
+    ("transition-juste", r"just transition", 1.0),
+    ("finance", r"new collective quantified goal|\bncqg\b|article 9|long-term (climate )?finance|"
+                r"standing committee on finance|\bscf\b|green climate fund|\bgcf\b|global environment facility|"
+                r"\bgef\b|financial mechanism|baku to bel[ée]m", 1.0),
+    ("finance", r"\bclimate finance\b|\bfinance\b", 0.6),
+    ("flux-financiers", r"article 2,? paragraph 1\(c\)|2\.1\s?\(c\)|finance flows", 1.0),
+    ("pertes-prejudices", r"loss and damage|warsaw international mechanism|santiago network|\bfrld\b|\bwim\b", 1.0),
+    ("article-6", r"article 6|non-market approach|crediting mechanism|\bitmos?\b|supervisory body|"
+                  r"clean development mechanism|\bcdm\b|kyoto mechanism|joint implementation", 1.0),
+    ("attenuation", r"mitigation work programme|\bmwp\b|mitigation ambition|transition(ing)? away from fossil|"
+                    r"international aviation|maritime transport|bunker fuel", 1.0),
+    ("attenuation", r"\bmitigation\b", 0.6),
+    ("bilan-ndc", r"global stocktake|\bgst\b|nationally determined contribution|\bndcs?\b|uae dialogue", 1.0),
+    ("riposte-commerce", r"response measures|unilateral trade|trade and climate|\bkci\b", 1.0),
+    ("transparence", r"transparency|\betf\b|biennial|\bbtrs?\b|national communication|inventor(y|ies)|"
+                     r"\breporting\b|compliance|facilitative multilateral", 1.0),
+    ("technologie-capacites", r"technology|\bctcn\b|\btec\b|capacity[- ]building|\bpccb\b|"
+                              r"action for climate empowerment|\bace\b|climate education", 1.0),
+    ("agriculture", r"agricultur|food security|sharm el-sheikh joint work", 1.0),
+    ("genre", r"gender", 1.0),
+    ("science-oceans", r"research|systematic observation|\bipcc\b|ocean|earth information day", 1.0),
+    ("science-oceans", r"\bscience\b", 0.6),
+    ("pma-vulnerables", r"least developed countr|\bleg\b|\bldc expert|small island", 1.0),
+    ("organisation", r"arrangements for intergovernmental|programme budget|administrative, financial|"
+                     r"rules of procedure|\bagenda\b|cooperation with other international organi[sz]ations", 1.0),
+    ("couverture", r"cover decision|mutir[aã]o", 1.0),
+]
+
+
+def _call_text(c) -> str:
+    return " ".join([c["title"] or "", c["issue"] or "", " ".join(db.jload(c["themes"])),
+                     ]).lower()
+
+
+def rule_dossiers(call) -> dict[str, float]:
+    """Dossiers d'un appel selon les règles : {slug: score}. Une règle spécifique (1.0) d'un dossier efface les
+    correspondances larges (0.6) des autres dossiers (« adaptation » dans un appel sur les pertes et préjudices)."""
+    text = _call_text(call)
+    found: dict[str, float] = {}
+    for slug, pattern, score in CALL_RULES:
+        if re.search(pattern, text):
+            found[slug] = max(found.get(slug, 0.0), score)
+    if any(v >= 1.0 for v in found.values()):
+        found = {k: v for k, v in found.items() if v >= 1.0}
+    return found
+
+
+def points_dossier(conn, call_id: int) -> tuple[str, float] | None:
+    """Dossier majoritaire parmi les points analysés des soumissions de l'appel (sans IA supplémentaire)."""
+    counts: dict[str, int] = {}
+    for (matters,) in conn.execute(
+            """SELECT a.matters FROM sub_analysis a JOIN sub_items i ON i.doc_id=a.doc_id
+               WHERE i.call_id=? AND a.error IS NULL GROUP BY a.doc_id""", (call_id,)):
+        for m in db.jload(matters):
+            if m.get("dossier"):
+                counts[m["dossier"]] = counts.get(m["dossier"], 0) + 1
+    total = sum(counts.values())
+    if total < POINTS_MIN:
+        return None
+    slug, n = max(counts.items(), key=lambda kv: kv[1])
+    return (slug, round(n / total, 2)) if n / total >= POINTS_SHARE else None
+
+
+def map_calls(conn) -> dict[str, int]:
+    """(Re)calcule les rattachements automatiques ; les rattachements manuels sont conservés tels quels."""
+    ensure_schema(conn)
+    manual = {r[0] for r in conn.execute("SELECT DISTINCT call_id FROM sub_call_dossiers WHERE methode='manuel'")}
+    conn.execute("DELETE FROM sub_call_dossiers WHERE methode<>'manuel'")
+    now = live.now_iso()
+    out = {"regle": 0, "points": 0, "manuel": len(manual), "sans": 0}
+    for c in conn.execute("SELECT * FROM sub_calls").fetchall():
+        if c["id"] in manual:
+            continue
+        found = rule_dossiers(c)
+        if found:
+            conn.executemany("INSERT INTO sub_call_dossiers(call_id,dossier,methode,score,at) VALUES(?,?,?,?,?)",
+                             [(c["id"], slug, "regle", sc, now) for slug, sc in found.items()])
+            out["regle"] += 1
+            continue
+        p = points_dossier(conn, c["id"])
+        if p:
+            conn.execute("INSERT INTO sub_call_dossiers(call_id,dossier,methode,score,at) VALUES(?,?,'points',?,?)",
+                         (c["id"], p[0], p[1], now))
+            out["points"] += 1
+        else:
+            out["sans"] += 1
+    conn.commit()
+    return out
+
+
+def set_manual(conn, call_id: int, dossiers: list[str]) -> list[str]:
+    """Rattachement à la main (remplace tout rattachement de l'appel ; liste vide = « aucun dossier »)."""
+    ensure_schema(conn)
+    slugs = [live.dossier_from_alias(d) or d for d in dossiers]
+    unknown = [d for d in slugs if not live.dossier(d)]
+    if unknown:
+        raise ValueError(f"dossier(s) inconnu(s) : {', '.join(unknown)}")
+    conn.execute("DELETE FROM sub_call_dossiers WHERE call_id=?", (call_id,))
+    conn.executemany("INSERT INTO sub_call_dossiers(call_id,dossier,methode,score,at) VALUES(?,?,'manuel',1,?)",
+                     [(call_id, d, live.now_iso()) for d in slugs or ["-"]])
+    conn.commit()
+    return slugs
+
+
+def dossier_call_ids(conn, slug: str) -> list[int]:
+    ensure_schema(conn)
+    return [r[0] for r in conn.execute("SELECT call_id FROM sub_call_dossiers WHERE dossier=?", (slug,))]
+
+
+def _alignment(conn, call_id: int) -> list[dict[str, Any]]:
+    """Comparaisons DÉJÀ en cache entre soumissions de l'appel (aucune nouvelle n'est lancée)."""
+    docs = {r[0] for r in conn.execute("SELECT doc_id FROM sub_items WHERE call_id=? AND doc_id IS NOT NULL", (call_id,))}
+    out = []
+    for r in conn.execute("SELECT a_doc, b_doc, verdict, counts, key FROM sub_comparisons ORDER BY at DESC"):
+        if r["a_doc"] in docs and r["b_doc"] in docs and r["key"].split("|")[2] == PROMPT_VERSION:
+            out.append({"a": _who(conn, r["a_doc"]), "b": _who(conn, r["b_doc"]), "indication": r["verdict"],
+                        "indication_libelle": VERDICTS[r["verdict"]][0], "indication_en": VERDICTS[r["verdict"]][1],
+                        "regle": json.loads(r["counts"]).get("regle")})
+    return out
+
+
+def dossier_section(conn, slug: str, *, limit: int = 10, recent_days: int = 365) -> dict[str, Any]:
+    """Rubrique « soumissions » d'un dossier : appels liés (compacts), auteurs pour les appels récents ou de la session,
+    alignements déjà calculés."""
+    ensure_schema(conn)
+    rows = conn.execute(
+        f"""SELECT c.*, m.methode, m.score, COUNT(i.id) n, SUM(i.kind='party') np, MAX(i.submitted) last
+            FROM sub_call_dossiers m JOIN sub_calls c ON c.id=m.call_id LEFT JOIN sub_items i ON i.call_id=c.id
+            WHERE m.dossier=? GROUP BY c.id
+            ORDER BY c.upcoming DESC, COALESCE(MAX(i.submitted), c.modified) DESC LIMIT ?""", (slug, limit)).fetchall()
+    total = conn.execute("SELECT COUNT(*) FROM sub_call_dossiers WHERE dossier=?", (slug,)).fetchone()[0]
+    cutoff = (datetime.now(timezone.utc).date().toordinal() - recent_days)
+    calls = []
+    for r in rows:
+        item = {**_call_public(r), "nb_soumissions": r["n"], "nb_parties": r["np"] or 0, "derniere": r["last"],
+                "rattachement": r["methode"]}
+        recent = bool(r["upcoming"]) or bool(r["last"] and datetime.strptime(r["last"], "%Y-%m-%d").date().toordinal() >= cutoff)
+        if recent:
+            authors: dict[str, None] = {}
+            for it in conn.execute("SELECT * FROM sub_items WHERE call_id=? AND kind='party' ORDER BY submitted DESC",
+                                   (r["id"],)):
+                authors[speaks_for(it)] = None  # nom canonique ; le groupe quand la Partie soumet en son nom
+            item["auteurs_parties"] = list(authors)
+            item["observateurs"] = conn.execute("SELECT COUNT(*) FROM sub_items WHERE call_id=? AND kind<>'party'",
+                                                (r["id"],)).fetchone()[0]
+            al = _alignment(conn, r["id"])
+            if al:
+                item["alignements_connus"] = al[:12]
+        calls.append({k: v for k, v in item.items() if v not in (None, [], "")})
+    return {"appels": calls, "nb_appels_lies": total,
+            "note": "Appels rattachés au dossier par règles (titre, thèmes) ou par les points analysés de leurs "
+                    "soumissions ; auteurs listés pour les appels de la session ou des 12 derniers mois ; "
+                    "alignements : seulement les comparaisons déjà calculées (comparer_soumissions pour en lancer)."}
+
+
+def alignment_matrix(conn, slug: str, actors: list[str]) -> dict[str, Any]:
+    """Matrice d'alignement LUE DANS LE CACHE : pour chaque paire d'acteurs, la comparaison la plus récente sur un
+    appel du dossier, ou « à calculer » (aucun appel IA ici)."""
+    from .positions import normalize_actor
+
+    ensure_schema(conn)
+    calls = set(dossier_call_ids(conn, slug))
+    names = list(dict.fromkeys(normalize_actor(a) for a in actors))
+    docs: dict[str, list[tuple[str, int, int]]] = {}  # acteur → [(date, call, doc)]
+    for a in names:
+        docs[a] = [(r["submitted"] or "", r["call_id"], r["doc_id"]) for r in conn.execute(
+            """SELECT DISTINCT i.submitted, i.call_id, i.doc_id FROM sub_actors x JOIN sub_items i ON i.id=x.sub_id
+               WHERE x.actor=? AND i.doc_id IS NOT NULL""", (a,)) if r["call_id"] in calls]
+    pairs, missing = [], []
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            common = sorted({c for _, c, _ in docs[a]} & {c for _, c, _ in docs[b]}, reverse=True)
+            if not common:
+                continue
+            found = None
+            for call in common:
+                da = max(x for x in docs[a] if x[1] == call)[2]
+                db_ = max(x for x in docs[b] if x[1] == call)[2]
+                lo, hi = sorted((da, db_))
+                row = conn.execute("SELECT verdict, counts FROM sub_comparisons WHERE a_doc=? AND b_doc=? AND key LIKE ? "
+                                   "ORDER BY at DESC LIMIT 1", (lo, hi, f"{lo}|{hi}|{PROMPT_VERSION}|%")).fetchone()
+                if row:
+                    found = {"a": a, "b": b, "appel": call, "indication": row["verdict"],
+                             "indication_libelle": VERDICTS[row["verdict"]][0], "regle": json.loads(row["counts"]).get("regle")}
+                    break
+            if found:
+                pairs.append(found)
+            else:
+                missing.append({"a": a, "b": b, "appel": common[0]})
+    return {"dossier": slug, "acteurs": names, "comparees": pairs, "a_calculer": missing,
+            "sans_appel_commun": [a for a in names if not docs[a]],
+            "note": "Lecture du cache seulement ; lancer comparer_soumissions(a, b, dossier=…) pour une paire « à calculer »."}

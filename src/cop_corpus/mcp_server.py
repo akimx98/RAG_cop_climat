@@ -58,8 +58,10 @@ deposer_url (ajouter une page au corpus) ; etat_corpus.
 SOUMISSIONS OFFICIELLES (portail CCNUCC, depuis 2015 ; Partie = niveau 2, observateur = niveau 5) : positions
 ÉCRITES des Parties et groupes, avant ou pendant la session. soumissions (appels, qui a soumis quoi ;
 document=<id> : résumé et points soulevés classés par force du langage, citations exactes) → comparer_soumissions
-(« EU » contre « LMDC », ou une soumission contre tout son appel : accords, différences, conflits ; indication
-d'alignement calculée par règles fixes, à présenter comme une aide à l'analyse, pas un jugement). Exclues par défaut
+(« EU » contre « LMDC », dossier=… pour l'appel commun le plus récent du dossier, ou une soumission contre tout son
+appel : accords, différences, conflits ; indication d'alignement calculée par règles fixes, à présenter comme une
+aide à l'analyse, pas un jugement). dossier(slug) inclut la rubrique « soumissions » (appels liés, qui a soumis,
+alignements connus) ; soumissions(dossier=…, acteurs=[…]) : matrice d'alignement lue dans le cache. Exclues par défaut
 de rechercher : texte intégral avec rechercher(types=["soumission"]) ou partie=…
 NÉGOCIATIONS EN DIRECT : dossiers (vue d'ensemble) → dossier(slug ou alias : GGA, finance, MWP, art6…) : état,
 textes successifs avec crochets/options et diff, brief, positions relevées (citation exacte + source), notes de
@@ -349,6 +351,7 @@ def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str |
 
 @mcp.tool(annotations=WRITE)
 def soumissions(appel: int | None = None, auteur: str | None = None, document: str | None = None,
+                dossier: str | None = None, acteurs: list[str] | None = None,
                 requete: str | None = None, theme: str | None = None, session: str | None = None,
                 ouverts: bool = False, parties_seulement: bool = False, limite: int = 40,
                 ctx: Context | None = None) -> dict[str, Any]:
@@ -361,6 +364,10 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
       existe, doc_id).
     - auteur=« EU » / « UE » / « European Union », « LDC », « Brazil »… : soumissions de cet acteur, auteur ou
       co-auteur (nom exact après normalisation ; un nom inconnu renvoie les noms proches, jamais un autre pays).
+    - dossier=<slug ou alias : GGA, finance, JTWP, art6…> : appels rattachés au dossier (les plus récents), qui a
+      soumis (acteurs canoniques ; groupe quand une Partie soumet en son nom), alignements déjà calculés.
+      Avec acteurs=["EU","LMDC","AOSIS",…] : matrice d'alignement LUE DANS LE CACHE (paires comparées, paires
+      « à calculer » avec l'appel commun ; rien n'est calculé ici).
     - document=<doc_id> : ANALYSE de la soumission (calculée une fois puis en cache) : résumé, points soulevés avec
       la position de l'auteur, la force du langage (1 constate, 2 suggère, 3 demande, 4 exige ; fort ≥ 3), le verbe
       et une citation vérifiée mot pour mot. Analyse par IA : le dire et citer les extraits.
@@ -382,6 +389,15 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
             return {"document": search.doc_public(row), **sm.analyze(conn, row["id"])}
         if appel:
             return sm.call_detail(conn, appel, parties_only=parties_seulement) or {"erreur": f"appel {appel} inconnu"}
+        if dossier:
+            from . import live
+
+            slug = live.dossier_from_alias(dossier) or dossier
+            if not live.dossier(slug):
+                return {"erreur": f"dossier inconnu : {dossier}", "dossiers": [d["slug"] for d in live.dossiers()]}
+            if acteurs:
+                return sm.alignment_matrix(conn, slug, acteurs)
+            return {"dossier": slug, **sm.dossier_section(conn, slug, limit=min(limite, 25))}
         if auteur:
             return {"auteur": auteur, "soumissions": sm.by_entity(conn, auteur, limite)}
         return {"appels": sm.list_calls(conn, requete=requete, theme=theme, session=session, ouverts=ouverts,
@@ -391,15 +407,16 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
 
 
 @mcp.tool(annotations=WRITE)
-def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None, max_comparaisons: int = 6,
-                         ctx: Context | None = None) -> dict[str, Any]:
+def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None, dossier: str | None = None,
+                         max_comparaisons: int = 6, ctx: Context | None = None) -> dict[str, Any]:
     """Compare les positions écrites de deux acteurs (soumissions officielles), point par point : chaque point est
     qualifié accord / partiel / conflit / un seul côté, avec ce que dit chacun et la force de son langage ;
     l'indication d'ensemble (alignées, partiellement, non alignées, pas de position commune) est calculée par
     règles fixes à partir de ces qualifications (decompte.regle).
     - a, b : nom d'acteur (« EU », « LMDC », « Saudi Arabia », « AOSIS » ; un groupe qui a soumis en son nom
-      compte) ou doc_id. On prend l'appel le plus récent auquel les deux ont répondu (ou `appel`) ; sans appel
-      commun, on compare leurs dernières soumissions et on le signale.
+      compte) ou doc_id. On prend l'appel le plus récent auquel les deux ont répondu (ou `appel`, ou le plus récent
+      des appels du `dossier` : GGA, finance, JTWP…) ; sans appel commun, on compare leurs dernières soumissions et
+      on le signale.
     - b absent : compare la soumission de `a` avec les autres Parties du même appel (comparaisons en cache
       d'abord, quelques nouvelles par requête ; relancer pour la suite).
     Présenter comme une aide à l'analyse (pas un jugement), avec les citations et liens des deux documents."""
@@ -410,7 +427,7 @@ def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None,
     try:
         if not b:
             return sm.compare_in_call(conn, sm.latest_doc(conn, a, appel), max_n=max(1, min(max_comparaisons, 10)))
-        da, dbb, common = sm.resolve_pair(conn, a, b, appel)
+        da, dbb, common = sm.resolve_pair(conn, a, b, appel, dossier=dossier)
         out = sm.compare(conn, da, dbb)
         call = conn.execute("SELECT * FROM sub_calls WHERE id=?", (common,)).fetchone() if common else None
         out["appel_commun"] = sm._call_public(call) if call else None
@@ -526,6 +543,7 @@ def dossiers(ctx: Context | None = None) -> dict[str, Any]:
 def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
     """Tout un dossier : état, textes de négociation successifs (crochets, options, lien vers le document et
     le diff), dernier brief (sources numérotées), positions relevées pendant la COP (citation exacte et source),
+    positions écrites et appels à soumissions liés (qui a soumis, alignements déjà calculés),
     positions de référence (Carbon Brief) et, pour les contributeurs, notes de terrain. `slug` ou alias (ex. GGA, finance, MWP)."""
     live, positions, briefs = _live()
     conn = db.get()
@@ -550,6 +568,7 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
                           for p in pos if p["source_kind"] not in ("carbonbrief", "soumission")][:80],
         "positions_ecrites": [{k: p[k] for k in ("actor", "stance", "issue", "summary", "quote", "said_on", "source_url")}
                               for p in pos if p["source_kind"] == "soumission"][:60],
+        "soumissions": _sub_section(conn, slug),
         "positions_reference": [{k: p[k] for k in ("actor", "stance", "issue", "source_url")}
                                 for p in pos if p["source_kind"] == "carbonbrief"],
         "credit": f"Index et positions de référence : {live.CB_CREDIT} (citer). Positions COP : extraites de sources "
@@ -560,6 +579,16 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
     if auth.can_restricted(user):
         out["notes_terrain_internes"] = live.notes(conn, slug, limit=30)
     return out
+
+
+def _sub_section(conn, slug: str) -> dict[str, Any] | None:
+    from . import soumissions as sm
+
+    try:
+        out = sm.dossier_section(conn, slug, limit=8)
+        return out if out["appels"] else None
+    except Exception:
+        return None
 
 
 @mcp.tool(annotations=READ)

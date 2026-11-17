@@ -876,3 +876,98 @@ def test_positions_tool_exact_actor(env):
     assert out["positions"] == [] and "Somalia" not in out["message"].split("noms proches")[0]
     assert len(mcp_server.positions(acteur="Somalia")["positions"]) == 1
     assert "Somalia" in mcp_server.positions(acteur="Somali")["message"]
+
+
+def test_soumissions_dossier_link(env, monkeypatch):
+    """Rattachement appel → dossier : règle, points analysés (seuil), manuel prioritaire ; rubrique compacte ;
+    filtre dossier= ; comparer avec dossier= ; matrice lue dans le cache."""
+    import json
+
+    from cop_corpus import fetch, live, llm, mcp_server, soumissions as sm
+
+    conn = env
+    live._ready.clear()
+    sm.ensure_schema(conn)
+    rule = {"title": "Views on indicators for the global goal on adaptation", "issue": "", "themes": "[]"}
+    assert sm.rule_dossiers(rule) == {"adaptation": 1.0}
+    # Règle spécifique d'un dossier : efface les correspondances larges (« adaptation » dans un appel pertes et préjudices).
+    assert sm.rule_dossiers({"title": "Loss and damage: adaptation limits", "issue": "", "themes": "[]"}) == {
+        "pertes-prejudices": 1.0}
+    assert sm.rule_dossiers({"title": "Review of the just transition work programme and finance", "issue": "",
+                             "themes": "[]"}) == {"transition-juste": 1.0}
+    assert sm.rule_dossiers({"title": "Voluntary submissions", "issue": "Unsolicited", "themes": "[]"}) == {}
+
+    calls = [
+        {"Id": 1, "Title": "Views on GGA indicators", "Issue": "", "SessionName": "SB 65", "Mandate": "N/A",
+         "Deadline": None, "Themes": [], "Bodies": [], "TargetAudience": [], "CallType": "CallForSubmission",
+         "OpenCall": True, "IsUpcomingSession": True, "ModifiedDate": "2026-09-01T00:00:00Z"},
+        {"Id": 2, "Title": "Voluntary submissions SB 65", "Issue": "Unsolicited", "SessionName": "SB 65",
+         "Mandate": "N/A", "Deadline": None, "Themes": [], "Bodies": [], "TargetAudience": [],
+         "CallType": "CallForSubmission", "OpenCall": True, "IsUpcomingSession": True,
+         "ModifiedDate": "2026-09-01T00:00:00Z"}]
+    subs = []
+    for i, (call, ent, desc) in enumerate([(1, "European Union", ""), (1, "Saudi Arabia", "on behalf of the LMDC"),
+                                           (2, "European Union", ""), (2, "Palau", "on behalf of AOSIS")]):
+        subs.append({"Id": i + 1, "CallForSubmissionId": call, "Title": f"{ent} {call}", "FileName": f"f{i}.txt",
+                     "ServerRelativeURL": f"/submissions/Archive/f{i}.txt", "Language": "English",
+                     "SubmissionDate": f"2026-09-0{i + 1}T00:00:00Z", "Description": desc, "Entity": ent,
+                     "EntityType": "Party"})
+    text = "We call for robust indicators on means of implementation for adaptation finance. " * 6
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            if url.endswith("/CallForSubmissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(calls).encode(), mime="application/json")
+            if url.endswith("/Submissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(subs).encode(), mime="application/json")
+            return fetch.FetchResult(url=url, status=200, content=(text + url).encode(), mime="text/plain")
+
+    sm.sync_index(conn, FakeClient())
+    sm.download_pending(conn, FakeClient(), limit=10)
+    assert len({r[0] for r in conn.execute("SELECT doc_id FROM sub_items")}) == 4
+    assert sm.dossier_call_ids(conn, "adaptation") == [1]  # appel 2 : aucune règle, pas encore de points
+    # Points analysés : 5 points « adaptation » sur 6 (≈ 83 % ≥ 40 %) → appel 2 rattaché par les points.
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+
+    def fake_llm(conn_, **k):
+        if k["purpose"] == "soumission-comparaison":
+            return {"points": [{"point": "MoI indicators", "a_position": "a", "b_position": "b", "a_force": 3,
+                                "b_force": 4, "relation": "accord", "explication": "e"}]}
+        dossiers = ["adaptation", "adaptation", "finance"] if "Palau" in k["user"] else ["adaptation"] * 3
+        return {"summary": "r", "summary_en": "s", "matters": [
+            {"matter": f"m{j}", "position": "p", "strength": 3, "verb": "call for", "stance": "soutient",
+             "dossier": d, "quote": "We call for robust indicators on means of implementation"} for j, d in enumerate(dossiers)]}
+
+    monkeypatch.setattr(llm, "json_call", fake_llm)
+    for d in [r[0] for r in conn.execute("SELECT doc_id FROM sub_items WHERE call_id=2")]:
+        sm.analyze(conn, d)
+    sm.map_calls(conn)
+    row = conn.execute("SELECT methode, score FROM sub_call_dossiers WHERE call_id=2").fetchone()
+    assert row["methode"] == "points" and row["score"] == 0.83
+    # Manuel : remplace et survit au recalcul.
+    sm.set_manual(conn, 2, ["finance"])
+    sm.map_calls(conn)
+    assert [tuple(r) for r in conn.execute("SELECT dossier, methode FROM sub_call_dossiers WHERE call_id=2")] == [
+        ("finance", "manuel")]
+    with pytest.raises(ValueError):
+        sm.set_manual(conn, 2, ["dossier-inexistant"])
+    # Rubrique du dossier : compacte, auteurs canoniques (groupe pour une Partie qui soumet en son nom).
+    sec = sm.dossier_section(conn, "adaptation")
+    assert sec["nb_appels_lies"] == 1 and sec["appels"][0]["auteurs_parties"] == ["LMDC", "EU"]
+    assert "alignements_connus" not in sec["appels"][0]
+    # Filtre dossier= (alias accepté) et comparaison restreinte au dossier.
+    assert [c["appel"] for c in mcp_server.soumissions(dossier="GGA")["appels"]] == [1]
+    assert [c["appel"] for c in sm.list_calls(conn, dossier="gga")] == [1]
+    da, db_, common = sm.resolve_pair(conn, "EU", "LMDC", dossier="gga")
+    assert common == 1
+    with pytest.raises(sm.UnknownActor):
+        sm.resolve_pair(conn, "EU", "AOSIS", dossier="gga")  # l'AOSIS n'a soumis que hors dossier
+    # Matrice : lecture du cache ; une paire comparée apparaît ensuite dans la rubrique.
+    m = sm.alignment_matrix(conn, "adaptation", ["UE", "LMDC", "AOSIS"])
+    assert m["comparees"] == [] and m["a_calculer"] == [{"a": "EU", "b": "LMDC", "appel": 1}]
+    assert m["sans_appel_commun"] == ["AOSIS"]
+    sm.compare(conn, da, db_)
+    m = sm.alignment_matrix(conn, "adaptation", ["EU", "LMDC"])
+    assert m["comparees"][0]["indication"] == "aligne" and not m["a_calculer"]
+    assert sm.dossier_section(conn, "adaptation")["appels"][0]["alignements_connus"][0]["indication"] == "aligne"
+    assert mcp_server.dossier("gga")["soumissions"]["nb_appels_lies"] == 1

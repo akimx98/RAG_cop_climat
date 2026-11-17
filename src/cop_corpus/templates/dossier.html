@@ -56,6 +56,18 @@
 {% for actor, items in ref_actors %}<tr><td style="white-space:nowrap"><b>{{ actor }}</b></td><td>{% for p in items %}<div>{{ stance(p.stance) }}{% if p.source_url %}<a href="{{ p.source_url }}" target="_blank" rel="noopener">{{ p.issue }}</a>{% else %}{{ p.issue }}{% endif %}</div>{% endfor %}</td></tr>
 {% else %}<tr><td class="muted">{{ L('Aucune.', 'None.') }}</td></tr>{% endfor %}</table></div>
 </details>
+{% if subs %}
+<h2>{{ L('Soumissions officielles', 'Official submissions') }} <span class="small muted">({{ subs.nb_appels_lies }} {{ L('appels liés', 'linked calls') }})</span></h2>
+<div class="card flush">
+{% for c in subs.appels %}<div class="item">
+<div><b>{{ c.titre }}</b></div>
+<div class="meta"><span>{{ c.session or '' }}</span><span class="sep">·</span><span>{{ c.nb_soumissions }} {{ L('soumissions', 'submissions') }} ({{ c.nb_parties }} {{ L('de Parties', 'from Parties') }})</span>{% if c.derniere %}<span class="sep">·</span><span>{{ L('dernière', 'latest') }} {{ c.derniere }}</span>{% endif %}{% if c.ouvert %}<span class="sep">·</span><span class="pill">{{ L('ouvert', 'open') }}</span>{% endif %}</div>
+{% if c.auteurs_parties %}<div class="small">{{ L('Parties et groupes', 'Parties and groups') }} : {{ c.auteurs_parties|join(', ') }}{% if c.observateurs %} · {{ c.observateurs }} {{ L('observateurs', 'observers') }}{% endif %}</div>{% endif %}
+{% if c.alignements_connus %}<div class="small muted">{% for a in c.alignements_connus %}{{ a.a }} / {{ a.b }} : {{ L(a.indication_libelle, a.indication_en) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+</div>{% endfor %}
+</div>
+<p class="small muted">{{ L("Source : portail des soumissions de la CCNUCC (soumission d'une Partie : niveau 2). Alignements : comparaisons déjà calculées, aide à l'analyse.", "Source: UNFCCC submission portal (Party submission: level 2). Alignment: comparisons already computed, an analytical aid.") }}</p>
+{% endif %}
 </section>
 
 <section>
