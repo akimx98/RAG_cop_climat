@@ -28,12 +28,42 @@ ALIASES = {"european union": "EU", "eu27": "EU", "g77/china": "G77 and China", "
            "alliance of small island states": "AOSIS", "sids": "AOSIS", "turkey": "Türkiye",
            "environmental integrity group": "EIG", "arab group": "Arab Group", "umbrella": "Umbrella Group",
            "cop31 presidency": "Présidence COP31", "presidency": "Présidence COP31", "us": "United States",
-           "usa": "United States", "uk": "UK", "united kingdom": "UK"}
+           "usa": "United States", "uk": "UK", "united kingdom": "UK",
+           # Formes longues, sigles et noms français (soumissions CCNUCC, requêtes des utilisateurs).
+           "eu": "EU", "ue": "EU", "union européenne": "EU", "union europeenne": "EU",
+           "european union and its member states": "EU", "g77 and china": "G77 and China",
+           "group of 77 and china": "G77 and China", "g-77 and china": "G77 and China", "g77+china": "G77 and China",
+           "g77 et chine": "G77 and China", "g77 + chine": "G77 and China", "ldc": "LDC", "pma": "LDC",
+           "least developed countries group": "LDC", "ldc group": "LDC", "pays les moins avancés": "LDC",
+           "agn": "AGN", "groupe africain": "AGN", "african group of negotiators on climate change": "AGN",
+           "aosis": "AOSIS", "lmdc": "LMDC", "lmdcs": "LMDC", "like-minded developing countries group": "LMDC",
+           "lldc": "LLDC", "lldcs": "LLDC", "landlocked developing countries": "LLDC", "ailac": "AILAC",
+           "independent association of latin america and the caribbean": "AILAC", "alba": "ALBA", "basic": "BASIC",
+           "eig": "EIG", "groupe arabe": "Arab Group", "arab group of negotiators": "Arab Group",
+           "umbrella group": "Umbrella Group", "groupe parapluie": "Umbrella Group", "chine": "China",
+           "inde": "India", "arabie saoudite": "Saudi Arabia", "brésil": "Brazil", "japon": "Japan",
+           "états-unis": "United States", "etats-unis": "United States", "royaume-uni": "UK",
+           "turquie": "Türkiye", "republic of türkiye": "Türkiye", "people's republic of china": "China"}
 
 
 def normalize_actor(name: str) -> str:
-    base = re.sub(r"\s*\([^)]*\)\s*$", "", (name or "").strip()).strip()
-    return ALIASES.get(base.lower(), base)[:80]
+    """Nom d'acteur canonique, partagé par positions, soumissions et comparaisons (« European Union » → « EU »,
+    « Least Developed Countries (LDCs) Group » → « LDC », « UE » → « EU »). Égalité stricte ensuite :
+    « Mali » ne doit jamais trouver « Somalia »."""
+    raw = re.sub(r"\s+", " ", (name or "").replace("\u200b", "").strip())
+    raw = re.sub(r"^(the|le|la|les)\s+", "", raw, flags=re.I)
+    if raw.lower() in ALIASES:
+        return ALIASES[raw.lower()]
+    for inner in re.findall(r"\(([A-Z0-9][A-Z0-9.&+-]{1,10}s?)\)", raw):  # vrai sigle : « … (LDCs) Group »
+        if inner.strip().lower() in ALIASES:
+            return ALIASES[inner.strip().lower()]
+    # Parenthèse finale retirée seulement si c'est un sigle ou « group » : « Congo (Democratic Republic of the) »
+    # ne doit pas devenir « Congo ».
+    base = re.sub(r"\s*\((?:[A-Z0-9][A-Z0-9.&+-]{1,10}s?|group|groupe|grupo)\)\s*$", "", raw).strip()
+    for cand in (base, re.sub(r"\s+group$", "", base, flags=re.I), re.sub(r"\s+group$", "", re.sub(r"\s*\([^)]*\)", "", raw), flags=re.I)):
+        if cand.lower() in ALIASES:
+            return ALIASES[cand.lower()]
+    return base[:80]
 STANCE_VALUES = ["priorité", "soutient", "propose", "réserve", "ne soutient pas", "s'oppose", "ligne rouge", "neutre"]
 
 SYSTEM = """Tu es analyste pour un outil indépendant de suivi de la COP31 (Antalya, novembre 2026).
@@ -101,6 +131,7 @@ def pending_docs(conn, limit: int = 10) -> list:
     return conn.execute(
         """SELECT d.* FROM documents d LEFT JOIN extraction_log x ON x.doc_id=d.id
            WHERE x.doc_id IS NULL AND d.access='public' AND d.status='indexed'
+             AND COALESCE(d.source_id,'')<>'unfccc-submissions'  -- analysées par soumissions.py
              AND ((COALESCE(d.published,'') <> '' AND d.published >= ?) OR (COALESCE(d.published,'') = ''
                   AND (d.fetched_at >= ? OR d.source_id='veille-mail')))
              AND (d.source_id='veille-mail' OR d.doc_type IN ('compte_rendu','analyse','communique')

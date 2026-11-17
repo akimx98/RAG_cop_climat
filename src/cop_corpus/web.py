@@ -50,7 +50,7 @@ def _reflow(text: str) -> str:
 
 TEMPLATES.filters["reflow"] = _reflow
 TEMPLATES.globals["BOT"] = config.TELEGRAM_BOT_NAME
-DOC_TYPES = ["traite", "decision", "conclusions_sb", "ordre_du_jour", "projet_texte", "ndc", "btr", "rapport_synthese",
+DOC_TYPES = ["traite", "decision", "conclusions_sb", "ordre_du_jour", "projet_texte", "ndc", "btr", "soumission", "declaration", "rapport_synthese",
              "loi_ue", "proposition_ue", "conclusions_conseil", "strategie_nationale", "rapport_scientifique",
              "donnees", "compte_rendu", "communique", "analyse", "programme", "note_interne", "autre"]
 TEMPLATES.globals["DOC_TYPES"] = DOC_TYPES

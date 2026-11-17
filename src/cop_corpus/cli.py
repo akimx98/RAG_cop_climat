@@ -193,6 +193,32 @@ def cmd_programme(args) -> None:
     _print(agenda.query(db.get(), jour=args.jour, sujet=args.sujet, types=args.types, limit=args.limit))
 
 
+def cmd_soumissions(args) -> None:
+    from . import fetch, soumissions as sm
+
+    conn = db.get()
+    if args.action == "index":
+        _print(sm.sync_index(conn, fetch.Client()))
+    elif args.action == "telecharger":
+        _print(sm.download_pending(conn, fetch.Client(), limit=args.limit, since=args.depuis,
+                                   parties_only=args.parties, call_id=args.appel))
+        if args.embed:
+            from . import embed
+
+            print(f"{embed.embed_pending(conn)} passages vectorisés")
+    elif args.action == "analyser":
+        _print(sm.analyze(conn, args.doc, force=args.force) if args.doc else {"analysees": sm.analyse_tick(conn, args.limit)})
+    elif args.action == "comparer":
+        a, b, call = sm.resolve_pair(conn, args.a, args.b, args.appel)
+        _print({"appel_commun": call, **sm.compare(conn, a, b, force=args.force)})
+    elif args.action == "appels":
+        _print(sm.list_calls(conn, requete=args.requete, session=args.session, ouverts=args.ouverts, limite=args.limit))
+    elif args.action == "appel":
+        _print(sm.call_detail(conn, args.appel))
+    else:
+        _print(sm.stats(conn))
+
+
 def cmd_mcp_stdio(args) -> None:
     from . import mcp_server
 
@@ -288,6 +314,22 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--types", nargs="*")
     s.add_argument("--limit", type=int, default=40)
     s.set_defaults(func=cmd_programme)
+
+    s = sub.add_parser("soumissions", help="soumissions officielles CCNUCC (submissions.unfccc.int)")
+    s.add_argument("action", choices=["etat", "index", "telecharger", "analyser", "comparer", "appels", "appel"])
+    s.add_argument("--limit", type=int, default=50)
+    s.add_argument("--depuis", help="AAAA-MM-JJ (date de dépôt)")
+    s.add_argument("--parties", action="store_true", help="seulement les soumissions de Parties")
+    s.add_argument("--appel", type=int)
+    s.add_argument("--doc", type=int)
+    s.add_argument("--a")
+    s.add_argument("--b")
+    s.add_argument("--requete")
+    s.add_argument("--session")
+    s.add_argument("--ouverts", action="store_true")
+    s.add_argument("--force", action="store_true")
+    s.add_argument("--embed", action="store_true", help="vectoriser après téléchargement")
+    s.set_defaults(func=cmd_soumissions)
 
     sub.add_parser("mcp-stdio", help="serveur MCP en stdio (usage local)").set_defaults(func=cmd_mcp_stdio)
 

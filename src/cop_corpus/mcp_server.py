@@ -54,6 +54,12 @@ donnees (chiffres d'émissions) ; glossaire ; programme(jour, sujet) (side event
 quand aller ; toujours donner le lien SEORS de vérification) ; mes_sujets / suivre / suivre_dossier / arreter_suivi
 (alertes) ;
 deposer_url (ajouter une page au corpus) ; etat_corpus.
+SOUMISSIONS OFFICIELLES (portail CCNUCC, depuis 2015 ; Partie = niveau 2, observateur = niveau 5) : positions
+ÉCRITES des Parties et groupes, avant ou pendant la session. soumissions (appels, qui a soumis quoi ;
+document=<id> : résumé et points soulevés classés par force du langage, citations exactes) → comparer_soumissions
+(« EU » contre « LMDC », ou une soumission contre tout son appel : accords, différences, conflits ; indication
+d'alignement calculée par règles fixes, à présenter comme une aide à l'analyse, pas un jugement). Exclues par défaut
+de rechercher : texte intégral avec rechercher(types=["soumission"]) ou partie=…
 NÉGOCIATIONS EN DIRECT : dossiers (vue d'ensemble) → dossier(slug ou alias : GGA, finance, MWP, art6…) : état,
 textes successifs avec crochets/options et diff, brief, positions relevées (citation exacte + source), notes de
 terrain internes ; textes_en_cours ; positions(acteur, dossier, depuis) pour « qui veut quoi / qui a bougé » ;
@@ -144,7 +150,8 @@ def rechercher(
       comme filtre : utiliser acces="restreint" pour les documents internes.
     - types : traite, decision, conclusions_sb, ordre_du_jour, projet_texte, ndc, btr, rapport_synthese,
       loi_ue, proposition_ue, conclusions_conseil, strategie_nationale, rapport_scientifique, donnees,
-      compte_rendu, communique, analyse, programme.
+      compte_rendu, communique, analyse, programme, soumission (soumission officielle à la CCNUCC),
+      declaration (déclaration en plénière déposée sur le portail).
     - session : COP29, CMA6, COP31… ; organisation : UNFCCC, Council of the EU… ; partie : EU, FRA, CHN…
     - depuis / jusqu_a : date ISO (AAAA-MM-JJ) sur la date de publication (ou de récupération).
     Renvoie des passages avec niveau, cote, paragraphe, page, extrait et liens. Utiliser lire_passage pour le texte complet.
@@ -274,6 +281,81 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
     return out
 
 
+@mcp.tool(annotations=WRITE)
+def soumissions(appel: int | None = None, auteur: str | None = None, document: str | None = None,
+                requete: str | None = None, theme: str | None = None, session: str | None = None,
+                ouverts: bool = False, parties_seulement: bool = False, limite: int = 40,
+                ctx: Context | None = None) -> dict[str, Any]:
+    """Soumissions officielles à la CCNUCC (portail submissions.unfccc.int, depuis 2015) : appels, qui a soumis
+    quoi, et analyse d'une soumission.
+    - sans argument (ou requete / theme / session / ouverts) : liste des appels, avec nombre de soumissions ;
+      requete = mots du titre, tous requis (« just transition », « adaptation indicators », « Article 6.8 ») ;
+      session = COP31, SB64… ; ouverts=true : appels ouverts ou de la session en cours.
+    - appel=<id> : détail de l'appel et toutes ses soumissions (auteur, Partie ou observateur, date, résumé IA s'il
+      existe, doc_id).
+    - auteur=« EU » / « UE » / « European Union », « LDC », « Brazil »… : soumissions de cet acteur, auteur ou
+      co-auteur (nom exact après normalisation ; un nom inconnu renvoie les noms proches, jamais un autre pays).
+    - document=<doc_id> : ANALYSE de la soumission (calculée une fois puis en cache) : résumé, points soulevés avec
+      la position de l'auteur, la force du langage (1 constate, 2 suggère, 3 demande, 4 exige ; fort ≥ 3), le verbe
+      et une citation vérifiée mot pour mot. Analyse par IA : le dire et citer les extraits.
+    Niveau : soumission d'une Partie = 2 (position officielle écrite, non adoptée), observateur = 5.
+    Pour « qui veut quoi » pendant la COP, voir aussi `positions` ; pour comparer deux acteurs : comparer_soumissions."""
+    from . import soumissions as sm
+
+    conn = db.get()
+    limite = max(1, min(limite, 200))
+    try:
+        if document:
+            row = search.find_doc(conn, document, _user(ctx))
+            if not row:
+                return {"erreur": f"document introuvable : {document}"}
+            cached = sm.analysis(conn, row["id"])
+            if cached and not cached.get("erreur"):
+                return {"document": search.doc_public(row), **cached}
+            _need_user(ctx)
+            return {"document": search.doc_public(row), **sm.analyze(conn, row["id"])}
+        if appel:
+            return sm.call_detail(conn, appel, parties_only=parties_seulement) or {"erreur": f"appel {appel} inconnu"}
+        if auteur:
+            return {"auteur": auteur, "soumissions": sm.by_entity(conn, auteur, limite)}
+        return {"appels": sm.list_calls(conn, requete=requete, theme=theme, session=session, ouverts=ouverts,
+                                        limite=limite), "etat": sm.stats(conn)}
+    except Exception as exc:
+        return {"erreur": str(exc)}
+
+
+@mcp.tool(annotations=WRITE)
+def comparer_soumissions(a: str, b: str | None = None, appel: int | None = None, max_comparaisons: int = 6,
+                         ctx: Context | None = None) -> dict[str, Any]:
+    """Compare les positions écrites de deux acteurs (soumissions officielles), point par point : chaque point est
+    qualifié accord / partiel / conflit / un seul côté, avec ce que dit chacun et la force de son langage ;
+    l'indication d'ensemble (alignées, partiellement, non alignées, pas de position commune) est calculée par
+    règles fixes à partir de ces qualifications (decompte.regle).
+    - a, b : nom d'acteur (« EU », « LMDC », « Saudi Arabia », « AOSIS » ; un groupe qui a soumis en son nom
+      compte) ou doc_id. On prend l'appel le plus récent auquel les deux ont répondu (ou `appel`) ; sans appel
+      commun, on compare leurs dernières soumissions et on le signale.
+    - b absent : compare la soumission de `a` avec les autres Parties du même appel (comparaisons en cache
+      d'abord, quelques nouvelles par requête ; relancer pour la suite).
+    Présenter comme une aide à l'analyse (pas un jugement), avec les citations et liens des deux documents."""
+    from . import soumissions as sm
+
+    conn = db.get()
+    _need_user(ctx)
+    try:
+        if not b:
+            return sm.compare_in_call(conn, sm.latest_doc(conn, a, appel), max_n=max(1, min(max_comparaisons, 10)))
+        da, dbb, common = sm.resolve_pair(conn, a, b, appel)
+        out = sm.compare(conn, da, dbb)
+        call = conn.execute("SELECT * FROM sub_calls WHERE id=?", (common,)).fetchone() if common else None
+        out["appel_commun"] = sm._call_public(call) if call else None
+        if not common:
+            out["attention"] = ("Pas d'appel commun : les deux soumissions répondent à des questions différentes ; "
+                                "la comparaison est indicative.")
+        return out
+    except Exception as exc:
+        return {"erreur": str(exc)}
+
+
 @mcp.tool(annotations=READ)
 def mes_sujets(ctx: Context | None = None) -> dict[str, Any]:
     """Sujets suivis par l'utilisateur (alertes Telegram et tableau de bord) et dernières alertes."""
@@ -399,11 +481,14 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
         "brief": briefs.latest(conn, slug),
         "positions_cop": [{k: p[k] for k in ("actor", "stance", "issue", "summary", "quote", "said_on",
                                              "source_label", "source_url")}
-                          for p in pos if p["source_kind"] != "carbonbrief"][:80],
+                          for p in pos if p["source_kind"] not in ("carbonbrief", "soumission")][:80],
+        "positions_ecrites": [{k: p[k] for k in ("actor", "stance", "issue", "summary", "quote", "said_on", "source_url")}
+                              for p in pos if p["source_kind"] == "soumission"][:60],
         "positions_reference": [{k: p[k] for k in ("actor", "stance", "issue", "source_url")}
                                 for p in pos if p["source_kind"] == "carbonbrief"],
         "credit": f"Index et positions de référence : {live.CB_CREDIT} (citer). Positions COP : extraites de sources "
-                  "publiques, citation vérifiée mot pour mot. Brief : rédigé par IA, à vérifier sur les sources.",
+                  "publiques, citation vérifiée mot pour mot. Positions écrites : points des soumissions officielles "
+                  "récentes des Parties (niveau 2, citation vérifiée), datées du dépôt. Brief : rédigé par IA, à vérifier sur les sources.",
         "page": f"{config.PUBLIC_BASE}/dossiers/{slug}",
     }
     if auth.can_restricted(user):
@@ -437,8 +522,20 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
     live.ensure_schema(conn)
     where, params = ["access='public'"], []
     if acteur:
-        where.append("actor LIKE ?")
-        params.append(f"%{acteur}%")
+        # Nom canonique exact (« UE » → « EU ») ; jamais de correspondance partielle (« Mali » ≠ « Somalia ») :
+        # rien trouvé → noms proches proposés, aucun autre acteur substitué.
+        exact = pos.normalize_actor(acteur)
+        if not conn.execute("SELECT 1 FROM positions WHERE actor=? AND access='public' LIMIT 1", (exact,)).fetchone():
+            words = [w for w in re.findall(r"\w+", acteur.lower()) if len(w) > 2] or [acteur.lower()]
+            near = [r[0] for r in conn.execute(
+                f"""SELECT actor, COUNT(*) n FROM positions WHERE access='public' AND
+                    ({' OR '.join('lower(actor) LIKE ?' for _ in words)}) GROUP BY actor ORDER BY n DESC LIMIT 10""",
+                [f"%{w}%" for w in words])]
+            return {"positions": [], "acteur": exact,
+                    "message": f"aucune position relevée pour « {acteur} » (nom canonique « {exact} »)"
+                               + (f" ; noms proches : {', '.join(near)}" if near else "")}
+        where.append("actor=?")
+        params.append(exact)
     if dossier:
         where.append("dossier=?")
         params.append(live.dossier_from_alias(dossier) or dossier)
@@ -451,7 +548,9 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
         (*params, min(limite, 300))).fetchall()
     return {"positions": [dict(r) for r in rows],
             "note": "source_kind=carbonbrief : positions de référence d'avant la COP (Carbon Brief, à citer) ; "
-                    "extraction/bluesky : relevées pendant la COP, citation vérifiée dans la source."}
+                    "extraction/bluesky : relevées pendant la COP, citation vérifiée dans la source ; "
+                    "soumission : position écrite, point d'une soumission officielle récente à la CCNUCC (niveau 2), "
+                    "datée du dépôt (said_on), citation vérifiée (détail : soumissions(document=…))."}
 
 
 @mcp.tool(annotations=WRITE)

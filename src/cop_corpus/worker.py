@@ -4,6 +4,7 @@ les embeddings, déclenche les alertes ; bot Telegram ; récapitulatif du matin.
 from __future__ import annotations
 
 import html
+import os
 import sys
 import threading
 import time
@@ -33,6 +34,15 @@ def watch_once(conn, client: fetch.Client) -> int:
         results = ingest.run_many(sources, workers=4)
         new = sum(r.get("new", 0) for r in results.values() if isinstance(r.get("new", 0), int))
         print(f"[veille] {len(sources)} sources, {new} nouveaux", file=sys.stderr, flush=True)
+    if os.environ.get("COP_SUB", "1") != "0":
+        try:
+            from . import soumissions
+
+            out = soumissions.harvest_tick(conn, client)
+            if out:
+                print(f"[soumissions] {out}", file=sys.stderr, flush=True)
+        except Exception:
+            traceback.print_exc()
     ingest.reindex_pending(conn)
     if embed.enabled():
         try:

@@ -607,3 +607,246 @@ def test_forgot_password_code(env, monkeypatch):
     assert "new password" in c.get("/compte?oubli=1").text
     c.post("/compte", data={"password": "nouveau-mot-de-passe", "password2": "nouveau-mot-de-passe"})
     assert auth.check_password(conn, "p@ngo.org", "nouveau-mot-de-passe") and not auth.check_password(conn, "p@ngo.org", "ancien-mot-de-passe")
+
+
+def _pt(rel, a=3, b=3):
+    return {"point": "p", "a_position": "x", "b_position": "y", "a_force": a, "b_force": b, "relation": rel,
+            "explication": ""}
+
+
+def test_soumissions_verdict_rules():
+    from cop_corpus.soumissions import verdict
+
+    assert verdict([])[0] == "sans_objet"
+    # Points d'un seul côté ou en langage faible : pas de point central.
+    assert verdict([_pt("un_seul", 4, 0), _pt("accord", 2, 4)])[0] == "sans_objet"
+    assert verdict([_pt("accord"), _pt("accord"), _pt("partiel")])[0] == "aligne"   # 1/3 partiel < 50 %
+    assert verdict([_pt("accord"), _pt("partiel")])[0] == "partiel"                # 1/2 partiel = 50 %
+    assert verdict([_pt("accord"), _pt("conflit", 1, 4)])[0] == "partiel"          # conflit secondaire
+    assert verdict([_pt("conflit"), _pt("conflit"), _pt("accord"), _pt("accord")])[0] == "non_aligne"
+    # 1 conflit central : seuil de 40 % d'accord sur les points centraux.
+    two_of_five = [_pt("conflit"), _pt("accord"), _pt("accord"), _pt("partiel"), _pt("partiel")]
+    assert verdict(two_of_five)[0] == "non_aligne"                                  # 40 % ≤ 40 %
+    three_of_five = [_pt("conflit"), _pt("accord"), _pt("accord"), _pt("accord"), _pt("partiel")]
+    v, counts = verdict(three_of_five)                                              # 60 % > 40 %
+    assert v == "partiel" and counts["points_centraux"] == 5 and "40 %" in counts["regle"]
+    # Les points d'un seul côté n'entrent jamais dans le verdict.
+    assert verdict([_pt("accord"), _pt("un_seul", 4, 0), _pt("un_seul", 0, 4)])[0] == "aligne"
+
+
+def test_soumissions_normalisation():
+    from cop_corpus import soumissions as sm
+
+    assert sm.parse_date("2026-11-17T10:29:13Z") == "2026-11-17"
+    assert sm.parse_date("11/3/2026 2:28:00 PM") == "2026-11-03"
+    assert sm.parse_date("") is None
+    assert sm.norm_session("COP 31") == "COP31" and sm.norm_session("N/A") is None
+    assert sm.co_submitters("Republic of Korea", "Australia") == ["Republic of Korea"]
+    assert sm.co_submitters("Australia", "Australia") == []
+    assert sm.co_submitters("Uruguay on behalf of G77 and China \nSubmission on the 2026 Review", "Uruguay") == ["G77 and China"]
+    assert sm.co_submitters("United Republic of Tanzania - Just Transition Review, Mechanism", "United Republic of Tanzania") == []
+    assert sm.co_submitters("on behalf of the Least Developed Countries (LDCs) Group", "Timor-Leste") == [
+        "Least Developed Countries (LDCs) Group"]
+    assert sm.speaks_for({"entity": "Saudi Arabia", "co_submitters": '["LMDC"]'}) == "LMDC"
+    assert sm.speaks_for({"entity": "Australia", "co_submitters": '["Republic of Korea"]'}) == "Australia"
+    assert sm.entity_kind("pARTY", "X", set()) == "party"
+    assert sm.entity_kind("", "Jordan", {"jordan"}) == "party"
+    assert sm.entity_kind("NGO", "CAN", set()) == "observer"
+    assert sm.is_document("a.PDF") and not sm.is_document("53_29_131218799232961536-") and not sm.is_document("x.jpg")
+    assert " " not in sm.download_url("/submissions/Archive/a b.pdf").split("?", 1)[1]
+
+
+def test_soumissions_harvest_analyse_compare(env, monkeypatch):
+    """Index de l'API → documents niveau 2/5 ; analyse : citation inventée rejetée, positions alimentées ;
+    comparaison par noms de Parties dans leur appel commun, verdict calculé par les règles."""
+    import json
+
+    from cop_corpus import fetch, live, llm, soumissions as sm
+
+    conn = env
+    live._ready.clear()
+    calls = [{"Id": 10, "Title": "Views on GGA indicators", "Issue": "GGA", "SessionName": "SB 64", "Mandate": "N/A",
+              "Deadline": None, "Themes": ["Adaptation"], "Bodies": ["SBSTA"], "TargetAudience": ["All Parties"],
+              "CallType": "CallForSubmission", "OpenCall": False, "IsUpcomingSession": False,
+              "ModifiedDate": "2026-03-01T00:00:00Z"}]
+    eu_text = ("The European Union urges Parties to adopt a limited set of headline indicators. " * 3 +
+               "The EU supports means of implementation indicators that are qualitative. " * 3)
+    lmdc_text = ("The LMDC demand quantified finance indicators for developed countries. " * 3 +
+                 "The LMDC cannot accept headline indicators that burden developing countries. " * 3)
+    subs = [
+        {"Id": 1, "CallForSubmissionId": 10, "Title": "EU submission GGA", "FileName": "EU GGA.txt",
+         "ServerRelativeURL": "/submissions/Archive/EU GGA.txt", "Language": "English",
+         "SubmissionDate": "2026-04-02T10:00:00Z", "Description": "", "Entity": "European Union", "EntityType": "Party"},
+        {"Id": 2, "CallForSubmissionId": 10, "Title": "LMDC GGA", "FileName": "LMDC.txt",
+         "ServerRelativeURL": "/submissions/Archive/LMDC.txt", "Language": "English",
+         "SubmissionDate": "4/1/2026 9:00:00 AM", "Description": "on behalf of the LMDC", "Entity": "Bolivia",
+         "EntityType": ""},
+        {"Id": 3, "CallForSubmissionId": 10, "Title": "Bolivia earlier", "FileName": "b.pdf",
+         "ServerRelativeURL": "/submissions/Archive/b.pdf", "Language": "Spanish", "SubmissionDate": "2025-01-01",
+         "Description": "", "Entity": "Bolivia", "EntityType": "Party"},
+        {"Id": 4, "CallForSubmissionId": 10, "Title": "img", "FileName": "photo.jpg",
+         "ServerRelativeURL": "/submissions/Archive/photo.jpg", "Language": "English",
+         "SubmissionDate": "2026-04-03T00:00:00Z", "Description": "", "Entity": "WWF", "EntityType": "NGO"},
+    ]
+    files = {"EU GGA.txt": eu_text, "LMDC.txt": lmdc_text}
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            if url.endswith("/CallForSubmissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(calls).encode(), mime="application/json")
+            if url.endswith("/Submissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(subs).encode(), mime="application/json")
+            name = next((k for k in files if k.replace(" ", "%20") in url), None)
+            if not name:
+                return fetch.FetchResult(url=url, status=404)
+            return fetch.FetchResult(url=url, status=200, content=files[name].encode(), mime="application/octet-stream")
+
+    assert sm.sync_index(conn, FakeClient())["nouvelles"] == 4
+    assert conn.execute("SELECT status FROM sub_items WHERE id=4").fetchone()[0] == "skipped"
+    assert conn.execute("SELECT kind FROM sub_items WHERE id=2").fetchone()[0] == "party"  # type vide, nom connu
+    got = sm.download_pending(conn, FakeClient(), limit=10, since="2026-01-01")
+    assert got.get("indexed") == 2
+    eu = conn.execute("SELECT * FROM documents WHERE org='European Union'").fetchone()
+    assert eu["level"] == "2" and eu["doc_type"] == "soumission" and eu["session"] == "SB64"
+    assert eu["published"] == "2026-04-02" and "European Union" in eu["title"] and eu["symbol"] == "UNFCCC-SUB/1"
+
+    def fake_llm(conn_, **k):
+        if k["purpose"] == "soumission-analyse":
+            eu_doc = "European Union" in k["user"]
+            return {"summary": "r", "summary_en": "s", "matters": [
+                {"matter": "headline indicators", "position": "p", "strength": 4, "verb": "urges",
+                 "stance": "soutient", "dossier": "adaptation",
+                 "quote": "urges Parties to adopt a limited set of headline indicators" if eu_doc
+                 else "cannot accept headline indicators that burden developing countries"},
+                {"matter": "invented", "position": "p", "strength": 3, "verb": "x", "stance": "soutient",
+                 "dossier": "adaptation", "quote": "this sentence is not in the document at all"}]}
+        return {"points": [
+            {"point": "headline indicators", "a_position": "a", "b_position": "b", "a_force": 4, "b_force": 4,
+             "relation": "conflit", "explication": "e"},
+            {"point": "MoI indicators", "a_position": "a", "b_position": "b", "a_force": 3, "b_force": 4,
+             "relation": "partiel", "explication": "e"},
+            {"point": "finance", "a_position": "", "b_position": "b", "a_force": 0, "b_force": 4,
+             "relation": "un_seul", "explication": "e"}]}
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.setattr(llm, "json_call", fake_llm)
+    a = sm.analyze(conn, eu["id"])
+    assert len(a["points"]) == 1 and a["points_rejetes"] == 1 and a["points"][0]["force_libelle"] == "exige"
+    pos = conn.execute("SELECT * FROM positions WHERE source_kind='soumission'").fetchall()
+    assert len(pos) == 1 and pos[0]["actor"] == "EU" and pos[0]["said_on"] == "2026-04-02"
+
+    da, db_, common = sm.resolve_pair(conn, "European Union", "LMDC")  # co-auteur trouvé via Description
+    assert common == 10 and da == eu["id"]
+    out = sm.compare(conn, da, db_)
+    # 2 points centraux : 1 conflit, 0 % d'accord → non alignées ; le point d'un seul côté ne compte pas.
+    assert out["indication"] == "non_aligne" and out["decompte"]["un_seul_cote"] == 1
+    assert out["points"][0]["relation"] == "conflit"
+    # Ordre inversé : même verdict (cache), positions échangées.
+    rev = sm.compare(conn, db_, da)
+    assert rev["indication"] == "non_aligne" and rev["a"]["doc_id"] == db_
+    assert conn.execute("SELECT COUNT(*) FROM sub_comparisons").fetchone()[0] == 1
+    st = sm.stats(conn)
+    assert st["indexees"] == 2 and st["analysees"] == 2 and st["comparaisons"] == 1
+
+
+def test_actor_resolver_aliases():
+    from cop_corpus.positions import normalize_actor as n
+
+    assert n("European Union") == n("UE") == n("EU") == "EU"
+    assert n("the Least Developed Countries (LDCs) Group") == n("PMA") == "LDC"
+    assert n("Landlocked Developing Countries (LLDCs)") == "LLDC" != n("LDC")
+    assert n("African Group of Negotiators (AGN)") == n("Groupe africain") == "AGN"
+    assert n("Group of 77 and China") == "G77 and China" and n("LMDC (group)") == "LMDC"
+    assert n("Congo (Democratic Republic of the)") != n("Congo")
+    assert n("Mali") == "Mali" and n("Somalia") == "Somalia"
+    assert n("Korea (Republic of)") == "Korea (Republic of)" and n("Moldova (Republic of)") == "Moldova (Republic of)"
+    assert n("Climate Action Network (CAN)") == "Climate Action Network"
+
+
+def test_soumissions_exact_names_search_alerts_reanalysis(env, monkeypatch):
+    """B1 : « Mali » ne trouve jamais la Somalie, « Niger » jamais le Nigeria ; B3 : soumissions exclues de rechercher
+    par défaut ; alertes : pas d'alerte sur le stock ancien ; I3 : ré-analyse sans doublon dans positions."""
+    import json
+
+    from cop_corpus import alerts, auth, fetch, live, llm, search, soumissions as sm
+
+    conn = env
+    live._ready.clear()
+    calls = [{"Id": 1, "Title": "Views on adaptation finance", "Issue": "", "SessionName": "SB 65", "Mandate": "N/A",
+              "Deadline": None, "Themes": [], "Bodies": [], "TargetAudience": [], "CallType": "CallForSubmission",
+              "OpenCall": True, "IsUpcomingSession": True, "ModifiedDate": "2026-09-01T00:00:00Z"}]
+    names = {"Somalia": "2026-09-01T00:00:00Z", "Nigeria": "2026-09-02T00:00:00Z", "Mali": "2019-05-01T00:00:00Z"}
+    subs = [{"Id": i + 1, "CallForSubmissionId": 1, "Title": f"{p} views", "FileName": f"{p}.txt",
+             "ServerRelativeURL": f"/submissions/Archive/{p}.txt", "Language": "English", "SubmissionDate": d,
+             "Description": "", "Entity": p, "EntityType": "Party"} for i, (p, d) in enumerate(names.items())]
+    text = "{p} urges developed countries to triple adaptation finance by 2030 through grants. " * 6
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            if url.endswith("/CallForSubmissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(calls).encode(), mime="application/json")
+            if url.endswith("/Submissions"):
+                return fetch.FetchResult(url=url, status=200, content=json.dumps(subs).encode(), mime="application/json")
+            p = url.rsplit("/", 1)[1].split(".")[0]
+            return fetch.FetchResult(url=url, status=200, content=text.format(p=p).encode(), mime="text/plain")
+
+    uid, _ = auth.create_user(conn, "a@x.fr", "A")
+    alerts.add_subscription(conn, uid, "finance", "adaptation finance")
+    alerts.run(conn, notify=False)  # curseur initial
+    sm.sync_index(conn, FakeClient())
+    sm.download_pending(conn, FakeClient(), limit=10)
+    # Noms exacts : la Somalie et le Nigeria ont soumis, pas le Mali (2019) ni le Niger.
+    assert [r["auteur"] for r in sm.by_entity(conn, "Somalia")] == ["Somalia"]
+    assert [r["auteur"] for r in sm.by_entity(conn, "Mali")] == ["Mali"]
+    with pytest.raises(sm.UnknownActor) as err:
+        sm.resolve_pair(conn, "Niger", "Somalia")
+    assert "Nigeria" in str(err.value)  # proposé comme nom proche, jamais choisi en silence
+    # Stock historique exclu par défaut ; dépôt récent visible partout (nouveautés, recherche).
+    assert not search.search(conn, "adaptation finance", {}, None, limit=10)
+    assert not search.latest(conn, None)
+    conn.execute("UPDATE documents SET published=date('now','-2 days') WHERE org='Somalia'")
+    assert [d["organisation"] for d in search.latest(conn, None)] == ["Somalia"]
+    assert len({h["doc_id"] for h in search.search(conn, "adaptation finance", {}, None, limit=10)}) == 1
+    conn.execute("UPDATE documents SET published='2026-09-01' WHERE org='Somalia'")
+    assert search.search(conn, "adaptation finance", {"doc_types": ["soumission"]}, None, limit=10)
+    assert search.search(conn, "adaptation finance", {"party": "Somalia"}, None, limit=10)
+    # Alertes : seulement les dépôts récents (ici aucun : dates de 2019 et septembre 2026, avant les 14 derniers jours).
+    alerts.run(conn, notify=False)
+    assert conn.execute("SELECT COUNT(*) FROM notifications").fetchone()[0] == 0
+    # Ré-analyse : pas de doublon dans positions ; changement de version du prompt → cache invalidé.
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    n_calls = []
+
+    def fake_llm(conn_, **k):
+        n_calls.append(k["purpose"])
+        return {"summary": "r", "summary_en": "s", "matters": [
+            {"matter": "adaptation finance", "position": "p", "strength": 4, "verb": "urges", "stance": "priorité",
+             "dossier": "adaptation", "quote": "urges developed countries to triple adaptation finance"}]}
+
+    monkeypatch.setattr(llm, "json_call", fake_llm)
+    som = conn.execute("SELECT doc_id FROM sub_items WHERE entity='Somalia'").fetchone()[0]
+    mali = conn.execute("SELECT doc_id FROM sub_items WHERE entity='Mali'").fetchone()[0]
+    sm.analyze(conn, som)
+    sm.analyze(conn, som, force=True)
+    assert conn.execute("SELECT COUNT(*) FROM positions WHERE doc_id=?", (som,)).fetchone()[0] == 1
+    sm.analyze(conn, mali)  # 2019, appel de la session en cours : versé quand même (appel « upcoming »)
+    assert sm.analyze(conn, som) and len(n_calls) == 3  # en cache
+    monkeypatch.setattr(sm, "PROMPT_VERSION", "2")
+    sm.analyze(conn, som)
+    assert len(n_calls) == 4  # nouvelle version : recalcul
+
+
+def test_positions_tool_exact_actor(env):
+    """N2 : positions(acteur=) n'élargit jamais à un autre acteur ; il propose des noms proches."""
+    from cop_corpus import live, mcp_server
+
+    conn = env
+    live._ready.clear()
+    live.ensure_schema(conn)
+    conn.execute("INSERT INTO positions(key,actor,issue,stance,summary,quote,source_kind,created_at,access) "
+                 "VALUES('k1','Somalia','finance','soutient','s','q','extraction','2026-11-10','public')")
+    conn.commit()
+    out = mcp_server.positions(acteur="Mali")
+    assert out["positions"] == [] and "Somalia" not in out["message"].split("noms proches")[0]
+    assert len(mcp_server.positions(acteur="Somalia")["positions"]) == 1
+    assert "Somalia" in mcp_server.positions(acteur="Somali")["message"]

@@ -58,7 +58,7 @@ async def dossier_page(request: Request):
             v = conn.execute("SELECT version FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
             t["version"] = v["version"] if v else None
     b = briefs.latest(conn, slug)
-    extracted = [p for p in positions.for_dossier(conn, slug, limit=200) if p["source_kind"] != "carbonbrief"]
+    extracted = [p for p in positions.for_dossier(conn, slug, limit=200) if p["source_kind"] not in ("carbonbrief", "soumission")]
     ref = [p for p in positions.for_dossier(conn, slug, limit=400) if p["source_kind"] == "carbonbrief"]
     by_actor: dict[str, list[dict]] = {}
     for p in ref:

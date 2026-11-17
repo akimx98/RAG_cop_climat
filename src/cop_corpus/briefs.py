@@ -70,6 +70,8 @@ def gather(conn, slug: str, since: str) -> tuple[list[dict], str]:
     for p in positions.for_dossier(conn, slug, since=since, limit=60):
         if p["access"] != "public" or p["source_kind"] == "carbonbrief":
             continue
+        if p["source_kind"] == "soumission" and (p["said_on"] or "") < since[:10]:
+            continue  # position écrite avant la période : pas une nouveauté (analyse faite après coup)
         add(p["source_label"] or "source", p["source_url"] if (p["source_url"] or "").startswith("http")
             else f"{config.PUBLIC_BASE}{p['source_url'] or ''}",
             f"Position — {p['actor']} ({p['stance']}) sur « {p['issue']} » : {p['summary'] or ''} "

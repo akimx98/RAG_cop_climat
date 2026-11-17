@@ -69,7 +69,10 @@ def remove_subscription(conn, user_id: int, sub_id: int) -> bool:
 def matches(conn, sub: sqlite3.Row, user: dict, min_doc_id: int, max_doc_id: int | None = None,
             limit: int = 50) -> list[sqlite3.Row]:
     """Documents (id > min_doc_id) correspondant à l'abonnement, avec le meilleur passage."""
-    clauses = ["d.id > ?", "d.status IN ('indexed','empty','data')"]
+    clauses = ["d.id > ?", "d.status IN ('indexed','empty','data')",
+               # Soumissions CCNUCC : alerte seulement pour un dépôt récent (le stock historique arrive en continu
+               # pendant des heures et ne doit pas déclencher des milliers d'alertes).
+               "NOT (COALESCE(d.source_id,'')='unfccc-submissions' AND COALESCE(d.published,'') < date('now','-14 days'))"]
     params: list[Any] = [min_doc_id]
     if max_doc_id is not None:
         clauses.append("d.id <= ?")

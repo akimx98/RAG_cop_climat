@@ -64,21 +64,24 @@ class Client:
             time.sleep(self.delay - elapsed)
         return lock
 
-    def get(self, url: str, etag: str | None = None, last_modified: str | None = None) -> FetchResult:
-        """GET avec 2 relances sur erreur réseau ou 5xx (sites instables)."""
-        res = self._get(url, etag, last_modified)
+    def get(self, url: str, etag: str | None = None, last_modified: str | None = None,
+            accept: str | None = None) -> FetchResult:
+        """GET avec 2 relances sur erreur réseau ou 5xx (sites instables). `accept` remplace l'en-tête Accept
+        (API qui renvoient du XML par défaut)."""
+        res = self._get(url, etag, last_modified, accept)
         for attempt in range(2):
             if res.status == 0 or res.status >= 500:
                 time.sleep(3 * (attempt + 1))
-                res = self._get(url, etag, last_modified)
+                res = self._get(url, etag, last_modified, accept)
             else:
                 break
         return res
 
-    def _get(self, url: str, etag: str | None = None, last_modified: str | None = None) -> FetchResult:
+    def _get(self, url: str, etag: str | None = None, last_modified: str | None = None,
+             accept: str | None = None) -> FetchResult:
         host = urlparse(url).netloc
         lock = self._wait(host)
-        headers = {}
+        headers = {"Accept": accept} if accept else {}
         if etag:
             headers["If-None-Match"] = etag
         if last_modified:

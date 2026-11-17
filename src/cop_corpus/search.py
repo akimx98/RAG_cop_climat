@@ -123,8 +123,20 @@ def _fts_tiers(query: str) -> list[tuple[str, str]]:
     return tiers
 
 
+SUBMISSIONS_SOURCE = "unfccc-submissions"
+
+
 def _filters_sql(f: dict[str, Any], user: dict | None) -> tuple[str, list[Any]]:
     clauses, params = [], []
+    # Le stock historique des soumissions officielles (~8 500, niveaux 2 et 5) noierait les décisions, projets de
+    # texte et NDC : exclu sauf demande explicite (type soumission/declaration, partie, organisation ou source).
+    # Les dépôts des 14 derniers jours restent visibles partout (nouveautés, briefs, recherche) : même règle que
+    # pour les alertes.
+    wants_subs = (set(f.get("doc_types") or []) & {"soumission", "declaration"}) or f.get("party") or f.get("org") \
+        or f.get("source") == SUBMISSIONS_SOURCE or f.get("include_submissions")
+    if not wants_subs:
+        clauses.append(f"NOT (COALESCE(d.source_id,'')='{SUBMISSIONS_SOURCE}' "
+                       "AND COALESCE(d.published,'') < date('now','-14 days'))")
     if not auth.can_restricted(user):
         clauses.append("d.access='public'")
     elif f.get("access") in ("public", "restreint"):
