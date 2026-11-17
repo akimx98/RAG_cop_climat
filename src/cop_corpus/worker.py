@@ -33,15 +33,6 @@ def watch_once(conn, client: fetch.Client) -> int:
         results = ingest.run_many(sources, workers=4)
         new = sum(r.get("new", 0) for r in results.values() if isinstance(r.get("new", 0), int))
         print(f"[veille] {len(sources)} sources, {new} nouveaux", file=sys.stderr, flush=True)
-    if config.SUB:
-        try:
-            from . import soumissions
-
-            out = soumissions.harvest_tick(conn, client)
-            if out:
-                print(f"[soumissions] {out}", file=sys.stderr, flush=True)
-        except Exception:
-            traceback.print_exc()
     ingest.reindex_pending(conn)
     if embed.enabled():
         try:
@@ -93,6 +84,30 @@ def morning_digest(conn) -> None:
     db.meta_set(conn, "digest_day", today)
 
 
+def submissions_once(conn, client: fetch.Client) -> dict:
+    """Un passage de la collecte des soumissions (index toutes les 30 min, puis un lot de téléchargements)."""
+    from . import soumissions
+
+    out = soumissions.harvest_tick(conn, client)
+    if out:
+        print(f"[soumissions] {out}", file=sys.stderr, flush=True)
+    return out
+
+
+def submissions_forever(stop: threading.Event, interval: int = 60) -> None:
+    """Fil dédié : la collecte des soumissions ne dépend pas de la veille documentaire, dont le premier passage
+    après un redémarrage dure ~20 min ; elle démarre dès le lancement du worker. Les documents indexés ici sont
+    vectorisés et confrontés aux alertes par la boucle principale (stock ancien exclu des alertes)."""
+    conn = db.connect()
+    client = fetch.Client()
+    while not stop.is_set():
+        try:
+            submissions_once(conn, client)
+        except Exception:
+            traceback.print_exc()
+        stop.wait(interval)
+
+
 def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> None:
     stop = threading.Event()
     if bot and config.TELEGRAM_TOKEN:
@@ -104,6 +119,8 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
     from . import live_worker
 
     threading.Thread(target=live_worker.run_forever, args=(stop,), daemon=True, name="direct").start()
+    if watch and config.SUB:
+        threading.Thread(target=submissions_forever, args=(stop,), daemon=True, name="soumissions").start()
     conn = db.connect()
     client = fetch.Client()
     alerts.run(conn, notify=False)  # initialise le curseur sans alerter sur l'existant

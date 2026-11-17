@@ -1306,3 +1306,19 @@ def test_settings_centralized_and_documented():
     doc = (root / "docs/architecture.md").read_text(encoding="utf-8").split("## 7. Réglages", 1)[1].split("\n## ", 1)[0]
     documented = set(_re.findall(r"`([A-Z][A-Z_]+)`", doc))
     assert names <= documented, names - documented
+
+
+def test_submissions_harvest_has_its_own_thread(monkeypatch):
+    """La collecte des soumissions ne passe plus par la boucle de veille documentaire (fil dédié)."""
+    import inspect
+
+    from cop_corpus import worker
+
+    assert "harvest_tick" not in inspect.getsource(worker.watch_once)
+    calls = []
+    monkeypatch.setattr("cop_corpus.soumissions.harvest_tick", lambda conn, client: calls.append(1) or {})
+    stop = __import__("threading").Event()
+    monkeypatch.setattr(worker.db, "connect", lambda: None)
+    monkeypatch.setattr(worker, "submissions_once", lambda conn, client: (calls.append(1), stop.set()))
+    worker.submissions_forever(stop, interval=0)
+    assert calls == [1]

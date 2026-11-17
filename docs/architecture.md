@@ -151,8 +151,8 @@ depuis la page « Claude / ChatGPT » du tableau de bord.
 | Tâche | Fil (conteneur `worker`) | Fréquence |
 |---|---|---|
 | Veille documentaire (sources du catalogue selon `watch_minutes`, indexation, embeddings, alertes) | `worker.watch_once` | boucle de 60 s ; un passage complet ≈ 20 min pendant la COP |
-| Soumissions : index du portail + rattachement aux dossiers | `worker.watch_once` → `soumissions.harvest_tick` | 30 min |
-| Soumissions : téléchargement (récentes d'abord, puis le stock) | idem | 60 fichiers par passage |
+| Soumissions : index du portail + rattachement aux dossiers | fil dédié `worker.submissions_forever` | 30 min |
+| Soumissions : téléchargement (récentes d'abord, puis le stock) | idem | 60 fichiers par passage, un passage par minute, dès le démarrage |
 | Récapitulatif du matin (Telegram) | `worker.morning_digest` | 7 h, heure d'Antalya |
 | Textes de session (index Carbon Brief, récupération, alertes) | `live_worker` | 5 min |
 | Bluesky, extraction des positions | `live_worker` | 10 min |
