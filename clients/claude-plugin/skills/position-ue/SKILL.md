@@ -10,9 +10,12 @@ Suivre `protocole-cop31`.
 1. Position de négociation : `rechercher(..., organisation="Conseil de l'UE")` (conclusions du Conseil
    « préparation de la COP31 », finance climat ECOFIN), puis documents internes de coordination
    (`acces="restreint"`) s'ils existent.
-2. Engagements : NDC de l'UE (`types=["ndc"]`, `partie="EU"`), loi climat et objectif 2040 (`types=["loi_ue"]`).
-3. Réalité : `donnees(pays="European Union (27)")` et rapports de l'AEE (niveau 3).
-4. Attaques prévisibles : MACF/CBAM « protectionniste », finance (art. 9), responsabilité historique (émissions
+2. Ce que l'UE a demandé par écrit à la CCNUCC : `soumissions(auteur="EU")` puis `soumissions(document=<id>)`
+   (points soulevés, force du langage, citations exactes ; niveau 2). Pour anticiper une attaque :
+   `comparer_soumissions("EU", "<groupe ou Partie>")` montre où les positions écrites divergent.
+3. Engagements : NDC de l'UE (`types=["ndc"]`, `partie="EU"`), loi climat et objectif 2040 (`types=["loi_ue"]`).
+4. Réalité : `donnees(pays="European Union (27)")` et rapports de l'AEE (niveau 3).
+5. Attaques prévisibles : MACF/CBAM « protectionniste », finance (art. 9), responsabilité historique (émissions
    cumulées), crédits internationaux dans l'objectif 2040. Pour chacune : ce que disent les textes et les chiffres.
 
 ## Rendu

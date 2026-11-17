@@ -14,6 +14,11 @@ Suivre `protocole-cop31`.
    donner son lien unfccc.int (un contributeur l'ouvre et le transfère au bot). Sinon
    `comparer_versions(<lien ou cote>)` → ce qui a changé ; `lire_passage` pour les paragraphes modifiés.
 3. Qui bouge : `positions(dossier=..., depuis="48h")` ; comparer aux positions de référence d'avant la COP.
+   Positions ÉCRITES (soumissions officielles, niveau 2 pour une Partie) : rubrique `positions_ecrites` du
+   dossier ; `soumissions(requete="<mots du titre de l'appel>")` puis `soumissions(appel=<id>)` pour qui a soumis
+   quoi ; `comparer_soumissions("EU", "<groupe>")` pour les accords et conflits entre deux acteurs (indication
+   calculée par règles, à présenter comme une aide à l'analyse). Une soumission dit ce qu'un acteur a demandé par
+   écrit avant ou pendant la session ; `positions` dit ce qui a été relevé en salle et dans la presse.
 4. Compléter par `rechercher` (anglais onusien, `session="CMA8"`…) et `nouveautes(depuis="48h")` si besoin.
 5. Position de l'UE : conclusions du Conseil (niveau 2) — voir `position-ue`. Notes internes (R) : à utiliser,
    jamais à recopier à l'extérieur.

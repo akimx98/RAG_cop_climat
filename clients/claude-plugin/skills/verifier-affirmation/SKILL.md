@@ -13,6 +13,9 @@ Suivre d'abord le protocole `protocole-cop31`.
    UTCATF ; « engagement » (niveau 2) vs « obligation » (niveau 1) ; décision COP vs traité.
 2. **Chercher** dans l'ordre : textes adoptés (niveau 1) → documents officiels (2) → données (3, outil `donnees`)
    → comptes rendus (4). Le niveau 5 sert seulement à montrer qui affirme quoi.
+   Affirmation sur ce qu'un pays ou un groupe « demande » ou « refuse » : ses soumissions officielles font foi
+   pour sa position écrite (`soumissions(auteur="<acteur>")`, puis `soumissions(document=<id>)` : citations
+   exactes, force du verbe) ; une soumission d'observateur reste de niveau 5.
 3. **Lire** les passages décisifs (`lire_passage`) ; vérifier le verbe (shall/should/urges).
 4. **Verdict** parmi : Exact · Exact mais trompeur · Partiellement faux · Faux · Invérifiable dans le corpus.
 

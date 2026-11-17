@@ -346,6 +346,54 @@ personne n'est pas intervenue. Non collectés : Brésil (connexion requise), Roy
 JavaScript), pavillon nordique, Danemark, PNUE (anti-bot Cloudflare, jamais contourné).
 CLI : `cop pavillons-sync`, `cop pavillons --sujet … | --pavillon … | --couverture | --export x.csv|x.jsonl`.
 
+## 10 quinquies. Soumissions officielles à la CCNUCC (17 novembre 2026)
+
+Module `soumissions.py`. Source : l'API JSON publique du portail `submissions.unfccc.int` (celle qu'utilise le
+portail lui-même ; pas d'authentification, pas d'anti-bot) : `/api/CallForSubmissions` (≈670 appels, avec session,
+thèmes, organes), `/api/Submissions` (≈8 500 dépôts depuis 2015 : auteur, type d'entité, co-auteurs en texte libre,
+langue, date), `/api/files/download?serverRelativeFilePath=…` (original). C'est aussi la source de NegotiateCOP.
+
+| Table | Contenu |
+|---|---|
+| `sub_calls` | appels (titre, objet, session normalisée `SB65`, thèmes, organes, type `CallForSubmission`/`Statement`, ouvert, session en cours) |
+| `sub_items` | dépôts (auteur, `kind` party/observer, co-auteurs, date, chemin, `doc_id` une fois indexé, statut) |
+| `sub_actors` | (dépôt, nom canonique, rôle auteur/co-auteur) : recherche des soumissions d'un acteur par **égalité** |
+| `sub_analysis` | résumé FR/EN + points soulevés (force 1–4, verbe, attitude, dossier, citation vérifiée), version du prompt |
+| `sub_comparisons` | comparaisons (points qualifiés, indication, décompte et règle), clé = paire + version + date des analyses |
+
+- **Documents** : chaque fichier devient un document (`source_id='unfccc-submissions'`, `doc_type` `soumission` ou
+  `declaration`, cote propre `UNFCCC-SUB/<id>` pour que la première cote citée dans le texte ne fasse pas de deux
+  soumissions des « versions » l'une de l'autre). Partie → niveau 2, observateur (ONG, OIG, agences, organismes
+  scientifiques) → niveau 5. Type d'entité vide (≈30 % des anciens dépôts) : Partie si le nom apparaît ailleurs avec le
+  type « Party ». Formats non textuels (jpg, xlsx, sans extension) ignorés.
+- **Collecte** (veille documentaire, `worker.watch_once`) : index toutes les 30 min, puis `COP_SUB_PER_TICK` (60)
+  fichiers par passage, d'abord ceux déposés depuis `COP_SUB_ANALYSE_SINCE` (2026-01-01), puis le stock du plus récent
+  au plus ancien. `COP_SUB=0` coupe collecte et analyse.
+- **Stock historique tenu à l'écart** : exclu par défaut de `rechercher`, `nouveautes`, des briefs et des alertes
+  s'il a été déposé il y a plus de 14 jours (`search._filters_sql`, `alerts.matches`) ; inclus avec
+  `types=["soumission"]`, `partie=`, `organisation=` ou `source=`. Vectorisées seulement depuis
+  `COP_SUB_EMBED_SINCE` (2026-01-01) : le stock entier ajouterait ≈190 000 vecteurs en mémoire dans chaque processus ;
+  le reste est cherchable par mots-clés.
+- **Analyse** (IA, documents publics seulement) : automatique pour les soumissions de Parties depuis
+  `COP_SUB_ANALYSE_SINCE` (`live_worker`, 5 toutes les 10 min), sinon à la demande ; ≈1 centime par analyse. Un point
+  dont la citation n'est pas retrouvée mot pour mot est rejeté. Les 6 points les plus forts d'une soumission récente de
+  Partie (ou d'un appel de la session en cours) entrent dans `positions` (`source_kind='soumission'`, `said_on` = date
+  du dépôt) : rubrique `positions_ecrites` du dossier, à part des positions relevées pendant la COP, hors briefs.
+  Une Partie qui soumet au nom d'un groupe (« on behalf of the LMDC ») : position attribuée au groupe.
+- **Comparaison** : l'IA fusionne les points des deux soumissions et qualifie chacun (accord / partiel / conflit /
+  un seul côté) en reprenant la force des points analysés ; l'indication d'ensemble est calculée par
+  `soumissions.verdict` (règles fixes, inspirées de NegotiateCOP : points centraux = langage fort des deux côtés ;
+  ≥ 2 conflits centraux, ou 1 avec ≤ 40 % d'accord → non alignées ; aucun point central → pas de position commune ;
+  ≥ 50 % de différences partielles, conflit secondaire ou 1 conflit avec > 40 % d'accord → partiellement ; sinon
+  alignées). « Contre tout l'appel » : comparaisons en cache d'abord, au plus 4 nouvelles par requête.
+- **Résolveur d'acteurs unique** : `positions.normalize_actor` (alias EN/FR : UE → EU, PMA → LDC, Groupe africain →
+  AGN… ; sigle entre parenthèses ; parenthèse finale retirée seulement si c'est un sigle). Partagé par `positions`,
+  `soumissions`, `comparer_soumissions` : égalité stricte, jamais de sous-chaîne (« Mali » ≠ « Somalia ») ; nom
+  inconnu → noms proches proposés.
+- **Outils MCP** : `soumissions` (appels, qui a soumis quoi, `document=` : analyse), `comparer_soumissions`.
+  CLI : `cop soumissions etat|index|telecharger|analyser|comparer|appels|appel`.
+- **Pas encore** : lien dossier ↔ appel, groupes de négociation (listes de membres sourcées), vue web de l'analyse.
+
 ## 11. Coûts
 
 | Poste | Estimation |
