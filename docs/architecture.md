@@ -9,14 +9,15 @@ l'exploitation (commandes, déploiement, courrier) dans le [README](../README.md
 
 ```
 sources publiques (ODS/ONU, portail des soumissions CCNUCC, EUR-Lex, Conseil UE, GIEC, PNUE, ENB, Carbon Brief,
-cop31.tr, OWID…) + dépôts des contributeurs (tableau de bord, Telegram, courrier)
+cop31.tr, OWID…) + lettres d'information reçues sur veille@
    │  worker : veille documentaire, veille en direct (textes, positions, briefs), soumissions, groupes, pavillons
    ▼
 data/cop.sqlite3 (une seule base SQLite : FTS5 + vecteurs en mémoire)
    │
-   ├── tableau de bord web   /                 dossiers, textes, recherche, alertes, dépôt, admin (FR/EN)
-   ├── MCP                   /u/<jeton>/mcp    Claude (plugin clients/claude-plugin) et ChatGPT
-   └── bot Telegram          alertes, dossiers, recherche, notes de terrain, dépôt de PDF
+   ├── site web              /                 accueil, connecter un LLM, planifier ma journée, mes sujets,
+   │                                           à propos (comment ça marche, base de données, contact), compte, admin
+   ├── MCP                   /u/<jeton>/mcp    Claude (plugin clients/claude-plugin), ChatGPT, Le Chat
+   └── bot Telegram          alertes sur les sujets, récapitulatif sans IA à 7 h et 19 h, recherche rapide
 ```
 
 Trois conteneurs sur le VPS : `app` (web + MCP), `worker` (toutes les tâches planifiées, bot Telegram), `mail`
@@ -45,7 +46,7 @@ sa date et « non adopté » ; un niveau 5 ne dément pas un niveau 1–3 ; rien
 | Corpus | `ingest.py`, `extract.py`, `search.py`, `embed.py` | `documents` (reçu SHA-256, niveau, lignée de versions, accès), `passages` + `passages_fts`, `vectors`, `url_state`, `fetch_log`, `source_state` |
 | Données chiffrées | `data.py` | `emissions` (Our World in Data ; sert aussi de table pays → ISO3) |
 | Utilisateurs et alertes | `auth.py`, `alerts.py`, `telegram.py` | `users`, `login_codes`, `subscriptions`, `notifications`, `meta` |
-| Négociations en direct | `live.py`, `positions.py`, `briefs.py` | `live_texts` (index Carbon Brief), `dossier_status`, `positions`, `extraction_log`, `social_posts`, `field_notes` (notes de terrain, restreintes), `briefs`, `dossier_follows`, `llm_usage` |
+| Négociations en direct | `live.py`, `positions.py`, `briefs.py` | `live_texts` (index Carbon Brief), `dossier_status`, `positions`, `extraction_log`, `social_posts`, `field_notes` (notes de terrain, saisie retirée), `briefs`, `dossier_follows`, `llm_usage` |
 | Soumissions officielles | `soumissions.py` | `sub_calls`, `sub_items` (dont ISO3 de l'auteur), `sub_actors`, `sub_call_dossiers`, `sub_analysis`, `sub_comparisons` |
 | Groupes de négociation | `groupes.py` + `catalog/groupes.yaml` | `grp_groups`, `grp_members` |
 | Programme et pavillons | `agenda.py`, `pavillons.py`, `pavillons_ext.py` | `agenda_events`, `agenda_overview`, `pav_events` + `pav_fts` |
@@ -102,8 +103,23 @@ gardées seulement si la citation figure mot pour mot dans la source ; extractio
 9 000 caractères) ; documents de l'ENB lus quelle que soit leur voie d'entrée (`positions.POSITION_ORGS`) : l'ENB
 attribue chaque intervention (« the EU, supported by NORWAY, opposed by SAUDI ARABIA ») et c'est la seule source
 publique des positions de l'UE par point de l'ordre du jour, qui ne publie pas ces interventions ; briefs IA par dossier à
-7 h et 19 h, désactivés par défaut (`COP_BRIEFS`) ; notes de terrain restreintes, jamais
-envoyées à un modèle.
+7 h et 19 h, désactivés par défaut (`COP_BRIEFS`). Étape de chaque texte, sans IA (`live.text_stage`) : projet,
+proposé pour adoption (document L), adopté (titre ou cote de décision) ; elle figure dans les alertes.
+
+### Mes sujets, alertes et récapitulatif
+
+Un sujet = un dossier suivi (`dossier_follows`) ou une requête par mots-clés (`subscriptions`). `topics.whats_new`
+(sans IA, recherche par mots) donne pour chaque sujet ce qui a bougé depuis une date : textes de session (étape,
+crochets, changements), comptes rendus et lettres qui en parlent, documents signalés. Elle sert à la page « My topics »,
+à l'outil `nouveautes(mes_sujets=true)` et au récapitulatif Telegram de 7 h et 19 h (`digest.py`, rien de neuf → pas
+de message, question toute prête pour le LLM de l'utilisateur en fin de message). Le dépôt de documents par les
+contributeurs (site, Telegram, `depot-<code>@`) et les notes de terrain sont retirés.
+
+### Calendrier
+
+`events.py` réunit `pav_events` (pavillons, side events, hors site) et les réunions officielles d'`agenda_events` pour
+la page « Plan my day » : filtres jour, mots (frontières de mots), type, zone, pavillon, « mes sujets » (mots des
+sujets et alias des dossiers suivis). Sans IA.
 
 ### Soumissions officielles
 
@@ -163,13 +179,12 @@ par famille d'outils ; le détail est dans la description de chaque outil. Un te
 | `document` | métadonnées et versions d'un document |
 | `comparer_versions` | ce qui a changé entre deux versions d'un texte (diff, crochets, options) |
 | `crochets` | formulations entre crochets d'un projet de texte sur un thème (genre, droits humains, désinformation…) et depuis quelle version |
-| `nouveautes` | documents entrés récemment |
+| `nouveautes` | documents entrés récemment ; `mes_sujets=true` : ce qui a bougé sur les sujets de l'utilisateur |
 | `donnees` | chiffres d'émissions |
 | `glossaire` | sigles et notions |
 | `dossiers` | vue d'ensemble des dossiers ; `textes=true` : derniers textes annoncés |
 | `dossier` | un dossier : état, textes, brief, positions, positions écrites, soumissions liées, notes |
 | `positions` | qui veut quoi (acteur, dossier, période) ; `divisions=true` : clivages internes d'un groupe (sous-groupes, membres) et alliés hors groupe |
-| `noter` | note de terrain (restreinte) |
 | `soumissions` | appels, qui a soumis quoi, par dossier ou par groupe ; `document=` : analyse |
 | `comparer_soumissions` | comparaison de deux acteurs (repli : sous-groupes et membres, puis dernière soumission ; écart de dates signalé ; appels candidats listés), ou contre tout un appel ; `acteurs=` : matrice (cache) |
 | `groupes` | membres sourcés d'un groupe, groupes d'une Partie |
@@ -186,10 +201,11 @@ Méthodes (prompts MCP, FR/EN, étapes définies une fois dans `mcp_server.METHO
 
 ## 5. Skills du plugin Claude
 
-`clients/claude-plugin/skills/` : `protocole-cop31` (règles de base), `verifier-affirmation`, `point-negociation`,
-`position-ue`, `brief-novice`, `decoder-texte`, `brief-du-jour`, `se-reperer`. Un test vérifie que chaque outil
-appelé par un skill existe. ChatGPT : `clients/chatgpt-instructions.md`. Le plugin et les skills se téléchargent
-depuis la page « Claude / ChatGPT » du tableau de bord.
+`clients/claude-plugin/skills/` (en anglais, réponse dans la langue de l'utilisateur) : `cop31-protocol` (règles de
+base), `fact-check`, `negotiation-update`, `eu-position`, `beginner-brief`, `decode-text`, `daily-brief`,
+`find-your-way`, `plan-my-day`. Un test vérifie que chaque outil appelé par un skill existe. ChatGPT :
+`clients/chatgpt-instructions.md` ; Le Chat : `clients/mistral-instructions.md`. Le plugin et les skills se
+téléchargent depuis la page « Connect an LLM » du site.
 
 ## 6. Tâches planifiées
 
@@ -199,12 +215,13 @@ depuis la page « Claude / ChatGPT » du tableau de bord.
 | Comptes rendus quotidiens de l'ENB en PDF (`enb-daily-pdf`, numéros suivants) | `worker.watch_once` | 1 h |
 | Soumissions : index du portail + rattachement aux dossiers | fil dédié `worker.submissions_forever` | 30 min |
 | Soumissions : téléchargement (récentes d'abord, puis le stock) | idem | 60 fichiers par passage, un passage par minute, dès le démarrage |
-| Récapitulatif du matin (Telegram) | `worker.morning_digest` | 7 h, heure d'Antalya |
+| Récapitulatif de mes sujets (Telegram, sans IA) | `worker.digest` → `digest.run` | 7 h et 19 h, heure d'Antalya |
 | Textes de session (index Carbon Brief, récupération, alertes) | `live_worker` | 5 min |
 | Bluesky, extraction des positions | `live_worker` | 10 min |
 | Analyse des soumissions de Parties récentes (si `COP_SUB_AUTO_ANALYSE=1`) | `live_worker` | 10 min (5 par passage) |
 | État des dossiers, positions de référence Carbon Brief | `live_worker` | 1 h |
 | Programme (planner), pavillons | `live_worker` | 6 h |
+| Relevé SEORS par requête ordinaire (`agenda.sync_seors` : s'arrête sur l'anti-bot tant que l'adresse du serveur n'est pas autorisée par la CCNUCC) | `live_worker` | 1 h |
 | Groupes de négociation | `live_worker` | 24 h |
 | Briefs par dossier (si `COP_BRIEFS=1`) | `live_worker` | 7 h et 19 h |
 | Bot Telegram, courrier entrant | fils dédiés | en continu |
@@ -219,7 +236,8 @@ tableau couvre toutes les variables lues.
 | `COP_DATA_DIR`, `COP_DB`, `COP_CATALOG` | `data/`, `data/cop.sqlite3`, `catalog/` | emplacements des données, de la base, des catalogues |
 | `COP_PUBLIC_BASE` | `http://localhost:8000` | adresse publique (liens des alertes et des outils) |
 | `COP_SECRET` | (à définir) | signature des cookies et des liens ; obligatoire en production |
-| `COP_SOURCE_URL` | vide | dépôt public du code, affiché s'il est renseigné |
+| `COP_SOURCE_URL` | dépôt GitHub du projet | dépôt public du code (licence MIT), affiché sur le site |
+| `COP_CONTACT_EMAIL` | vide | destinataire du formulaire de contact (jamais affiché) ; vide → formulaire inactif |
 | `COP_USER_AGENT`, `COP_HOST_DELAY`, `COP_MAX_DOWNLOAD_MB` | agent du projet, 1 s, 60 Mo | collecte polie |
 | `OPENAI_API_KEY` | vide | embeddings et modèle de langage ; vide → recherche lexicale seule, pas d'IA |
 | `COP_EMBED_PROVIDER`, `COP_EMBED_MODEL`, `COP_EMBED_DIM` | `openai` si clé, `text-embedding-3-small`, 512 | embeddings |
@@ -238,10 +256,9 @@ tableau couvre toutes les variables lues.
 | `COP_SUB_EMBED_SINCE` | 2026-01-01 | soumissions vectorisées seulement depuis cette date |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_NAME` | vide | bot Telegram |
 | `COP_TELEGRAM_RESTRICTED_SNIPPETS` | 0 | 1 = titres et extraits des documents internes dans Telegram |
-| `COP_TELEGRAM_ALLOW_UPLOAD` | 1 | dépôt de documents par le bot |
-| `COP_TZ`, `COP_DIGEST_HOUR` | `Europe/Istanbul`, 7 | fuseau de la COP, heure du récapitulatif |
+| `COP_TZ`, `COP_DIGEST_HOURS` | `Europe/Istanbul`, 7,19 | fuseau de la COP, heures du récapitulatif Telegram |
 | `COP_MAIL_DOMAIN`, `COP_MAIL_CERT`, `COP_MAIL_KEY`, `COP_MAIL_MAX_MB` | domaine public, certificat de Caddy, 40 Mo | courrier entrant |
-| `COP_MAIL_PROVIDER`, `COP_MAIL_API_KEY`, `COP_MAIL_FROM` | vide | envoi des codes de connexion par e-mail (resend, brevo) |
+| `COP_MAIL_PROVIDER`, `COP_MAIL_API_KEY`, `COP_MAIL_FROM` | vide | envoi des codes de connexion et du formulaire de contact (resend, brevo) |
 | `MCP_ALLOWED_HOSTS` | vide | hôtes admis par le MCP (protection DNS rebinding) |
 | `COP_LOCAL_ADMIN` | 1 | MCP en stdio : utilisateur administrateur local |
 
@@ -250,8 +267,9 @@ tableau couvre toutes les variables lues.
 - Documents internes (`acces='restreint'`) : visibles des seuls contributeurs ; jamais envoyés à l'API
   d'embeddings (sauf `COP_EMBED_RESTRICTED=1`), ni à un modèle de langage (analyse, positions, briefs) ;
   titres et extraits masqués dans Telegram par défaut.
-- Notes de terrain : restreintes, jamais envoyées à un modèle.
-- Les invités consultent le corpus public et ne peuvent pas déposer.
+- Notes de terrain : saisie retirée ; les notes existantes restent restreintes, jamais envoyées à un modèle.
+- Personne ne dépose plus de document par le site, Telegram ou le courrier ; un administrateur peut déposer le PDF
+  d'un texte de session bloqué par un anti-bot (onglet « Session texts » de la base de données).
 - Aucune coordonnée personnelle n'est conservée dans les programmes (intervenants : noms tels que publiés).
 
 ## 9. Coûts

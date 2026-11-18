@@ -32,7 +32,8 @@ MAIL_KEY = os.environ.get("COP_MAIL_KEY", _CERTS + ".key")
 MAIL_MAX_MB = float(os.environ.get("COP_MAIL_MAX_MB", "40"))
 # Clé de signature des cookies et liens. Obligatoire en production.
 SECRET = os.environ.get("COP_SECRET", "dev-secret-change-me")
-SOURCE_URL = os.environ.get("COP_SOURCE_URL", "")   # dépôt public du code, affiché s'il est renseigné
+SOURCE_URL = os.environ.get("COP_SOURCE_URL", "https://github.com/akimx98/RAG_cop_climat")   # dépôt public du code (licence MIT)
+CONTACT_EMAIL = os.environ.get("COP_CONTACT_EMAIL", "")   # destinataire du formulaire de contact (jamais affiché)
 
 USER_AGENT = os.environ.get(
     "COP_USER_AGENT",
@@ -53,11 +54,10 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_NAME = os.environ.get("TELEGRAM_BOT_NAME", "")
 # Envoyer des extraits de documents restreints dans Telegram ? (non chiffré de bout en bout)
 TELEGRAM_RESTRICTED_SNIPPETS = os.environ.get("COP_TELEGRAM_RESTRICTED_SNIPPETS", "0") == "1"
-TELEGRAM_ALLOW_UPLOAD = os.environ.get("COP_TELEGRAM_ALLOW_UPLOAD", "1") == "1"
 
 # Fuseau de la COP (Antalya) pour l'affichage et le digest du matin.
 TIMEZONE = os.environ.get("COP_TZ", "Europe/Istanbul")
-DIGEST_HOUR = int(os.environ.get("COP_DIGEST_HOUR", "7"))
+DIGEST_HOURS = [int(h) for h in os.environ.get("COP_DIGEST_HOURS", "7,19").split(",") if h.strip()]  # récapitulatif Telegram
 
 # --- Serveur MCP --------------------------------------------------------------------------------------------------
 MCP_ALLOWED_HOSTS = [h for h in re.split(r"[,\s]+", os.environ.get("MCP_ALLOWED_HOSTS", "")) if h]

@@ -1,5 +1,5 @@
-"""Bot Telegram : liaison de compte, gestion des sujets suivis, recherche rapide,
-dépôt de documents (PDF/Word transférés), alertes.
+"""Bot Telegram : liaison de compte, alertes et récapitulatifs sur les sujets suivis, gestion des sujets,
+recherche rapide. L'analyse se fait dans le LLM de l'utilisateur, connecté par MCP.
 
 Attention : les conversations avec un bot Telegram ne sont PAS chiffrées de
 bout en bout. Par défaut, les alertes sur des documents restreints ne
@@ -9,7 +9,6 @@ contiennent ni titre ni extrait (COP_TELEGRAM_RESTRICTED_SNIPPETS=0).
 from __future__ import annotations
 
 import html
-import re
 import time
 from typing import Any
 
@@ -53,30 +52,29 @@ def download(file_id: str) -> bytes | None:
     return r.content if r.status_code == 200 else None
 
 
-HELP_BASE = (
-    "<b>Assistant COP31</b>\n"
-    "/suivre mots, clés, séparés par des virgules — suivre un sujet\n"
-    "/sujets — vos sujets suivis\n"
-    "/arreter N — arrêter le suivi n° N\n"
-    "/cherche question — recherche dans le corpus\n"
-    "/nouveau — derniers documents entrés\n"
-    "/tableau — lien vers le tableau de bord\n"
-    "/lang en — English\n"
+HELP_EN = (
+    "<b>COP31 Tracker</b> · alerts on your topics\n"
+    "You get an alert for each new text on the negotiations you follow (draft → forwarded for adoption → "
+    "adopted), alerts on your keyword topics, and a digest of your topics at 7am and 7pm (Antalya time).\n\n"
+    "/brief — digest of my topics since this morning\n"
+    "/topics — my topics · /follow keywords, separated, by commas · /stop N\n"
+    "/negotiations — negotiation items (✓ = followed) · /track GGA — follow or unfollow one\n"
+    "/negotiation GGA — status and latest texts · /texts — latest texts\n"
+    "/search question — quick search in the corpus\n"
+    "/dashboard — website · /lang fr — français\n\n"
+    "💬 To decode the texts, ask your connected LLM: {base}/connect"
 )
-HELP_BASE_EN = (
-    "<b>COP31 assistant</b>\n"
-    "/follow keywords, separated, by commas — follow a topic\n"
-    "/topics — your topics\n"
-    "/stop N — stop following topic no. N\n"
-    "/search question — search the corpus\n"
-    "/new — latest documents\n"
-    "/dashboard — link to the website\n"
-    "/lang fr — français\n"
-)
-HELP = HELP_BASE + (
-    "Envoyez un <b>PDF ou un Word</b> (légende = titre) : il est ajouté au corpus comme document "
-    "<b>interne restreint</b>. Envoyez une <b>URL</b> : la page est ajoutée au corpus public.\n"
-    "Ajoutez <code>#public</code> dans la légende d'un fichier pour le classer public."
+HELP_FR = (
+    "<b>COP31 Tracker</b> · alertes sur vos sujets\n"
+    "Vous recevez une alerte à chaque nouveau texte des dossiers suivis (projet → proposé pour adoption → adopté), "
+    "les alertes de vos sujets par mots-clés, et un récapitulatif de vos sujets à 7 h et 19 h (heure d'Antalya).\n\n"
+    "/brief — récapitulatif de mes sujets depuis ce matin\n"
+    "/sujets — mes sujets · /suivre mots, clés, séparés par des virgules · /arreter N\n"
+    "/dossiers — dossiers de négociation (✓ = suivis) · /suivi GGA — suivre ou ne plus suivre\n"
+    "/dossier GGA — état et derniers textes · /textes — derniers textes\n"
+    "/cherche question — recherche rapide dans le corpus\n"
+    "/tableau — site · /lang en — English\n\n"
+    "💬 Pour décoder les textes, demandez à votre LLM connecté : {base}/connect"
 )
 # Alias anglais des commandes (le traitement reste sur la commande française).
 ALIASES = {"/search": "/cherche", "/follow": "/suivre", "/topics": "/sujets", "/stop": "/arreter",
@@ -85,13 +83,9 @@ ALIASES = {"/search": "/cherche", "/follow": "/suivre", "/topics": "/sujets", "/
 
 
 def help_for(user: dict | None) -> str:
-    from . import auth, i18n, live_bot
+    from . import i18n
 
-    if i18n.default_for(user) == "en":
-        return HELP_BASE_EN + live_bot.HELP_EN
-    if auth.can_contribute(user):
-        return HELP + live_bot.HELP
-    return HELP_BASE + live_bot.HELP_GUEST
+    return (HELP_EN if i18n.default_for(user) == "en" else HELP_FR).replace("{base}", config.PUBLIC_BASE)
 
 
 def _user_for_chat(conn, chat_id: int) -> dict | None:
@@ -100,7 +94,7 @@ def _user_for_chat(conn, chat_id: int) -> dict | None:
 
 
 def handle(conn, update: dict) -> None:
-    from . import alerts, ingest, search  # import tardif (cycle)
+    from . import alerts, search  # import tardif (cycle)
 
     msg = update.get("message") or update.get("channel_post")
     if not msg:
@@ -115,10 +109,10 @@ def handle(conn, update: dict) -> None:
             if row:
                 conn.execute("UPDATE users SET telegram_chat_id=? WHERE id=?", (str(chat_id), row["id"]))
                 conn.commit()
-                send(chat_id, f"✅ Compte lié : {html.escape(row['name'] or row['email'])}.\n\n{help_for(dict(row))}")
+                send(chat_id, f"✅ {html.escape(row['name'] or row['email'])}\n\n{help_for(dict(row))}")
                 return
-        send(chat_id, "Send <code>/start YOUR_CODE</code> (shown on the website, Telegram page).\n"
-                      "Envoyez <code>/start VOTRE_CODE</code> (code affiché sur le site, page Telegram).")
+        send(chat_id, "Send <code>/start YOUR_CODE</code> (shown on the website, My topics page).\n"
+                      "Envoyez <code>/start VOTRE_CODE</code> (code affiché sur le site, page My topics).")
         return
 
     user = _user_for_chat(conn, chat_id)
@@ -127,41 +121,16 @@ def handle(conn, update: dict) -> None:
                       "Compte non lié. Envoyez <code>/start VOTRE_CODE</code>.")
         return
 
-    from . import auth, i18n
+    from . import i18n
 
     lang = i18n.default_for(user)
 
     def T(fr: str, en: str) -> str:
         return i18n.pick(lang, fr, en)
 
-    contributor = auth.can_contribute(user)
-    doc = msg.get("document")
-    if doc and not contributor:
-        send(chat_id, T("Seuls les contributeurs peuvent ajouter des documents au corpus commun.",
-                        "Only contributors can add documents to the shared corpus."))
-        return
-    if doc:
-        if not config.TELEGRAM_ALLOW_UPLOAD:
-            send(chat_id, "Le dépôt par Telegram est désactivé : utilisez le tableau de bord.")
-            return
-        if doc.get("file_size", 0) > 20 * 1024 * 1024:
-            send(chat_id, "Fichier > 20 Mo (limite Telegram) : déposez-le sur le tableau de bord.")
-            return
-        content = download(doc["file_id"])
-        if not content:
-            send(chat_id, "Téléchargement impossible.")
-            return
-        public = "#public" in text.lower()
-        title = re.sub(r"#\w+", "", text).strip() or doc.get("file_name")
-        doc_id, new, status = ingest.ingest_bytes(
-            conn, content, url=None, mime=doc.get("mime_type", ""), meta={"title": title} if title else {},
-            source_id="depot-telegram", access="public" if public else "restreint", uploaded_by=user["id"],
-            filename=doc.get("file_name"),
-        )
-        verdict = "ajouté" if new else "déjà présent"
-        send(chat_id, f"📥 Document {verdict} ({'public' if public else 'restreint'}, {status}) : "
-                      f"{config.PUBLIC_BASE}/doc/{doc_id}")
-        alerts.run(conn)
+    if msg.get("document"):
+        send(chat_id, T("Le bot ne reçoit pas de documents. Pour chercher : /cherche …",
+                        "The bot does not take documents. To search: /search …"))
         return
     if msg.get("photo"):
         send(chat_id, T("Les photos ne sont pas lues : utilisez /cherche …", "Photos are not read: use /search …"))
@@ -240,22 +209,6 @@ def handle(conn, update: dict) -> None:
             for d in docs) or T("Rien.", "Nothing."))
     elif cmd == "/tableau":
         send(chat_id, f"{config.PUBLIC_BASE}/")
-    elif re.match(r"https?://\S+$", text) and not contributor:
-        send(chat_id, T("Seuls les contributeurs peuvent ajouter des pages au corpus commun. Pour chercher : /cherche …",
-                        "Only contributors can add pages to the shared corpus. To search: /search …"))
-    elif re.match(r"https?://\S+$", text):
-        from . import fetch
-
-        res = fetch.Client().get(text)
-        if not res.ok or fetch.is_antibot(res):
-            send(chat_id, "Page inaccessible (ou protégée par un anti-bot) : envoyez le fichier directement.")
-            return
-        doc_id, new, status = ingest.ingest_bytes(
-            conn, res.content, url=res.url, mime=res.mime, meta={}, source_id="depot-telegram",
-            access="public", uploaded_by=user["id"],
-        )
-        send(chat_id, f"📥 {'Ajouté' if new else 'Déjà présent'} : {config.PUBLIC_BASE}/doc/{doc_id}")
-        alerts.run(conn)
     else:
         send(chat_id, help_for(user))
 
@@ -266,26 +219,31 @@ def poll_forever(stop=None) -> None:
         return
     conn = db.connect()
     offset = int(db.meta_get(conn, "telegram_offset", "0") or 0)
-    live_bot = __import__("cop_corpus.live_bot", fromlist=["COMMANDS"])
     call("setMyCommands", commands=[  # menu par défaut : anglais
-        {"command": "search", "description": "search the corpus"},
-        {"command": "follow", "description": "follow a topic (keywords)"},
+        {"command": "brief", "description": "digest of my topics since this morning"},
         {"command": "topics", "description": "my topics"},
-        {"command": "new", "description": "latest documents"},
-        *live_bot.COMMANDS_EN,
+        {"command": "follow", "description": "follow a keyword topic"},
+        {"command": "negotiations", "description": "negotiation items"},
+        {"command": "track", "description": "follow an item (e.g. /track finance)"},
+        {"command": "negotiation", "description": "one item (e.g. /negotiation GGA)"},
+        {"command": "texts", "description": "latest negotiation texts"},
+        {"command": "search", "description": "quick search in the corpus"},
         {"command": "dashboard", "description": "link to the website"},
         {"command": "lang", "description": "language: /lang fr · /lang en"},
         {"command": "help", "description": "help"},
     ])
     call("setMyCommands", language_code="fr", commands=[  # Telegram réglé en français
-        {"command": "suivre", "description": "suivre un sujet (mots-clés)"},
-        {"command": "sujets", "description": "mes sujets suivis"},
-        {"command": "cherche", "description": "chercher dans le corpus"},
-        {"command": "nouveau", "description": "derniers documents"},
-        {"command": "tableau", "description": "lien du tableau de bord"},
+        {"command": "brief", "description": "récapitulatif de mes sujets"},
+        {"command": "sujets", "description": "mes sujets"},
+        {"command": "suivre", "description": "suivre un sujet par mots-clés"},
+        {"command": "dossiers", "description": "les dossiers de négociation"},
+        {"command": "suivi", "description": "suivre un dossier (ex. /suivi finance)"},
+        {"command": "dossier", "description": "état d'un dossier (ex. /dossier GGA)"},
+        {"command": "textes", "description": "derniers textes de négociation"},
+        {"command": "cherche", "description": "recherche rapide dans le corpus"},
+        {"command": "tableau", "description": "lien du site"},
         {"command": "lang", "description": "langue : /lang en · /lang fr"},
         {"command": "aide", "description": "aide"},
-        *live_bot.COMMANDS,
     ])
     while not (stop and stop.is_set()):
         updates = call("getUpdates", offset=offset, timeout=50, allowed_updates=["message"]) or []

@@ -1,10 +1,7 @@
-"""Courrier entrant : dépôt de documents par mail et abonnement aux lettres d'information.
+"""Courrier entrant : abonnement aux lettres d'information.
 
-Deux sortes d'adresses sur ``config.MAIL_DOMAIN`` :
+Une seule adresse sur ``config.MAIL_DOMAIN`` (le dépôt de documents par mail, ``depot-<code>@``, est retiré) :
 
-- ``depot-<code>@`` : une par collègue, le code est secret (comme l'adresse MCP). Tout ce qui y
-  arrive vient donc de lui : pièces jointes et corps du mail entrent au corpus, **restreints** par
-  défaut (``[public]`` dans l'objet pour les rendre publics). Il reçoit un accusé générique sur Telegram.
 - ``veille@`` : adresse d'abonnement aux lettres (ENB, Carbon Brief…). Les mails des expéditeurs
   autorisés entrent comme documents publics de niveau 4 ; les autres (premier envoi d'une lettre,
   mails de confirmation d'abonnement) attendent dans la boîte « Courrier » de l'admin.
@@ -72,17 +69,12 @@ def veille_address() -> str:
 
 
 def route(conn: sqlite3.Connection, address: str) -> tuple[str, dict | None] | None:
-    """('veille', None), ('depot', utilisateur) ou None si l'adresse n'existe pas."""
+    """('veille', None), ou None si l'adresse n'existe pas (le dépôt par mail est retiré)."""
     local, _, domain = address.lower().strip().strip("<>").rpartition("@")
     if domain != config.MAIL_DOMAIN.lower():
         return None
     if local == VEILLE:
         return VEILLE, None
-    m = _DEPOT.match(local)
-    if m:
-        row = conn.execute("SELECT * FROM users WHERE mail_code=? AND active=1", (m.group(1),)).fetchone()
-        if row and (row["is_admin"] or row["can_restricted"]):  # jamais d'adresse de dépôt active pour un invité
-            return "depot", dict(row)
     return None
 
 

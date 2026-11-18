@@ -94,12 +94,11 @@ def test_restricted_hidden_from_public_user(env):
 
 
 def test_telegram_flow(env, monkeypatch):
-    from cop_corpus import auth, telegram
+    from cop_corpus import auth, ingest, telegram
 
     conn = env
     sent: list[tuple] = []
     monkeypatch.setattr(telegram, "send", lambda chat, text: sent.append((chat, text)) or True)
-    monkeypatch.setattr(telegram, "download", lambda fid: ("Note interne sur la ligne rouge finance " * 30).encode())
     auth.create_user(conn, "a@b.c", "Alix")
     code = conn.execute("SELECT telegram_code FROM users").fetchone()[0]
 
@@ -107,14 +106,21 @@ def test_telegram_flow(env, monkeypatch):
         telegram.handle(conn, {"message": {"chat": {"id": 42}, **({"text": text} if text else {}), **extra}})
         return sent[-1][1]
 
-    assert "non lié" in msg("/cherche finance")
-    assert "Compte lié" in msg(f"/start {code}")
-    assert "suivi" in msg("/suivre ligne rouge")
-    out = msg(caption="Note de coordination UE", document={"file_id": "x", "file_name": "note.txt", "mime_type": "text/plain"})
-    assert "restreint" in out
-    out = msg("/cherche ligne rouge finance")
-    assert "Document interne" in out and "Note de coordination" not in out and "ligne rouge" not in out.split("\n", 1)[0]
-    assert "Document interne" in msg("/nouveau")
+    assert "not linked" in msg("/cherche finance")
+    out = msg(f"/start {code}")
+    assert "Alix" in out and "/brief" in out and "/connect" in out          # aide en anglais par défaut
+    assert "Following topic" in msg("/follow ligne rouge")
+    # le dépôt de documents par le bot est retiré
+    assert "does not take documents" in msg(caption="Note", document={"file_id": "x", "file_name": "note.txt"})
+    assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
+    # un document interne déjà au corpus reste masqué dans Telegram
+    ingest.ingest_bytes(conn, ("Note interne sur la ligne rouge finance " * 30).encode(), url=None,
+                        access="restreint", filename="note.txt", meta={"title": "Note de coordination UE"})
+    out = msg("/search ligne rouge finance")
+    assert "Internal document" in out and "Note de coordination" not in out
+    assert "Internal document" in msg("/new")
+    assert "Français" in msg("/lang fr") or "français" in sent[-1][1].lower()
+    assert "/suivi" in msg("/aide")
 
 
 def test_semantic_search_path(env, monkeypatch):
@@ -152,23 +158,30 @@ def test_password_login_and_links(env):
     # première connexion par lien 24 h -> page Compte -> mot de passe
     link = auth.login_link(user).split("/entrer/")[1]
     r = client.get(f"/entrer/{link}", follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/compte"
-    assert "Au moins" in client.post("/compte", data={"password": "court", "password2": "court"}).text
-    r = client.post("/compte", data={"password": "un-bon-mot-de-passe", "password2": "un-bon-mot-de-passe"})
-    assert "Mot de passe enregistré" in r.text
+    assert r.status_code == 303 and r.headers["location"] == "/account"
+    assert "At least" in client.post("/account", data={"password": "court", "password2": "court"}).text
+    r = client.post("/account", data={"password": "un-bon-mot-de-passe", "password2": "un-bon-mot-de-passe"})
+    assert "Password saved" in r.text
     assert client.get(f"/entrer/{link}?lang=fr").text.count("Lien expiré") == 1   # caduc après changement
-    assert token in client.get("/connecteur").text                        # connecteur toujours affiché
+    assert token in client.get("/connect").text                           # adresse toujours affichée
 
-    # connexion par mot de passe depuis un autre navigateur
+    # connexion par mot de passe depuis un autre navigateur (page /signin, puis fenêtre en JSON)
     other = TestClient(Starlette(routes=web.routes), base_url="https://testserver")
-    assert "incorrect" in other.post("/connexion", data={"email": "alix@example.org", "password": "faux"}).text.lower()
-    r = other.post("/connexion", data={"email": "ALIX@example.org", "password": "un-bon-mot-de-passe",
-                                       "next": "/connecteur"}, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/connecteur"
-    assert token in other.get("/connecteur").text
+    assert "incorrect" in other.post("/signin", data={"email": "alix@example.org", "password": "faux"}).text.lower()
+    j = other.post("/signin", data={"email": "alix@example.org", "password": "faux"},
+                   headers={"X-Requested-With": "fetch"}).json()
+    assert j["step"] == "password" and "incorrect" in j["error"].lower()
+    assert other.post("/signin", data={"email": "alix@example.org"}, headers={"X-Requested-With": "fetch"}).json()["step"] == "password"
+    r = other.post("/signin", data={"email": "ALIX@example.org", "password": "un-bon-mot-de-passe",
+                                    "next": "/connect"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/connect"
+    assert token in other.get("/connect").text
     r = other.post("/connexion", data={"email": "alix@example.org", "password": "un-bon-mot-de-passe",
                                        "next": "//evil.example"}, follow_redirects=False)
     assert r.headers["location"] == "/"
+    j = other.post("/signin", data={"email": "alix@example.org", "password": "un-bon-mot-de-passe", "next": "/topics"},
+                   headers={"X-Requested-With": "fetch"}).json()
+    assert j == {"redirect": "/topics"}
 
     # limitation des essais
     for _ in range(auth.MAX_FAILURES):
@@ -188,8 +201,7 @@ def test_mail_deposit_and_newsletter(env, monkeypatch):
     conn.commit()
     user = auth.by_id(conn, uid)
     addr = mailin.deposit_address(conn, user)
-    assert mailin.route(conn, addr)[1]["id"] == uid
-    assert mailin.route(conn, "depot-000000@" + config.MAIL_DOMAIN) is None
+    assert mailin.route(conn, addr) is None                               # dépôt par mail retiré
     assert mailin.route(conn, "root@" + config.MAIL_DOMAIN) is None
     assert mailin.route(conn, "veille@" + config.MAIL_DOMAIN)[0] == "veille"
 
@@ -201,13 +213,9 @@ def test_mail_deposit_and_newsletter(env, monkeypatch):
     m = EmailMessage()
     m["From"], m["To"], m["Subject"] = "Alix <alix@example.org>", addr, "TR: Note de coordination UE finance"
     m.set_content("Compte rendu de la coordination UE du matin sur le NCQG. " * 8)
-    m.add_attachment(b"Draft text on the new collective quantified goal. " * 20, maintype="text",
-                     subtype="plain", filename="draft-ncqg.txt")
     spool(m, addr)
-    assert mailin.process_spool(conn) == 1
-    docs = conn.execute("SELECT title, access, uploaded_by FROM documents ORDER BY id").fetchall()
-    assert len(docs) == 2 and all(d["access"] == "restreint" and d["uploaded_by"] == uid for d in docs)
-    assert sent and "2 document(s)" in sent[-1][1] and "coordination" not in sent[-1][1]   # accusé sans titre
+    mailin.process_spool(conn)
+    assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
 
     n = EmailMessage()
     n["From"], n["Subject"] = "ENB <enb@iisd.org>", "Earth Negotiations Bulletin: COP31 highlights, Monday"
@@ -300,8 +308,21 @@ def test_bracket_delta_alert(env):
 
     sent = []
     assert live.notify_retrieved(conn, lambda chat, text: sent.append((chat, text))) == 1
-    assert sent and sent[0][0] == "7" and "crochets 2→0 (-2, levés)" in sent[0][1]
+    assert sent and sent[0][0] == "7" and "brackets 2→0 (-2, resolved)" in sent[0][1]   # anglais par défaut
     assert live.notify_retrieved(conn, lambda *a: sent.append(a)) == 0  # ne ré-alerte pas
+    assert "brackets 2→0 (-2, resolved)" in diff.delta_line(d, "en")
+
+
+def test_text_stage():
+    from cop_corpus import live
+
+    assert live.text_stage({"symbol": "FCCC/SBI/2026/L.13", "cb_type": "Draft conclusions"}) == "for_adoption"
+    assert live.text_stage({"title": "Draft text on GGA", "cb_type": "draft text"}) == "draft"
+    assert live.text_stage({"title": "Informal note by the co-facilitators", "cb_type": "informal note"}) == "draft"
+    assert live.text_stage({"title": "CMA 8 Agenda as adopted", "cb_type": "Agenda"}) == "adopted"
+    assert live.text_stage({"title": "Decision -/CMA.8 Global goal on adaptation", "cb_type": ""}) == "adopted"
+    assert live.text_stage({"title": "Synthesis report", "cb_type": "Synthesis reports"}) == "other"
+    assert live.stage_label("for_adoption", "en").startswith("🔨 forwarded")
 
 
 PLANNER_PAGE ="""<html><script>var SLOTS=[['11:30','13:00'],['13:15','14:45'],['15:00','16:30'],['16:45','18:15'],['18:30','20:00']];
@@ -389,31 +410,35 @@ def test_guest_signup_and_permissions(env, monkeypatch):
     assert "pas (ou plus) valable" in client.get("/rejoindre/mauvais?lang=fr").text
     client.get("/join/mauvais?lang=en")                                    # choix de langue mémorisé
     r = client.post("/rejoindre", data={"code": inv["code"], "check_code": "1"}, follow_redirects=False)
-    assert r.headers["location"] == f"/join/{inv['code']}#signup"
+    assert r.headers["location"] == f"/join/{inv['code']}"
+    page = client.get(f"/join/{inv['code']}").text                         # l'accueil, fenêtre d'inscription ouverte
+    assert 'data-open="signup"' in page and f'action="/join/{inv["code"]}"' in page and "su-pw" not in page
     form = {"code": inv["code"], "name": "Sam Invité", "organisation": "ONG X", "email": "Sam@ong.org",
             "password": "mot-de-passe-long", "password2": "mot-de-passe-long"}
-    r = client.post(f"/rejoindre/{inv['code']}", data=form, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/bienvenue"
+    j = client.post(f"/rejoindre/{inv['code']}", data=form, headers={"X-Requested-With": "fetch"}).json()
+    assert j == {"redirect": "/?welcome=1"}
     guest = auth.by_email(conn, "sam@ong.org")
     assert guest["source"] == "invitation" and not guest["can_restricted"] and not guest["is_admin"]
     assert auth.is_guest(guest) and not auth.can_contribute(guest)
 
-    page = client.get("/bienvenue").text
-    assert f"/u/{auth.mcp_token(guest)}/mcp" in page
-    client.post("/bienvenue", data={"dossiers": ["finance", "technologie-capacites"], "sujet": "Action for Climate Empowerment"})
+    home = client.get("/?welcome=1").text
+    assert "Welcome" in home and "Get started" in home and 'href="/connect"' in home and "Create a free account" not in home
+    assert f"/u/{auth.mcp_token(guest)}/mcp" in client.get("/connect").text
+    client.post("/topics", data={"action": "dossiers", "dossiers": ["finance", "technologie-capacites"]})
+    client.post("/topics", data={"action": "add", "query": "Action for Climate Empowerment"})
     assert live.followed(conn, guest["id"]) == {"finance", "technologie-capacites"}
-    home = client.get("/").text
-    assert "Getting started" not in home and 'href="/deposer"' not in home
+    topics_page = client.get("/topics").text
+    assert "Action for Climate Empowerment" in topics_page and "Alerts on Telegram" in topics_page
     assert guest["lang"] == "en" and 'lang="en"' in home
     assert "<svg" in client.get("/inviter").text                       # QR code d'invitation
     client.get("/lang/fr")
-    assert "Fil" in client.get("/").text and auth.by_id(conn, guest["id"])["lang"] == "fr"
+    assert "Mes sujets" in client.get("/").text and auth.by_id(conn, guest["id"])["lang"] == "fr"
     client.get("/lang/en")
 
-    # aucun ajout au corpus, aucun brief IA
-    assert client.get("/deposer").status_code == 403
-    assert client.post("/dossiers/finance/brief").status_code == 403
+    # aucun ajout au corpus, aucune administration
+    assert client.get("/deposer", follow_redirects=False).status_code == 301
     assert client.post("/textes/1/deposer").status_code == 403
+    assert client.get("/admin").status_code == 403
 
     # même e-mail, plafond, nouveau code
     other = TestClient(app, base_url="https://testserver")
@@ -429,14 +454,13 @@ def test_guest_signup_and_permissions(env, monkeypatch):
     # Telegram : ni dépôt, ni URL, ni note de terrain
     sent: list[tuple] = []
     monkeypatch.setattr(telegram, "send", lambda chat, text: sent.append((chat, text)) or True)
-    monkeypatch.setattr(telegram, "download", lambda fid: b"x" * 500)
     telegram.handle(conn, {"message": {"chat": {"id": 7}, "text": f"/start {guest['telegram_code']}"}})
-    assert "Compte lié" in sent[-1][1] and "PDF" not in sent[-1][1] and "/search" in sent[-1][1]
+    assert "Sam" in sent[-1][1] or "sam@ong.org" in sent[-1][1]
+    assert "PDF" not in sent[-1][1] and "/search" in sent[-1][1] and "/note" not in sent[-1][1]
     n_docs = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
     for extra in ({"document": {"file_id": "x", "file_name": "a.txt", "mime_type": "text/plain"}},
                   {"text": "https://example.org/page"}, {"text": "/note GGA blocage au §12"}):
         telegram.handle(conn, {"message": {"chat": {"id": 7}, **extra}})
-        assert "contributors" in sent[-1][1]
     assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == n_docs
 
     # adresse de dépôt par e-mail inactive pour un invité
@@ -457,12 +481,13 @@ def test_mcp_guest_tools_and_prompts(env, monkeypatch):
     guest = auth.by_id(conn, uid)
     monkeypatch.setattr(mcp_server, "_user", lambda ctx: guest)
     assert "reserved for contributors" in mcp_server.deposer_url("https://example.org")["erreur"]
-    assert "contributors" in mcp_server.noter("blocage")["erreur"]
+    assert not hasattr(mcp_server, "noter")                               # notes de terrain retirées
     assert mcp_server.suivre(dossier="ace")["dossier"] == "ace"
     assert "erreur" in mcp_server.suivre(mots_cles="x", dossier="ace")
     assert [d["slug"] for d in mcp_server.mes_sujets()["dossiers_suivis"]] == ["ace"]
-    assert all(d["nb_notes"] == 0 for d in live.overview(conn, guest))
     assert "notes_terrain_internes" not in mcp_server.dossier("finance")
+    news = mcp_server.nouveautes(depuis="24h", mes_sujets=True)
+    assert [s["slug"] for s in news["sujets"]] == ["ace"] and news["sans_nouveaute"]
     for prompt in (mcp_server.point_negociation("ACE"), mcp_server.position_pays("Brésil", "fossiles"),
                    mcp_server.preparer_rencontre("ACE"), mcp_server.plaidoyer("adaptation"),
                    mcp_server.decouvrir_sujet("éducation au climat"), mcp_server.quoi_de_neuf()):
@@ -514,7 +539,7 @@ def test_passwordless_signup_and_email_code_login(env, monkeypatch):
 
     # inscription : nom + e-mail, pas de mot de passe ; session d'un an
     phone = TestClient(app, base_url="https://testserver")
-    assert 'type="password"' not in phone.get(f"/join/{code}").text
+    assert 'id="su-pw"' not in phone.get(f"/join/{code}").text
     r = phone.post(f"/join/{code}", data={"code": code, "name": "Ana", "email": "ana@ngo.org"}, follow_redirects=False)
     assert r.status_code == 303 and "max-age=31536000" in r.headers["set-cookie"].lower()
     assert not auth.by_email(conn, "ana@ngo.org")["password_hash"]
@@ -529,7 +554,7 @@ def test_passwordless_signup_and_email_code_login(env, monkeypatch):
     assert "Wrong or expired" in laptop.post("/connexion", data={"email": "ana@ngo.org", "code": "000000" if sent_code != "000000" else "111111"}).text
     assert "wait a minute" in laptop.post("/connexion", data={"email": "ana@ngo.org"}).text    # pas de rafale de codes
     r = laptop.post("/connexion", data={"email": "ana@ngo.org", "code": sent_code}, follow_redirects=False)
-    assert r.status_code == 303 and laptop.get("/bienvenue").status_code == 200
+    assert r.status_code == 303 and laptop.get("/topics", follow_redirects=False).status_code == 200
     assert not auth.check_login_code(conn, auth.by_email(conn, "ana@ngo.org"), sent_code)          # code consommé
 
     # compte avec mot de passe : on demande le mot de passe, pas de code
@@ -556,13 +581,15 @@ def test_open_signup_with_password(env):
     app = Starlette(routes=[*web.routes, *web_live.routes])
     visitor = TestClient(app, base_url="https://testserver")
     home = visitor.get("/").text
-    assert 'id="signup"' in home and 'name="password"' in home and "Sign in" in home     # accueil = page d'arrivée
+    assert 'id="pane-signup"' in home and 'name="password"' in home and 'data-auth="signin"' in home   # fenêtre sur l'accueil
     form = {"email": "Lea@media.org", "organisation": "Media", "password": "mot-de-passe-long", "password2": "mot-de-passe-long"}
     assert "do not match" in visitor.post("/join", data={**form, "password2": "autre-chose-long"}).text
     assert "at least 10" in visitor.post("/join", data={**form, "password": "court", "password2": "court"}).text
     assert "invalid" in visitor.post("/join", data={**form, "website": "http://spam"}).text.lower()   # champ piège
+    j = visitor.post("/join", data={**form, "password2": "autre-chose-long"}, headers={"X-Requested-With": "fetch"}).json()
+    assert "do not match" in j["error"]                                       # l'erreur reste dans la fenêtre
     r = visitor.post("/join", data=form, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/bienvenue"
+    assert r.status_code == 303 and r.headers["location"] == "/?welcome=1"
     lea = auth.by_email(conn, "lea@media.org")
     assert lea["source"] == "inscription" and lea["password_hash"] and auth.is_guest(lea) and lea["organisation"] == "Media"
     assert auth.open_signup_settings(conn)["used"] == 1 and auth.invite_settings(conn)["used"] == 0
@@ -574,14 +601,14 @@ def test_open_signup_with_password(env):
     # avec invitation : e-mail seulement, pas de mot de passe
     code = auth.invite_settings(conn)["code"]
     page = TestClient(app, base_url="https://testserver").get(f"/join/{code}").text
-    assert 'name="password"' not in page and 'name="organisation"' in page
+    assert 'id="su-pw"' not in page and 'name="organisation"' in page
     u, _, err = auth.signup(conn, code, "inv@ngo.org")
     assert not err and u["source"] == "invitation" and not u["password_hash"]
 
     # fermeture par l'admin
     auth.set_open_signup(conn, open_=False)
     third = TestClient(app, base_url="https://testserver")
-    assert 'name="password"' not in third.get("/").text
+    assert 'id="su-pw"' not in third.get("/").text
     assert "closed" in third.post("/join", data={**form, "email": "x@media.org"}).text
     assert not auth.signup(conn, code, "inv2@ngo.org")[2]                       # l'invitation marche toujours
 
@@ -604,9 +631,9 @@ def test_forgot_password_code(env, monkeypatch):
     assert 'name="code"' in page and len(outbox) == 1
     code = "".join(ch for ch in outbox[-1] if ch.isdigit())[-6:]
     r = c.post("/connexion", data={"email": "p@ngo.org", "code": code}, follow_redirects=False)
-    assert r.headers["location"] == "/compte?oubli=1"
-    assert "new password" in c.get("/compte?oubli=1").text
-    c.post("/compte", data={"password": "nouveau-mot-de-passe", "password2": "nouveau-mot-de-passe"})
+    assert r.headers["location"] == "/account?forgot=1"
+    assert "new password" in c.get("/account?forgot=1").text
+    c.post("/account", data={"password": "nouveau-mot-de-passe", "password2": "nouveau-mot-de-passe"})
     assert auth.check_password(conn, "p@ngo.org", "nouveau-mot-de-passe") and not auth.check_password(conn, "p@ngo.org", "ancien-mot-de-passe")
 
 
@@ -887,7 +914,7 @@ def test_positions_tool_exact_actor(env):
                  "VALUES('k1','Somalia','finance','soutient','s','q','extraction','2026-11-10','public')")
     conn.commit()
     out = mcp_server.positions(acteur="Mali")
-    assert out["positions"] == [] and "Somalia" not in out["message"].split("noms proches")[0]
+    assert out["positions"] == [] and "Somalia" not in out["message"].split("similar names")[0]
     assert len(mcp_server.positions(acteur="Somalia")["positions"]) == 1
     assert "Somalia" in mcp_server.positions(acteur="Somali")["message"]
 
@@ -1206,9 +1233,9 @@ def test_mcp_instructions_fit_client_limit():
     text = mcp_server.INSTRUCTIONS
     assert len(text) < 1800
     head = text[:1000]
-    assert "Citer le texte exact" in head and "NIVEAU" in head and "non adopté" in head
+    assert "Quote the exact text" in head and "LEVEL" in head and "not adopted" in head
     tools = set(mcp_server.mcp._tool_manager._tools)
-    outils = text.split("OUTILS", 1)[1].split("Méthodes", 1)[0]
+    outils = text.split("TOOLS", 1)[1].split("Methods", 1)[0]
     cited = {w for w in _re.findall(r"\b[a-z_]{5,}\b", outils) if "_" in w or w in tools}
     assert cited and cited <= tools, cited - tools
     assert {"soumissions", "comparer_soumissions", "groupes", "pavillons", "dossier"} <= cited
@@ -1390,7 +1417,7 @@ def test_briefs_off_by_default(env):
                  "'2026-11-17T07:00:00Z', '2026-11-16T19:00:00Z', '{}', '[]')")
     conn.commit()
     assert briefs.latest(conn, "adaptation") is None and briefs.run_slot(conn, lambda *a: None) == 0
-    assert "brief" not in [c["command"] for c in live_bot.COMMANDS] and "/brief" not in live_bot.HELP
+    assert not hasattr(live_bot, "COMMANDS")          # /brief existe toujours, mais c'est le récapitulatif sans IA
 
 
 def test_position_extraction_sources_filtered(env):
@@ -1414,3 +1441,89 @@ def test_position_extraction_sources_filtered(env):
     conn.commit()
     assert positions.prune_unlisted(conn) == 1
     assert {r[0] for r in conn.execute("SELECT key FROM positions")} == {"twn-climate-info", "g77-statements-2026-crawl"}
+
+
+def test_digest_and_whats_new_on_my_topics(env):
+    """Récapitulatif sans IA : centré sur les sujets, étape des textes, rien de neuf → pas de message."""
+    from datetime import datetime, timezone
+
+    from cop_corpus import auth, config, digest, live, topics
+
+    conn = env
+    live._ready.clear()
+    live.ensure_schema(conn)
+    uid, _ = auth.create_user(conn, "d@x.org", "D", restricted=False)
+    user = auth.by_id(conn, uid)
+    since = "2026-11-17T00:00:00Z"
+    assert topics.whats_new(conn, user, since)["aucun_sujet"]
+    assert digest.render(conn, user, since) is None
+    live.follow(conn, uid, "adaptation", True)
+    assert digest.render(conn, user, since) is None                      # sujet suivi, mais rien de neuf
+    conn.execute("INSERT INTO live_texts(key,symbol,title,cb_type,dossier,published,first_seen,updated_at,brackets) "
+                 "VALUES('k1','FCCC/PA/CMA/2026/L.9','Global goal on adaptation. Draft conclusions','Draft conclusions',"
+                 "'adaptation','2026-11-17T20:00','2026-11-17T20:01:00Z','2026-11-17T20:01:00Z',3)")
+    conn.commit()
+    news = topics.whats_new(conn, user, since)
+    item = news["sujets"][0]
+    assert item["textes"][0]["etape"] == "for_adoption" and "/database/negotiations/adaptation" in item["lien"]
+    text = digest.render(conn, user, since, datetime(2026, 11, 18, 4, 0, tzinfo=timezone.utc))
+    assert "Morning digest" in text and "forwarded for adoption" in text and "/connect" in text
+    # créneaux : 7 h et 19 h à Antalya, une fois chacun
+    sent = []
+    conn.execute("UPDATE users SET telegram_chat_id='9' WHERE id=?", (uid,))
+    conn.commit()
+    config.TELEGRAM_TOKEN, old = "x", config.TELEGRAM_TOKEN
+    try:
+        now = datetime(2026, 11, 18, 4, 30, tzinfo=timezone.utc)          # 7 h 30 à Antalya
+        assert digest.run(conn, lambda c, t: sent.append(t) or True, now) == 1
+        assert digest.run(conn, lambda c, t: sent.append(t) or True, now) == 0
+        assert digest.due_slot(conn, datetime(2026, 11, 18, 16, 5, tzinfo=timezone.utc)) == "2026-11-18T19"
+    finally:
+        config.TELEGRAM_TOKEN = old
+
+
+def test_plan_calendar_and_contact(env, monkeypatch):
+    import json as _json
+
+    from starlette.applications import Starlette
+    from starlette.testclient import TestClient
+    from cop_corpus import agenda, alerts, auth, config, db, events, mailout, pavillons, web, web_live
+    importlib.reload(web)
+    importlib.reload(web_live)
+    conn = db.get()
+    pavillons.ensure_schema(conn)
+    agenda.ensure_schema(conn)
+    conn.execute("INSERT INTO pav_events(key,source,zone,date,start,end,pavilion,title,description,speakers,themes,"
+                 "keywords,cancelled) VALUES('p1','cop31.tr','blue','2026-11-18','10:00','11:00','Fiji Pavilion',"
+                 "'Ocean finance for SIDS','Blue bonds.',?, '[]','[]',0)", (_json.dumps([{"name": "Ana Lima", "role": "speaker"}]),))
+    conn.execute("INSERT INTO pav_events(key,source,zone,date,start,end,pavilion,title,description,speakers,themes,"
+                 "keywords,cancelled) VALUES('p2','cop31.tr','green','2026-11-18','12:00','13:00','Youth Hub',"
+                 "'Space and climate','Satellites.','[]','[]','[]',0)")
+    conn.execute("INSERT INTO agenda_events(key,kind,source,days,start,end,room,title,organisers,topics) "
+                 "VALUES('r1','reunion','planner',',18,','15:00','17:00','Plenary','GGA informal consultations','[]','[]')")
+    conn.commit()
+    res = events.query(conn, 18)
+    assert [e["kind"] for e in res["events"]] == ["pavilion", "pavilion", "official"]
+    assert [e["key"] for e in events.query(conn, 18, q="ocean")["events"]] == ["p1"]
+    assert events.query(conn, 18, q="ace")["total"] == 0                  # frontière de mot : « space » ne compte pas
+    assert [e["key"] for e in events.query(conn, 18, kinds=["official"])["events"]] == ["agenda:r1"]
+    uid, _ = auth.create_user(conn, "p@x.org", "P", restricted=False)
+    alerts.add_subscription(conn, uid, "Ocean", "ocean, blue bonds")
+    terms = events.topic_terms(conn, auth.by_id(conn, uid))
+    assert [e["key"] for e in events.query(conn, 18, terms=terms)["events"]] == ["p1"]
+
+    client = TestClient(Starlette(routes=[*web.routes, *web_live.routes]), base_url="https://testserver")
+    page = client.get("/plan?day=18&q=ocean").text
+    assert "Ocean finance for SIDS" in page and "Ana Lima" in page and "Space and climate" not in page
+
+    # contact : adresse jamais affichée, champ piège, envoi par e-mail
+    outbox = []
+    monkeypatch.setattr(mailout, "enabled", lambda: True)
+    monkeypatch.setattr(mailout, "send", lambda to, subject, text, **kw: outbox.append((to, kw.get("reply_to"))) or True)
+    monkeypatch.setattr(config, "CONTACT_EMAIL", "owner@example.org")
+    assert "owner@example.org" not in client.get("/contact").text
+    assert "too short" in client.post("/contact", data={"email": "a@b.org", "message": "hi"}).text
+    client.post("/contact", data={"email": "a@b.org", "message": "x" * 20, "website": "spam"})
+    assert not outbox
+    assert "Message sent" in client.post("/contact", data={"email": "a@b.org", "message": "A source to add, please."}).text
+    assert outbox == [("owner@example.org", "a@b.org")]

@@ -1,49 +1,116 @@
-{% extends "base.html" %}{% from "_doc.html" import lvl, docline, when with context %}{% block body %}
-{% if onboarding %}<a class="banner" href="/bienvenue" style="text-decoration:none"><b>{{ L('Bien démarrer', 'Getting started') }}</b> : {{ L('choisissez vos dossiers, branchez Claude ou ChatGPT, reliez Telegram', 'pick your topics, connect Claude or ChatGPT, link Telegram') }} →</a>{% endif %}
-<a id="fresh" class="banner" href="/" style="display:none;text-decoration:none" data-msg="{{ L(' nouvelle(s) alerte(s) — rafraîchir', ' new alert(s) — refresh') }}" data-title="{{ L('COP31 · veille', 'COP31 · tracker') }}">{{ L('Nouvelles alertes — rafraîchir', 'New alerts — refresh') }}</a>
-<section class="hero">
-<div class="eyebrow">{{ L('Bonjour', 'Hello') }} {{ (user.name or '').split(' ')[0] }}</div>
-<h1>{{ L('Que faut-il vérifier ?', 'What do you need to check?') }}</h1>
-<form action="/recherche" method="get">
-<div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-<input type="search" name="q" placeholder="{{ L('Une affirmation, une formule, une cote : « tripling renewable energy capacity », FCCC/PA/CMA/2026/L.3…', 'A claim, a phrase, a document symbol: “tripling renewable energy capacity”, FCCC/PA/CMA/2026/L.3…') }}"><button>{{ L('Chercher', 'Search') }}</button></div>
-</form>
-<div class="stats">
-<div class="stat"><b>{{ '{:,}'.format(stats.documents).replace(',', ' ') }}</b><span>documents</span></div>
-<div class="stat"><b>{{ '{:,}'.format(stats.passages).replace(',', ' ') }}</b><span>{{ L('passages citables', 'quotable passages') }}</span></div>
-<div class="stat"><b>{{ subs|length }}</b><span>{% if lang == 'en' %}topic{{ 's' if subs|length != 1 }} followed{% else %}sujet{{ 's' if subs|length > 1 }} suivi{{ 's' if subs|length > 1 }}{% endif %}</span></div>
-<div class="stat"><b>{{ when(stats.dernier_ajout)[11:] or '—' }}</b><span>{{ L('dernier ajout (UTC)', 'last added (UTC)') }}</span></div>
+{% extends "base.html" %}{% from "_photo.html" import photo %}{% block title %}COP Tracker · COP31{% endblock %}{% block body %}
+<style>
+.land{max-width:1080px;margin:0 auto}
+.land .photo{margin:0 0 22px}
+.lead{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:36px;align-items:start;margin:0 0 34px}
+@media(max-width:900px){.lead{grid-template-columns:minmax(0,1fr);gap:26px}}
+.lead h1{font-size:clamp(30px,4vw,42px);line-height:1.08;margin:6px 0 10px}
+.lead .sub{font-size:17px;line-height:1.5;color:var(--ink-2);margin:0 0 18px;max-width:46ch}
+.lead .fine{font-size:12.5px;color:var(--muted);margin:14px 0 0}
+.cta{display:flex;flex-wrap:wrap;gap:8px}
+.cta .btn{font-size:15px;padding:11px 20px}
+/* Les trois usages */
+.pillars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:2px solid var(--ink);margin:0 0 34px}
+.pillars a{display:flex;flex-direction:column;gap:6px;padding:16px 18px 18px 0;text-decoration:none;color:var(--ink)}
+.pillars a + a{padding-left:18px;border-left:1px solid var(--line-2)}
+.pillars .k{font:700 12px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+.pillars b{font-size:18px;line-height:1.25;letter-spacing:-.01em}
+.pillars p{margin:0;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.pillars .go{font-size:13.5px;font-weight:650;color:var(--accent);margin-top:auto;padding-top:6px}
+.pillars a:hover b{color:var(--accent)}
+@media(max-width:760px){.pillars{grid-template-columns:minmax(0,1fr)}.pillars a,.pillars a + a{padding:14px 0;border-left:0}.pillars a + a{border-top:1px solid var(--line-2)}}
+/* Prise en main */
+.checklist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.checklist li{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.checklist .dot{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 12px/1 var(--sans);color:var(--muted)}
+.checklist li.done .dot{background:var(--l1);border-color:var(--l1);color:#fff}
+.checklist li.done .what{color:var(--muted)}
+.checklist .what{flex:1;min-width:0}
+.checklist .what b{display:block;font-size:15px}
+.checklist .what span{font-size:13px;color:var(--muted)}
+/* Extrait réel d'un projet de texte, mis en page comme un document de la CCNUCC, puis ce qu'en fait l'outil */
+.specimen{margin:0;border:1px solid var(--line-2);border-radius:2px;background:var(--surface);overflow:hidden}
+.excerpt{background:#fff;color:#1a1a1a;padding:18px 22px 16px}
+.excerpt .sym{display:flex;justify-content:space-between;gap:10px;font:11.5px/1.3 var(--mono);color:#555;border-bottom:1px solid #ccc;padding-bottom:7px;margin-bottom:10px;flex-wrap:wrap}
+.excerpt .ttl{font:700 14.5px/1.35 "Times New Roman",Times,var(--serif);margin:0 0 8px}
+.excerpt .para{font:15px/1.55 "Times New Roman",Times,var(--serif);margin:0;text-align:left;hyphens:manual}
+.excerpt mark{background:#fde9a8;color:inherit;padding:0 2px;outline:1px solid #e6c65a}
+.reading{border-top:3px solid var(--accent);padding:12px 22px 14px;font-size:13.5px;line-height:1.45}
+.reading .lbl{font:700 11px/1 var(--sans);text-transform:uppercase;letter-spacing:.09em;color:var(--accent);margin:0 0 10px}
+.reading dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 12px;margin:0}
+.reading dt{font-weight:650;color:var(--ink)}
+.reading dd{margin:0;color:var(--ink-2)}
+.reading dt .k{display:inline-block;min-width:8px;padding:0 3px;background:#fde9a8;outline:1px solid #e6c65a;color:#1a1a1a;font-family:var(--serif)}
+@media(max-width:900px){.land .photo img{height:120px!important}}
+</style>
+<div class="land">
+{{ photo('cop31-projet-texte',
+ L('Projet de conclusions du SBSTA sur la recherche et l\'observation systématique, projeté sur un écran pendant une négociation à la COP31', 'Draft SBSTA conclusions on research and systematic observation, shown on a screen during a COP31 negotiation'),
+ L('Un projet de conclusions projeté en séance de négociation, Antalya, 14 novembre 2026.', 'A draft text on screen during a negotiation session, Antalya, 14 November 2026.'),
+ 'https://www.flickr.com/photos/unfccc/55652256196', '50% 58%', 'clamp(110px,13vw,160px)') }}
+
+<section class="lead">
+<div>
+<div class="eyebrow">COP31 · Antalya · 9–20 {{ L('novembre', 'November') }} 2026</div>
+{% if user %}
+<h1>{% if welcome %}{{ L('Bienvenue', 'Welcome') }}{% else %}{{ L('Bonjour', 'Hello') }}{% endif %}{% if user.name %} {{ user.name.split(' ')[0] }}{% endif %}</h1>
+<p class="sub">{{ L('Interrogez les textes avec votre LLM, préparez votre journée, et soyez prévenu dès que vos dossiers bougent.', 'Ask your LLM about the texts, plan your day, and get alerted as soon as your negotiations move.') }}</p>
+<div class="cta">
+{% if not steps.llm %}<a class="btn" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a><a class="btn secondary" href="/topics">{{ L('Choisir mes sujets', 'Choose my topics') }}</a>
+{% else %}<a class="btn" href="/plan">{{ L('Planifier ma journée', 'Plan my day') }}</a><a class="btn secondary" href="/topics">{{ L('Mes sujets', 'My topics') }}</a>{% endif %}
 </div>
+{% else %}
+<h1>{{ L('Comprendre la COP31 à partir des textes eux-mêmes', 'Make sense of COP31 from the texts themselves') }}</h1>
+<p class="sub">{{ L('Les projets de texte, ce qui change d\'une version à l\'autre et qui défend quoi, avec à chaque fois le passage exact. Dans votre LLM, sur votre agenda, et en alerte sur vos dossiers.',
+ 'Draft texts, what changes from one version to the next and who stands where, always with the exact passage. In your LLM, in your schedule, and as alerts on your negotiations.') }}</p>
+<div class="cta">
+<button type="button" class="btn" data-auth="signup">{{ L('Créer un compte gratuit', 'Create a free account') }}</button>
+<button type="button" class="btn secondary" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</button>
+</div>
+{% endif %}
+<p class="fine">{{ L('Gratuit, indépendant et open source. Sans lien avec la CCNUCC ni avec une délégation.', 'Free, independent and open source. Not affiliated with the UNFCCC or any delegation.') }}
+{% if stats and stats.documents %}{{ '{:,}'.format(stats.documents).replace(',', ' ') }} {{ L('documents suivis', 'documents tracked') }}.{% endif %}
+<a href="/about">{{ L("Qu'est-ce que COP Tracker ?", 'What is COP Tracker?') }}</a></p>
+</div>
+
+{% if user %}
+<div>
+<h2 style="margin-top:6px">{{ L('Bien démarrer', 'Get started') }}</h2>
+<ol class="checklist">
+<li class="{{ 'done' if steps.llm }}"><span class="dot">{{ '✓' if steps.llm else '1' }}</span><span class="what"><b>{{ L('Connecter mon LLM', 'Connect my LLM') }}</b><span>{{ L('Claude, ChatGPT ou Le Chat interrogent le corpus et citent le passage exact.', 'Claude, ChatGPT or Le Chat query the corpus and quote the exact passage.') }}</span></span>{% if not steps.llm %}<a class="btn" href="/connect">{{ L('Connecter', 'Connect') }}</a>{% endif %}</li>
+<li class="{{ 'done' if steps.topics }}"><span class="dot">{{ '✓' if steps.topics else '2' }}</span><span class="what"><b>{{ L('Choisir mes sujets', 'Choose my topics') }}</b><span>{{ L('Les dossiers de négociation et mots-clés qui vous intéressent : ils guident les alertes et votre LLM.', 'The negotiation items and keywords you care about: they drive your alerts and your LLM.') }}</span></span><a class="btn {{ 'secondary' if steps.topics }}" href="/topics">{{ L('Gérer', 'Manage') if steps.topics else L('Choisir', 'Choose') }}</a></li>
+<li class="{{ 'done' if steps.telegram }}"><span class="dot">{{ '✓' if steps.telegram else '3' }}</span><span class="what"><b>{{ L('Alertes sur Telegram', 'Alerts on Telegram') }} <span class="pill">{{ L('facultatif', 'optional') }}</span></b><span>{{ L('Une alerte à chaque nouveau texte, un récapitulatif à 7 h et 19 h.', 'An alert for each new text, a digest at 7am and 7pm.') }}</span></span>{% if not steps.telegram %}<a class="btn secondary" href="/topics#telegram">{{ L('Relier', 'Link') }}</a>{% endif %}</li>
+</ol>
+</div>
+{% else %}
+<figure class="specimen">
+<div class="excerpt" lang="en">
+<div class="sym"><span>IN.SBI65.i7_SBSTA65.i7.1</span><span>Draft text · 13 Nov 2026</span></div>
+<p class="ttl">United Arab Emirates just transition work programme</p>
+<p class="para"><b>22.</b> … builds on and complements relevant workstreams under the Convention and the Paris Agreement, <mark>[including the just transition work programme]</mark> making effective use of existing institutions and expertise …</p>
+</div>
+<figcaption class="reading">
+<p class="lbl">{{ L('Ce que COP Tracker en tire', 'What COP Tracker makes of it') }}</p>
+<dl>
+<dt><span class="k">[ ]</span></dt><dd>{{ L('Pas d\'accord sur ce passage : faut-il citer ici le programme de travail sur la transition juste ? Ce n\'est pas tranché.', 'No agreement on this passage: should it refer to the just transition work programme? Not settled yet.') }}</dd>
+<dt>{{ L('Le texte', 'The text') }}</dt><dd>{{ L('Version du 13 novembre, non adoptée : 44 crochets et 16 options encore ouverts. La prochaine version sera comparée paragraphe par paragraphe.', 'Version of 13 November, not adopted: 44 brackets and 16 options still open. The next version will be compared paragraph by paragraph.') }}</dd>
+<dt>{{ L('Le dossier', 'The negotiation') }}</dt><dd>{{ L('Transition juste : toutes les versions, qui défend quoi, et une alerte quand le texte est transmis pour adoption puis adopté.', 'Just transition: every version, who stands where, and an alert when the text is forwarded for adoption, then adopted.') }}</dd>
+</dl>
+</figcaption>
+</figure>
+{% endif %}
 </section>
-<div class="grid wide">
-<section>
-<div class="spread"><h2>{{ L('Derniers documents', 'Latest documents') }}</h2></div>
-<div class="row chips" style="margin:-2px 0 12px">
-<a href="/" class="{{ 'on' if not level }}">{{ L('Tous', 'All') }}</a>
-{% for l in ['1','2','3','4','5'] + (['R'] if user.can_restricted else []) %}<a href="/?niveau={{ l }}" class="{{ 'on' if level==l }}">{{ lvl(l) }}</a>{% endfor %}
+
+<div class="pillars">
+<a href="/connect"><span class="k">{{ L('Demander', 'Ask') }}</span><b>{{ L('Décoder les négociations avec votre LLM', 'Decode the negotiations with your LLM') }}</b>
+<p>{{ L('Où en est le texte sur l\'adaptation ? Qu\'est-ce qui a changé depuis hier ? Qui défend quelle position ? Comparez les Parties, avec à chaque fois le passage cité.', 'Where does the adaptation text stand? What changed since yesterday? Who defends which position? Compare Parties, always with the quoted passage.') }}</p>
+<span class="go">{{ L('Connecter un LLM', 'Connect an LLM') }} →</span></a>
+<a href="/plan"><span class="k">{{ L('Planifier', 'Plan') }}</span><b>{{ L('Préparer sa journée selon ses sujets', 'Plan your day around your topics') }}</b>
+<p>{{ L('Side events, pavillons et réunions officielles croisés avec vos sujets : demandez à votre LLM deux événements cet après-midi, ou parcourez le calendrier complet.', 'Side events, pavilions and official meetings crossed with your topics: ask your LLM for two events this afternoon, or browse the full calendar.') }}</p>
+<span class="go">{{ L('Planifier ma journée', 'Plan my day') }} →</span></a>
+<a href="/topics"><span class="k">{{ L('Être alerté', 'Get alerted') }}</span><b>{{ L('Suivre ses dossiers de près', 'Follow your negotiations closely') }}</b>
+<p>{{ L('Une alerte à chaque nouveau projet de texte, quand il part en adoption et quand il est adopté ; un récapitulatif matin et soir des textes et des lettres d\'information.', 'An alert for each new draft, when it is forwarded for adoption and when it is adopted; a morning and evening digest of texts and newsletters.') }}</p>
+<span class="go">{{ L('Mes sujets', 'My topics') }} →</span></a>
 </div>
-<div class="card flush">
-{% for d in latest %}<div class="item">{{ docline(d) }}</div>{% else %}<p class="empty">{{ L('Aucun document.', 'No documents.') }}</p>{% endfor %}
 </div>
-</section>
-<section>
-<div class="spread"><h2>{{ L('Mes alertes', 'My alerts') }}</h2><a class="small" href="/sujets">{{ L('Gérer mes sujets', 'Manage my topics') }} →</a></div>
-{% if not subs %}<div class="card"><p style="margin:0 0 12px">{{ L("Suivez un sujet pour être alerté ici et sur Telegram dès qu'un document le mentionne.", 'Follow a topic to be alerted here and on Telegram as soon as a document mentions it.') }}</p><a class="btn" href="/sujets">{{ L('Ajouter un sujet', 'Add a topic') }}</a></div>{% endif %}
-<div class="card flush">
-{% for n in notes %}
-<div class="item">
-<div class="meta" style="margin:0 0 4px"><span>{{ n.label or L('Suivi', 'Followed') }}</span><span class="sep">·</span><span>{{ when(n.created_at) }} UTC</span></div>
-<div class="title">{{ lvl(n.level, n.access) }}<a href="/doc/{{ n.doc_id }}">{{ n.title or L('Sans titre', 'Untitled') }}</a></div>
-<div class="meta">{% if n.org %}<span>{{ n.org }}</span>{% endif %}{% if n.version and n.version > 1 %}<span class="sep">·</span><span>version {{ n.version }}</span><span class="sep">·</span><a href="/diff/{{ n.doc_id }}">{{ L('ce qui a changé', 'what changed') }}</a>{% endif %}</div>
-{% if n.snippet %}<blockquote>{{ n.snippet }}</blockquote>{% endif %}
-</div>
-{% else %}<p class="empty">{{ L("Pas encore d'alerte.", 'No alerts yet.') }}</p>{% endfor %}
-</div>
-</section>
-</div>
-<script>
-const last={{ last_id }};
-setInterval(async()=>{try{const r=await fetch('/api/feed?after='+last);const j=await r.json();
-if(j.nouvelles>0){const b=document.getElementById('fresh');b.style.display='block';b.textContent=j.nouvelles+b.dataset.msg;document.title='('+j.nouvelles+') '+b.dataset.title;}}catch(e){}},60000);
-</script>
 {% endblock %}

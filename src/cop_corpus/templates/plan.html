@@ -1,0 +1,103 @@
+{% extends "base.html" %}{% block title %}{{ L('Planifier ma journée', 'Plan my day') }} · COP Tracker{% endblock %}{% block body %}
+<style>
+.top{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start;margin:0 0 26px}
+@media(max-width:900px){.top{grid-template-columns:minmax(0,1fr)}}
+.prompts{display:grid;gap:8px;margin:0 0 12px;padding:0;list-style:none}
+.prompts li{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.prompts li span{flex:1;font:15px/1.5 var(--serif)}
+.prompts button{padding:6px 12px;font-size:12.5px;flex:none}
+.days{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin;padding:2px 0 6px}
+.days a{flex:none;text-decoration:none;text-align:center;border:1px solid var(--line-2);border-radius:6px;padding:6px 9px;color:var(--ink-2);background:var(--surface);min-width:52px}
+.days a b{display:block;font-size:16px;line-height:1.1}
+.days a span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.days a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.days a.on span{color:var(--bg);opacity:.75}
+.days a.today:not(.on){border-color:var(--accent)}
+.filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.3fr) auto;gap:10px;align-items:end;margin:12px 0 0}
+@media(max-width:760px){.filters{grid-template-columns:minmax(0,1fr)}}
+.filters label.small{display:block;margin-bottom:4px}
+.types{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;align-items:center}
+.slot{display:grid;grid-template-columns:72px minmax(0,1fr);gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+.slot:first-child{border-top:0}
+.slot .t{font:700 15px/1.3 var(--mono);color:var(--ink);position:sticky;top:70px;align-self:start}
+@media(max-width:600px){.slot{grid-template-columns:minmax(0,1fr);gap:6px}.slot .t{position:static}}
+.ev{padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--k);border-radius:6px;background:var(--surface);margin:0 0 8px}
+.ev:last-child{margin-bottom:0}
+.ev .h{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:baseline}
+.ev .h b{font:600 15.5px/1.35 var(--serif);flex:1 1 300px}
+.ev .m{font-size:12.5px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:2px 10px}
+.ev details{margin-top:6px;font-size:13.5px;color:var(--ink-2)}
+.ev details summary{cursor:pointer;color:var(--accent);font-size:12.5px;font-weight:600}
+.ev details p{margin:6px 0 0;white-space:pre-line}
+.k-official{--k:var(--l1)}.k-side_event{--k:var(--l2)}.k-pavilion{--k:var(--l4)}.k-off_site{--k:var(--l5)}
+.kind{font:650 11px/1 var(--sans);padding:3px 7px;border-radius:4px;color:var(--k);background:color-mix(in srgb,var(--k) 11%,transparent);white-space:nowrap}
+.match{font-size:11.5px;color:var(--l1);font-weight:600}
+</style>
+
+<section class="top">
+<div>
+<div class="eyebrow">{{ L('Planifier', 'Plan') }}</div>
+<h1>{{ L('Planifier ma journée', 'Plan my day') }}</h1>
+<p style="margin:0 0 14px;color:var(--ink-2)">{{ L('Le plus simple : demandez à votre LLM connecté, il croise les side events, les pavillons et les réunions officielles avec vos sujets. Ou parcourez le calendrier complet ci-dessous.', 'The easiest way: ask your connected LLM, it crosses side events, pavilions and official meetings with your topics. Or browse the full calendar below.') }}</p>
+<div class="row">
+<a class="btn" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a>
+<a class="btn secondary" href="/topics">{{ L('Choisir mes sujets', 'Choose my topics') }}</a>
+</div>
+</div>
+<div>
+<ul class="prompts">
+{% for p in [
+  L("Propose-moi deux événements cet après-midi pertinents pour mes sujets, sans chevauchement.", "Suggest two events this afternoon that are relevant to my topics, with no overlap."),
+  L("Qui devrais-je essayer de rencontrer demain sur l'adaptation ? Dans quels événements interviennent-ils ?", "Who should I try to meet tomorrow on adaptation? At which events are they speaking?"),
+  L("Qu'est-ce qui se passe aujourd'hui dans les négociations sur mes dossiers, et où ?", "What is happening today in the negotiations on my items, and where?"),
+] %}<li><span>{{ p }}</span><button type="button" class="secondary" data-copy="{{ p }}" data-done="✓">{{ L('Copier', 'Copy') }}</button></li>{% endfor %}
+</ul>
+</div>
+</section>
+
+<form method="get" class="card" id="calendar" style="padding:16px 18px">
+<div class="spread"><h2 style="margin:0">{{ L('Calendrier', 'Calendar') }}</h2><span class="small muted">{{ L('Heure d\'Antalya (UTC+3)', 'Antalya time (UTC+3)') }}</span></div>
+<nav class="days" aria-label="{{ L('Jour', 'Day') }}" style="margin-top:10px">
+{% for d in days %}{% set dt = '2026-11-%02d'|format(d) %}
+<a href="?day={{ d }}{% if q %}&q={{ q|urlencode }}{% endif %}{% for k in kinds %}&type={{ k }}{% endfor %}{% if zone %}&zone={{ zone }}{% endif %}{% if mine %}&mine=1{% endif %}" class="{{ 'on' if d == day }} {{ 'today' if d == today }}"><span>{{ ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][(d + 5) % 7] if lang == 'en' else ['lun','mar','mer','jeu','ven','sam','dim'][(d + 5) % 7] }}</span><b>{{ d }}</b></a>{% endfor %}
+</nav>
+<input type="hidden" name="day" value="{{ day }}">
+<div class="filters">
+<div><label class="small" for="q">{{ L('Mots-clés (séparés par des virgules)', 'Keywords (comma-separated)') }}</label>
+<input type="search" id="q" name="q" value="{{ q }}" placeholder="{{ L('ex. water, indigenous, Article 6', 'e.g. water, indigenous, Article 6') }}"></div>
+<div><label class="small" for="place">{{ L('Pavillon', 'Pavilion') }}</label>
+<select id="place" name="place"><option value="">{{ L('Tous les lieux', 'All venues') }}</option>
+{% for p, n in res.places %}<option value="{{ p }}" {{ 'selected' if p == place }}>{{ p }} ({{ n }})</option>{% endfor %}</select></div>
+<div><button>{{ L('Filtrer', 'Filter') }}</button></div>
+</div>
+<div class="types chips">
+{% for k, names in KINDS.items() %}<label class="k-{{ k }}"><input type="checkbox" name="type" value="{{ k }}" {{ 'checked' if k in kinds }}>{{ names[1] if lang == 'en' else names[0] }}</label>{% endfor %}
+<select name="zone" style="width:auto;padding:5px 10px;font-size:13px"><option value="">{{ L('Toutes zones', 'All zones') }}</option><option value="blue" {{ 'selected' if zone == 'blue' }}>Blue Zone</option><option value="green" {{ 'selected' if zone == 'green' }}>Green Zone</option></select>
+{% if user %}<label><input type="checkbox" name="mine" value="1" {{ 'checked' if mine }}>{{ L('Mes sujets seulement', 'My topics only') }}</label>{% endif %}
+{% if q or kinds or zone or place or mine %}<a href="?day={{ day }}" class="small">{{ L('Effacer les filtres', 'Clear filters') }}</a>{% endif %}
+</div>
+</form>
+
+{% if no_terms %}<p class="banner">{{ L('Vous ne suivez encore aucun sujet :', 'You are not following any topic yet:') }} <a href="/topics">{{ L('choisissez vos sujets', 'choose your topics') }}</a>.</p>{% endif %}
+<p class="small muted" style="margin:4px 0 10px"><b>{{ res.total }}</b> {{ L('événements', 'events') }}{% if res.truncated %} · {{ L('les premiers affichés : précisez les filtres', 'first ones shown: narrow the filters') }}{% endif %}.
+{{ L('Salles et horaires changent : vérifiez sur le lien de chaque événement.', 'Rooms and times change: check the link of each event.') }}</p>
+
+<div class="card" style="padding:4px 18px">
+{% for label, evs in slots %}{% set hour = label.split('|')[1] %}
+<div class="slot"><div class="t">{{ hour }}</div><div>
+{% for e in evs %}
+<article class="ev k-{{ e.kind }}">
+<div class="h"><b>{{ e.title }}</b><span class="kind">{{ KINDS[e.kind][1] if lang == 'en' else KINDS[e.kind][0] }}</span></div>
+<div class="m"><span>{{ e.start or '' }}{% if e.end %}–{{ e.end }}{% endif %}</span>{% if e.place %}<span>{{ e.place }}</span>{% endif %}{% if e.zone in ('blue', 'green') %}<span>{{ e.zone|capitalize }} Zone</span>{% endif %}{% if e.organizer %}<span>{{ e.organizer[:120] }}</span>{% endif %}{% if e.matched %}<span class="match">✓ {{ e.matched|join(', ') }}</span>{% endif %}</div>
+{% if e.summary or e.speakers or e.link %}<details><summary>{{ L('Détails', 'Details') }}</summary>
+{% if e.summary %}<p>{{ e.summary[:600] }}{% if e.summary|length > 600 %}…{% endif %}</p>{% endif %}
+{% if e.speakers %}<p><b>{{ L('Intervenants', 'Speakers') }}</b> : {{ e.speakers|join(', ') }}</p>{% endif %}
+{% if e.link %}<p><a href="{{ e.link }}" target="_blank" rel="noopener">{{ L('Source et vérification', 'Source and check') }} ↗</a></p>{% endif %}
+</details>{% endif %}
+</article>
+{% endfor %}
+</div></div>
+{% else %}<p class="empty">{{ L('Aucun événement avec ces filtres.', 'No events with these filters.') }}</p>{% endfor %}
+</div>
+<p class="small muted">{{ L('Sources : programmes des pavillons (cop31.tr et sites des pavillons), side events (SEORS de la CCNUCC, planner de la COP31), calendrier officiel. Relevés toutes les 6 heures.', 'Sources: pavilion programmes (cop31.tr and pavilion websites), side events (UNFCCC SEORS, COP31 planner), official calendar. Refreshed every 6 hours.') }}</p>
+{% endblock %}

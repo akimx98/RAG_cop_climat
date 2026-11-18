@@ -19,35 +19,35 @@ from mcp.types import ToolAnnotations
 
 from . import alerts, auth, config, data, db, diff, ingest, search
 
-INSTRUCTIONS = """Corpus vérifiable pour suivre la COP31 (Antalya, 9–20 nov. 2026). Outil indépendant et gratuit, sans lien
-avec la CCNUCC ni avec une délégation.
+INSTRUCTIONS = """Verifiable corpus to follow COP31 (Antalya, 9–20 Nov 2026). Independent, free, open-source tool, not
+affiliated with the UNFCCC or any delegation.
 
-RÈGLES
-1. Rien de factuel sans un passage renvoyé par un outil. Rien trouvé → « non trouvé dans le corpus » ; jamais de mémoire.
-2. Citer le texte exact entre guillemets + référence (cote, décision et §, page) + lien (lien_source, sinon lien_passage).
-3. Donner le NIVEAU : 1 adopté ; 2 officiel non adopté (projet, NDC, soumission d'une Partie) ; 3 science, données ;
-4 compte rendu (l'ENB attribue les positions) ; 5 acteur (jamais une preuve) ; R interne (ne pas recopier).
-4. Projet de texte : toujours sa version, sa date et « non adopté ».
-5. Distinguer ce que dit le texte (1–2) de ce qu'en disent les acteurs (4–5). Brief ou analyse IA : le dire.
-6. shall = obligation ; should = recommandation ; urges/encourages/invites = incitation ; notes = constat.
-7. Requêtes en anglais onusien, 2–3 formulations si maigre.
-8. Court, l'essentiel d'abord, dans la langue de l'utilisateur (citer dans la langue d'origine).
-9. Un groupe soumet souvent via ses sous-groupes ou membres : le dire ; signaler les dates éloignées.
-10. Source bloquée : sa version PDF, deposer_url, ou dépôt manuel.
+RULES
+1. Nothing factual without a passage returned by a tool. Nothing found → "not found in the corpus"; never from memory.
+2. Quote the exact text + reference (symbol, decision and §, page) + link (lien_source, else lien_passage).
+3. Give the LEVEL: 1 adopted; 2 official not adopted (draft, NDC, a Party's submission); 3 science, data;
+4 report (ENB attributes positions); 5 actor (never proof); R internal (do not copy out).
+4. Draft text: always its version, date and "not adopted".
+5. Keep what the text says (1–2) apart from what actors say (4–5).
+6. shall = obligation; should = recommendation; urges/encourages/invites = incentive; notes = observation.
+7. Queries in UN English; 2–3 wordings if results are thin.
+8. Short, essentials first, in the user's language (quote in the original language).
+9. A group often submits via sub-groups or members: say so; flag distant dates.
 
-OUTILS
-- Corpus : rechercher → lire_passage ; document ; comparer_versions ; crochets (par thème) ; nouveautes ; donnees ; glossaire.
-- Négociations : dossiers (alias) → dossier ; positions (divisions=true : clivages) ; noter.
-- Positions écrites : soumissions ; comparer_soumissions ; groupes.
-- Événements : programme (où, quand) ; pavillons (contenus).
-- Alertes, ajout : mes_sujets ; suivre ; deposer_url ; etat_corpus.
-Méthodes (prompts MCP, pas des outils) : point_negociation, position_pays, preparer_rencontre, plaidoyer,
-decouvrir_sujet, quoi_de_neuf."""
+TOOLS
+- Corpus: rechercher → lire_passage; document; comparer_versions; crochets (by theme); nouveautes; donnees; glossaire.
+- Negotiations: dossiers (aliases) → dossier; positions (divisions=true: dividing lines).
+- Written positions: soumissions; comparer_soumissions; groupes.
+- Plan the day: programme (where, when; mes_sujets=true); pavillons (contents).
+- My topics: mes_sujets; nouveautes(mes_sujets=true) = what changed on them; suivre; deposer_url; etat_corpus.
+Methods (MCP prompts): point_negociation, position_pays, preparer_rencontre, plaidoyer, decouvrir_sujet,
+quoi_de_neuf."""
 
 # Outils retirés ou renommés : ne doivent plus apparaître nulle part (test). textes_en_cours → dossiers(textes=…) ;
 # suivre_dossier / arreter_suivi → suivre(dossier=… | arreter=…) ; analyser_soumission → soumissions(document=…) ;
-# engagements / deposer : noms qui n'ont jamais existé (ancienne documentation).
-RETIRED_TOOLS = ("textes_en_cours", "suivre_dossier", "arreter_suivi", "analyser_soumission", "engagements", "deposer")
+# engagements / deposer : noms qui n'ont jamais existé (ancienne documentation) ; noter : notes de terrain retirées.
+RETIRED_TOOLS = ("textes_en_cours", "suivre_dossier", "arreter_suivi", "analyser_soumission", "engagements", "deposer",
+                 "noter")
 
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
@@ -93,7 +93,7 @@ def _user(ctx: Context | None) -> dict | None:
 def _need_user(ctx) -> dict:
     user = _user(ctx)
     if not user:
-        raise ValueError("Utilisateur non identifié : utiliser l'adresse personnelle du connecteur (/u/<jeton>/mcp).")
+        raise ValueError("Unidentified user: use your personal connector address (/u/<token>/mcp).")
     return user
 
 
@@ -134,26 +134,26 @@ def rechercher(
     limite: int = 10,
     ctx: Context | None = None,
 ) -> dict[str, Any]:
-    """Recherche hybride (mots-clés + sens, multilingue) dans tout le corpus : droit onusien (Convention, Accord de
-    Paris, décisions), documents de session et projets de texte, NDC, droit et positions de l'UE, science, comptes
-    rendus, données ; documents internes réservés aux contributeurs (invités : pas d'accès).
-    Formuler les termes onusiens en anglais (« global stocktake », « transitioning away from fossil fuels »),
-    guillemets pour une expression exacte, 2–3 formulations si le premier résultat est maigre. Soumissions
-    officielles : exclues par défaut (stock historique), voir types/partie/groupe ou l'outil `soumissions`.
+    """Hybrid search (keywords + meaning, multilingual) across the whole corpus: UN law (Convention, Paris
+    Agreement, decisions), session documents and draft texts, NDCs, EU law and positions, science, daily reports,
+    data; internal documents are reserved for contributors (guests: no access).
+    Phrase UN terms in English ("global stocktake", "transitioning away from fossil fuels"), quotes for an exact
+    phrase, 2–3 phrasings if the first result is thin. Official submissions: excluded by default (historical stock),
+    see types/partie/groupe or the `soumissions` tool.
 
-    - requete : question ou mots-clés ; guillemets pour une expression exacte ; OR possible.
-    - niveaux : ex. ["1","2"] pour ne garder que le droit et les documents officiels ; "R" n'existe pas
-      comme filtre : utiliser acces="restreint" pour les documents internes.
-    - types : traite, decision, conclusions_sb, ordre_du_jour, projet_texte, ndc, btr, rapport_synthese,
+    - requete: question or keywords; quotes for an exact phrase; OR allowed.
+    - niveaux: e.g. ["1","2"] to keep only law and official documents; "R" is not a filter: use
+      acces="restreint" for internal documents.
+    - types: traite, decision, conclusions_sb, ordre_du_jour, projet_texte, ndc, btr, rapport_synthese,
       loi_ue, proposition_ue, conclusions_conseil, strategie_nationale, rapport_scientifique, donnees,
-      compte_rendu, communique, analyse, programme, soumission (soumission officielle à la CCNUCC),
-      declaration (déclaration en plénière déposée sur le portail).
-    - session : COP29, CMA6, COP31… ; organisation : UNFCCC, Council of the EU… ; partie : EU, FRA, CHN…
-    - groupe : LDC, AOSIS, G77, EU, Umbrella… : documents (NDC, soumissions) de ses membres (liste sourcée, voir groupes)
-    - depuis / jusqu_a : date ISO (AAAA-MM-JJ) sur la date de publication (ou de récupération).
-    Renvoie des passages avec niveau, cote, paragraphe, page, extrait et liens. Utiliser lire_passage pour le texte complet.
-    Seuil de pertinence : les passages qui ne contiennent ni l'expression ni tous les termes et restent loin par le
-    sens vont dans `faible_pertinence` ; si rien n'est pertinent, `verdict` = « rien de pertinent » (à dire tel quel).
+      compte_rendu, communique, analyse, programme, soumission (official UNFCCC submission),
+      declaration (plenary statement posted on the portal).
+    - session: COP29, CMA6, COP31…; organisation: UNFCCC, Council of the EU…; partie: EU, FRA, CHN…
+    - groupe: LDC, AOSIS, G77, EU, Umbrella…: documents (NDCs, submissions) of its members (sourced list, see groupes)
+    - depuis / jusqu_a: ISO date (YYYY-MM-DD) on the publication (or retrieval) date.
+    Returns passages with level, symbol, paragraph, page, excerpt and links. Use lire_passage for the full text.
+    Relevance threshold: passages containing neither the phrase nor all terms and far in meaning go to
+    `faible_pertinence`; if nothing is relevant, `verdict` says so ("nothing relevant": say it as is).
     """
     user = _user(ctx)
     filters = {"levels": niveaux, "doc_types": types, "session": session, "org": organisation, "party": partie,
@@ -169,29 +169,29 @@ def rechercher(
     if weak:
         out["faible_pertinence"] = [{**h, "pertinence": signals.get(h["passage_id"])} for h in weak[:5]]
     if not strong:
-        out["verdict"] = ("rien de pertinent : aucun passage ne contient l'expression ni tous les termes, ni n'est proche "
-                          "par le sens. Le dire (« non trouvé dans le corpus ») ; essayer 2–3 autres formulations ou "
-                          "retirer des filtres ; ne pas présenter `faible_pertinence` comme une réponse.")
-    out["rappel"] = "Citer le texte exact, la référence et le niveau. Rien de pertinent → le dire."
+        out["verdict"] = ("nothing relevant: no passage contains the phrase or all the terms, or is "
+                          "close in meaning. Say so (\"not found in the corpus\"); try 2–3 other phrasings or remove "
+                          "filters; do not present `faible_pertinence` as an answer.")
+    out["rappel"] = "Quote the exact text, the reference and the level. Nothing relevant → say so."
     return out
 
 
 @mcp.tool(annotations=READ)
 def lire_passage(passage_id: int, avant: int = 1, apres: int = 2, ctx: Context | None = None) -> dict[str, Any]:
-    """Texte exact d'un passage et de ses voisins (contexte), avec la référence complète et le lien vers l'original à la bonne page."""
+    """Exact text of a passage and its neighbours (context), with the full reference and a link to the original at the right page."""
     out = search.passage(db.get(), passage_id, _user(ctx), before=min(avant, 5), after=min(apres, 8))
-    return out or {"erreur": "passage introuvable ou non autorisé"}
+    return out or {"erreur": "passage not found or not authorised"}
 
 
 @mcp.tool(annotations=READ)
 def document(reference: str, ctx: Context | None = None) -> dict[str, Any]:
-    """Métadonnées d'un document et liste de ses versions. `reference` = identifiant numérique, cote
-    officielle (ex. FCCC/PA/CMA/2023/16/Add.1, FCCC/CP/2026/L.3) ou URL."""
+    """Document metadata and list of its versions. `reference` = numeric id, official symbol
+    (e.g. FCCC/PA/CMA/2023/16/Add.1, FCCC/CP/2026/L.3) or URL."""
     conn = db.get()
     user = _user(ctx)
     row = search.find_doc(conn, reference, user)
     if not row:
-        return {"erreur": f"document introuvable : {reference}"}
+        return {"erreur": f"document not found: {reference}"}
     out = search.document(conn, row["id"], user) or {}
     first = conn.execute("SELECT id, page, para, substr(text,1,400) AS t FROM passages WHERE doc_id=? ORDER BY seq LIMIT 3",
                          (row["id"],)).fetchall()
@@ -201,14 +201,14 @@ def document(reference: str, ctx: Context | None = None) -> dict[str, Any]:
 
 @mcp.tool(annotations=READ)
 def comparer_versions(document_recent: str, document_ancien: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
-    """Ce qui a changé entre deux versions d'un texte (projet de décision, conclusions…) : paragraphes
-    ajoutés, supprimés, modifiés (diff mot à mot), évolution du nombre de crochets et d'options.
-    Sans `document_ancien`, compare avec la version précédente de la même lignée."""
+    """What changed between two versions of a text (draft decision, conclusions…): paragraphs added, deleted,
+    modified (word-level diff), change in the number of brackets and options.
+    Without `document_ancien`, compares with the previous version in the same lineage."""
     conn = db.get()
     user = _user(ctx)
     new = search.find_doc(conn, document_recent, user)
     if not new:
-        return {"erreur": f"document introuvable : {document_recent}"}
+        return {"erreur": f"document not found: {document_recent}"}
     if document_ancien:
         old = search.find_doc(conn, document_ancien, user)
     else:
@@ -219,7 +219,7 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
         if old and old["access"] != "public" and not auth.can_restricted(user):
             old = None
     if not old:
-        return {"erreur": "pas de version antérieure connue", "versions": search.versions(conn, new["lineage_key"], user)}
+        return {"erreur": "no known earlier version", "versions": search.versions(conn, new["lineage_key"], user)}
     out = diff.compare(conn, old["id"], new["id"])
     out["ancien"] = search.doc_public(old)
     out["nouveau"] = search.doc_public(new)
@@ -229,13 +229,13 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
 @mcp.tool(annotations=READ)
 def crochets(theme: str, texte: str | None = None, dossier: str | None = None, limite: int = 40,
              ctx: Context | None = None) -> dict[str, Any]:
-    """Crochets par thème dans un projet de texte : quelles formulations sur un thème restent ENTRE CROCHETS (non
-    agréées), et depuis quelle version. `theme` : genre, droits humains (défenseurs des droits), désinformation,
-    peuples autochtones, jeunesse, transition juste, fossiles, finance, mesures unilatérales — ou des mots anglais
-    séparés par des virgules (« civic space, human rights defenders »). `texte` : cote (FCCC/…/L.x), doc_id ou URL ;
-    sinon `dossier` (slug ou alias) : dernier texte récupéré du dossier (les autres sont listés). Pour chaque crochet :
-    paragraphe, formulation, contexte, `entre_crochets_depuis` (version, date), historique version par version.
-    Toujours dire la version, la date et « non adopté »."""
+    """Brackets by theme in a draft text: which wording on a theme is still IN BRACKETS (not agreed), and since
+    which version. `theme`: gender, human rights (rights defenders), disinformation, indigenous peoples, youth,
+    just transition, fossil fuels, finance, unilateral measures (English or French names) — or English words
+    separated by commas ("civic space, human rights defenders"). `texte`: symbol (FCCC/…/L.x), doc_id or URL;
+    otherwise `dossier` (slug or alias): latest retrieved text of the item (the others are listed). For each
+    bracket: paragraph, wording, context, `entre_crochets_depuis` (version, date), version-by-version history.
+    Always state the version, the date and "not adopted"."""
     from . import crochets as cr
 
     conn = db.get()
@@ -244,7 +244,7 @@ def crochets(theme: str, texte: str | None = None, dossier: str | None = None, l
     if texte:
         row = search.find_doc(conn, texte, user)
         if not row:
-            return {"erreur": f"document introuvable : {texte}"}
+            return {"erreur": f"document not found: {texte}"}
     elif dossier:
         slug, err = _resolve_dossier(dossier)
         if err:
@@ -252,38 +252,52 @@ def crochets(theme: str, texte: str | None = None, dossier: str | None = None, l
         live, _, _ = _live()
         got = [t for t in live.texts(conn, slug, limit=40) if t["doc_id"]]
         if not got:
-            return {"erreur": f"aucun texte du dossier « {slug} » récupéré dans le corpus", "conseil": "dossiers(a_recuperer=true)"}
+            return {"erreur": f"no text of item “{slug}” retrieved in the corpus", "conseil": "dossiers(a_recuperer=true)"}
         row = search.find_doc(conn, str(got[0]["doc_id"]), user)
         if not row:
-            return {"erreur": "texte non accessible"}
+            return {"erreur": "text not accessible"}
         others = [{"cote": t["symbol"], "titre": t["title"], "date": t["published"], "doc_id": t["doc_id"]}
                   for t in got[1:8]] or None
     else:
-        return {"erreur": "préciser texte=<cote ou doc_id> ou dossier=<slug ou alias>"}
+        return {"erreur": "specify texte=<symbol or doc_id> or dossier=<slug or alias>"}
     out = cr.by_theme(conn, row, theme, user, limit=max(1, min(limite, 100)))
     if others:
         out["autres_textes_du_dossier"] = others
-        out["choix_texte"] = "texte le plus récent du dossier retenu ; préciser texte=<cote> pour un autre"
+        out["choix_texte"] = "most recent text of the item used; specify texte=<symbol> for another"
     return out
 
 
 @mcp.tool(annotations=READ)
 def nouveautes(depuis: str = "24h", niveaux: list[str] | None = None, types: list[str] | None = None,
-               limite: int = 30, ctx: Context | None = None) -> dict[str, Any]:
-    """Documents entrés dans le corpus récemment (veille en direct). `depuis` : « 6h », « 2j », « 30min »
-    ou date ISO. Filtrable par niveaux et types (ex. types=["projet_texte","decision"])."""
-    filters = {"added_since": _since(depuis), "levels": niveaux, "doc_types": types}
+               limite: int = 30, mes_sujets: bool = False, ctx: Context | None = None) -> dict[str, Any]:
+    """What entered the corpus recently. `depuis`: "6h", "2j" (days), "30min" or an ISO date.
+    `mes_sujets=true`: what changed since `depuis` on the user's topics (followed negotiation items and keyword
+    topics), one block per topic: new session texts with their stage (draft, forwarded for adoption = L document,
+    adopted), brackets and what changed since the previous version (link to the diff; use comparer_versions for the
+    detail), recent reports and newsletters that mention the item, documents flagged by keyword topics. Answers
+    "how have the drafts on my topics changed since yesterday?". Otherwise: latest documents, filterable by levels
+    and types (e.g. types=["projet_texte","decision"])."""
+    since = _since(depuis)
+    if mes_sujets:
+        from . import i18n, topics
+
+        user = _need_user(ctx)
+        out = topics.whats_new(db.get(), user, since, i18n.default_for(user))
+        if out["aucun_sujet"]:
+            out["conseil"] = "no topics yet: suggest suivre(dossier=…) or suivre(mots_cles=…), or the My topics page"
+        return out
+    filters = {"added_since": since, "levels": niveaux, "doc_types": types}
     docs = search.latest(db.get(), _user(ctx), {k: v for k, v in filters.items() if v}, limit=min(limite, 100))
     return {"depuis": filters["added_since"], "nb": len(docs), "documents": docs}
 
 
 @mcp.tool(annotations=READ)
 def donnees(pays: str, indicateur: str | None = None, debut: int | None = None, fin: int | None = None) -> dict[str, Any]:
-    """Chiffres d'émissions pour vérifier une affirmation. `pays` : code ISO3 (FRA, CHN, USA, IND…) ou nom
-    anglais (« European Union (27) », « World »). Indicateurs : co2, co2_including_luc, co2_per_capita,
+    """Emissions figures to check a claim. `pays`: ISO3 code (FRA, CHN, USA, IND…) or English name
+    ("European Union (27)", "World"). Indicators: co2, co2_including_luc, co2_per_capita,
     share_global_co2, cumulative_co2, share_global_cumulative_co2, total_ghg, total_ghg_excluding_lucf,
-    ghg_per_capita, coal_co2, oil_co2, gas_co2, methane, population, gdp. Sans indicateur : sélection
-    usuelle. Sans bornes : 1990, 2005, 2015 et les dernières années. Source : Our World in Data (niveau 3)."""
+    ghg_per_capita, coal_co2, oil_co2, gas_co2, methane, population, gdp. No indicator: usual selection.
+    No bounds (debut/fin): 1990, 2005, 2015 and the latest years. Source: Our World in Data (level 3)."""
     return data.query(db.get(), pays, indicateur, debut, fin)
 
 
@@ -292,8 +306,8 @@ _GLOSSARY: list[dict[str, Any]] | None = None
 
 @mcp.tool(annotations=READ)
 def glossaire(terme: str | None = None) -> dict[str, Any]:
-    """Définition d'un sigle ou d'une notion des négociations climat (NCQG, GGA, MWP, article 6, BTR…),
-    avec le texte de référence. Sans terme : liste des entrées."""
+    """Definition of a climate-negotiation acronym or concept (NCQG, GGA, MWP, Article 6, BTR…),
+    with the reference text. No term: list of entries."""
     global _GLOSSARY
     if _GLOSSARY is None:
         path = config.CATALOG_DIR / "glossaire.yaml"
@@ -305,27 +319,27 @@ def glossaire(terme: str | None = None) -> dict[str, Any]:
     found = [e for e in entries if t == e["terme"].lower() or t in [str(a).lower() for a in e.get("alias", [])]]
     if not found:
         found = [e for e in entries if t in e["terme"].lower() or t in e.get("definition", "").lower()][:5]
-    return {"resultats": found} if found else {"erreur": f"absent du glossaire : {terme}", "conseil": "utiliser rechercher"}
+    return {"resultats": found} if found else {"erreur": f"not in the glossary: {terme}", "conseil": "use rechercher"}
 
 
 @mcp.tool(annotations=READ)
 def programme(sujet: str | None = None, jour: str | None = None, types: list[str] | None = None,
               limite: int = 40, mes_sujets: bool = False, pavillons: bool = True,
               ctx: Context | None = None) -> dict[str, Any]:
-    """Programme de la COP31 : OÙ et QUAND aller (un jour donné, des sujets donnés). Pour chercher dans le contenu
-    des événements, compter (« combien de pavillons ont parlé de… ») ou voir la couverture : outil `pavillons`. Side events officiels (salle, horaire, organisateurs, thèmes),
-    réunions officielles du calendrier CCNUCC (dialogues et ateliers prévus par les décisions, coordinations de
-    groupes, événements spéciaux), résumé des négociations du jour, documents de programme déposés (Daily
-    Programme, ordres du jour) ET événements des pavillons et hubs (Blue Zone et Green Zone, ≈5 000 sessions
-    avec résumé et intervenants : clé `pavillons`).
-    `jour` : « aujourd'hui », « demain », « 2026-11-14 » ou « 14 ». `sujet` : mots-clés séparés par des virgules,
-    de préférence en anglais (« indigenous, LCIPP », « water », « youth, ACE, education »).
-    `mes_sujets=true` : utilise les sujets suivis par l'utilisateur (alertes) et ses dossiers suivis, un bloc par
-    sujet — pour « aujourd'hui, quels événements pour mes sujets ? ». `pavillons=false` : sans les pavillons.
-    `types` : side_event, reunion, hors_site (événements hors site) ; par défaut side_event + reunion.
-    Pavillons : correspondance « mots » (terme présent) ou « sens » (proximité sémantique : vérifier le résumé).
-    Chaque side event porte son lien de vérification (SEORS, filtré sur le jour) : salles et horaires changent,
-    toujours donner ce lien. Pour les questions transversales (comptages, par pavillon) : outil `pavillons`."""
+    """COP31 programme: WHERE and WHEN to go (on a given day, on given topics). To search event content, count
+    ("how many pavilions talked about…") or see coverage: `pavillons` tool. Official side events (room, time,
+    organisers, themes), official UNFCCC calendar meetings (dialogues and workshops mandated by decisions, group
+    coordinations, special events), summary of the day's negotiations, programme documents posted (Daily
+    Programme, agendas) AND pavilion and hub events (Blue Zone and Green Zone, ≈5,000 sessions with summary and
+    speakers: key `pavillons`).
+    `jour`: "today", "tomorrow" (or "aujourd'hui", "demain"), "2026-11-14" or "14". `sujet`: comma-separated
+    keywords, preferably in English ("indigenous, LCIPP", "water", "youth, ACE, education").
+    `mes_sujets=true`: uses the user's followed topics (alerts) and followed items, one block per topic — for
+    "today, which events for my topics?". `pavillons=false`: without pavilions.
+    `types`: side_event, reunion, hors_site (off-site events); default side_event + reunion.
+    Pavilions: match "mots" (term present) or "sens" (semantic proximity: check the summary).
+    Each side event carries its verification link (SEORS, filtered on the day): rooms and times change, always
+    give that link. For cross-cutting questions (counts, per pavilion): `pavillons` tool."""
     from . import agenda
     from . import pavillons as pav
 
@@ -334,14 +348,14 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
     lim = max(1, min(limite, 100))
     if mes_sujets:
         if not user or not user.get("id"):
-            return {"erreur": "mes_sujets demande d'être connecté ; sinon préciser `sujet`"}
+            return {"erreur": "mes_sujets requires being signed in; otherwise specify `sujet`"}
         subjects = [(s["libelle"], s["requete"]) for s in alerts.list_subscriptions(conn, user["id"])]
         live, _, _ = _live()
         for slug in sorted(live.followed(conn, user["id"])):
             d = live.dossier(slug) or {}
             subjects.append((d.get("nom") or slug, d.get("requete") or d.get("nom_en") or slug))
         if not subjects:
-            return {"erreur": "aucun sujet suivi : en ajouter avec `suivre`, ou préciser `sujet`"}
+            return {"erreur": "no topics followed: add some with `suivre`, or specify `sujet`"}
         day = agenda.resolve_day(jour)
         blocs = []
         for label, q in subjects[:8]:
@@ -364,7 +378,7 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
     if sujet:
         out["passages"] = search.search(conn, sujet, {"doc_types": ["programme", "ordre_du_jour"]}, user, limit=5)
     if not out["evenements"] and not out["total"] and not (out.get("pavillons") or {}).get("evenements"):
-        out["note"] = "Aucun événement trouvé pour ce jour et ce sujet dans le programme relevé."
+        out["note"] = "No event found for this day and topic in the collected programme."
     return out
 
 
@@ -372,23 +386,23 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
 def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str | None = None,
               zone: str | None = None, mode: str = "hybride", limite: int = 80, evenement: str | None = None,
               couverture: bool = False) -> dict[str, Any]:
-    """Recherche dans le CONTENU des programmes (comptages, couverture, qui a parlé de quoi). Pour « où et quand
-    aller aujourd'hui » : outil `programme`. Programmes de TOUS les pavillons et side events de la COP31 (≈5 000 événements : titre, résumé,
-    intervenants, thèmes, mots-clés), pour des questions transversales : « combien de pavillons ont parlé des
-    forêts tropicales ? », « quels pavillons ont critiqué les solutions techniques (CCS, géo-ingénierie…) ? »,
-    « que fait le pavillon de l'Indonésie sur le méthane ? », « qui a parlé de minerais critiques ? ».
-    Résultat groupé par pavillon, avec le nombre d'événements par pavillon.
-    `sujet` : termes séparés par des virgules (OU), en anglais de préférence, avec synonymes
-    (« tropical forest, rainforest, Amazon, Congo Basin, REDD+, deforestation »). Mot entre guillemets = expression
-    exacte ; `mot*` = préfixe. `mode` : hybride (mots + sens, défaut), mots (comptage strict), sens (idées
-    proches : « critique du techno-solutionnisme »). `pavillon` : nom partiel (« Brazil », « WWF ») ; sans `sujet`,
-    renvoie tout son programme. `jour` : « 14 », « 2026-11-14 », « aujourd'hui ». `zone` : blue, green, autre.
-    `evenement` : identifiant renvoyé → résumé complet et fiche. `couverture=true` : liste des pavillons couverts
-    (événements, résumés, intervenants connus).
-    MÉTHODE pour compter : lancer 2–3 formulations, relire les résumés des correspondances « sens » avant de les
-    compter, annoncer le nombre de pavillons ET d'événements, et rappeler les limites (programmes déclaratifs,
-    résumés parfois absents, pavillons absents de la source). Citer le titre exact et le pavillon ; source de
-    niveau 5 (programme publié par les organisateurs)."""
+    """Search the CONTENT of programmes (counts, coverage, who talked about what). For "where and when to go
+    today": `programme` tool. Programmes of ALL COP31 pavilions and side events (≈5,000 events: title, summary,
+    speakers, themes, keywords), for cross-cutting questions: "how many pavilions talked about tropical
+    forests?", "which pavilions criticised technical fixes (CCS, geoengineering…)?", "what is the Indonesia
+    pavilion doing on methane?", "who talked about critical minerals?".
+    Results grouped by pavilion, with the number of events per pavilion.
+    `sujet`: comma-separated terms (OR), preferably in English, with synonyms
+    ("tropical forest, rainforest, Amazon, Congo Basin, REDD+, deforestation"). Quoted word = exact phrase;
+    `word*` = prefix. `mode`: hybride (words + meaning, default), mots (strict count), sens (related ideas:
+    "critique of techno-solutionism"). `pavillon`: partial name ("Brazil", "WWF"); without `sujet`, returns its
+    whole programme. `jour`: "14", "2026-11-14", "today". `zone`: blue, green, autre (other).
+    `evenement`: returned id → full summary and record. `couverture=true`: list of pavilions covered
+    (events, summaries, known speakers).
+    METHOD for counting: run 2–3 phrasings, reread the summaries of "sens" matches before counting them,
+    give the number of pavilions AND events, and state the limits (self-declared programmes, summaries sometimes
+    missing, pavilions absent from the source). Quote the exact title and the pavilion; level 5 source
+    (programme published by the organisers)."""
     from . import pavillons as pav
 
     conn = db.get()
@@ -407,26 +421,25 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
                 requete: str | None = None, theme: str | None = None, session: str | None = None,
                 ouverts: bool = False, parties_seulement: bool = False, limite: int = 40,
                 ctx: Context | None = None) -> dict[str, Any]:
-    """Soumissions officielles à la CCNUCC (portail submissions.unfccc.int, depuis 2015) : appels, qui a soumis
-    quoi, et analyse d'une soumission. UN mode par appel, dans cet ordre de priorité : document, appel, groupe,
-    dossier, auteur, sinon liste des appels (requete / theme / session / ouverts).
-    - sans argument (ou requete / theme / session / ouverts) : liste des appels, avec nombre de soumissions ;
-      requete = mots du titre, tous requis (« just transition », « adaptation indicators », « Article 6.8 ») ;
-      session = COP31, SB64… ; ouverts=true : appels ouverts ou de la session en cours.
-    - appel=<id> : détail de l'appel et toutes ses soumissions (auteur, Partie ou observateur, date, résumé IA s'il
-      existe, doc_id).
-    - auteur=« EU » / « UE » / « European Union », « LDC », « Brazil »… : soumissions de cet acteur, auteur ou
-      co-auteur (nom exact après normalisation ; un nom inconnu renvoie les noms proches, jamais un autre pays).
-    - dossier=<slug ou alias : GGA, finance, JTWP, art6, ACE…> : appels rattachés au dossier (les plus récents), qui a
-      soumis (acteurs canoniques ; groupe quand une Partie soumet en son nom), alignements déjà calculés.
-    - groupe=« LDC », « AOSIS », « G77 »… : soumissions du groupe en son nom, de ses SOUS-GROUPES (G77 → AGN, PMA,
-      AOSIS, Groupe arabe, LMDC…) et de ses membres (liste sourcée), avec dossier= pour se limiter à un dossier.
-      Un groupe ne soumet souvent pas en son nom : chercher alors ses sous-groupes, puis une soumission plus ancienne.
-    - document=<doc_id> : TEXTE de la soumission (passages, liens) et consigne d'analyse, à faire par toi : résumé,
-      points soulevés, force du langage (1 constate, 2 suggère, 3 demande, 4 exige), citations mot pour mot. Si une
-      analyse existe déjà en cache, elle est jointe.
-    Niveau : soumission d'une Partie = 2 (position officielle écrite, non adoptée), observateur = 5.
-    Pour « qui veut quoi » pendant la COP, voir aussi `positions` ; pour comparer deux acteurs : comparer_soumissions."""
+    """Official UNFCCC submissions (submissions.unfccc.int portal, since 2015): calls, who submitted what, and
+    analysis of a submission. ONE mode per call, in this priority order: document, appel, groupe, dossier,
+    auteur, otherwise list of calls (requete / theme / session / ouverts).
+    - no argument (or requete / theme / session / ouverts): list of calls, with number of submissions;
+      requete = title words, all required ("just transition", "adaptation indicators", "Article 6.8");
+      session = COP31, SB64…; ouverts=true: calls open or of the current session.
+    - appel=<id>: call detail and all its submissions (author, Party or observer, date, AI summary if any, doc_id).
+    - auteur="EU" / "UE" / "European Union", "LDC", "Brazil"…: submissions by this actor, as author or co-author
+      (exact name after normalisation; an unknown name returns close names, never another country).
+    - dossier=<slug or alias: GGA, finance, JTWP, art6, ACE…>: calls linked to the item (most recent), who
+      submitted (canonical actors; group when a Party submits on its behalf), alignments already computed.
+    - groupe="LDC", "AOSIS", "G77"…: submissions by the group in its own name, by its SUB-GROUPS (G77 → AGN, LDC,
+      AOSIS, Arab Group, LMDC…) and by its members (sourced list); add dossier= to restrict to one item.
+      A group often does not submit in its own name: then look at its sub-groups, then an older submission.
+    - document=<doc_id>: submission TEXT (passages, links) and analysis instructions, for you to carry out: summary,
+      points raised, strength of language (1 notes, 2 suggests, 3 requests, 4 demands), verbatim quotes. A cached
+      analysis, if any, is attached.
+    Level: Party submission = 2 (official written position, not adopted), observer = 5.
+    For "who wants what" during the COP, see also `positions`; to compare two actors: comparer_soumissions."""
     from . import soumissions as sm
 
     conn = db.get()
@@ -435,7 +448,7 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
         if document:
             row = search.find_doc(conn, document, _user(ctx))
             if not row:
-                return {"erreur": f"document introuvable : {document}"}
+                return {"erreur": f"document not found: {document}"}
             item = sm.item_for_doc(conn, row["id"])
             out = {"document": search.doc_public(row), **sm.client_text(conn, row["id"]),
                    "consigne": sm.CLIENT_ANALYSE_GUIDE}
@@ -447,7 +460,7 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
                 out["analyse_existante"] = cached
             return out
         if appel:
-            return sm.call_detail(conn, appel, parties_only=parties_seulement) or {"erreur": f"appel {appel} inconnu"}
+            return sm.call_detail(conn, appel, parties_only=parties_seulement) or {"erreur": f"unknown call {appel}"}
         slug = None
         if dossier:
             slug, err = _resolve_dossier(dossier)
@@ -458,7 +471,7 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
 
             gid = grp.group_id(groupe)
             if not gid:
-                return {"erreur": f"groupe inconnu : {groupe}"}
+                return {"erreur": f"unknown group: {groupe}"}
             calls = set(sm.dossier_call_ids(conn, slug)) if slug else None
             own = []
             try:
@@ -472,8 +485,8 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
                    "soumissions_des_sous_groupes": [{**sm._item_public(conn, x), "sous_groupe": sg, "appel": x["call_id"]}
                                                     for sg, x in subs[:limite]] or None,
                    "soumissions_des_membres": [{**sm._item_public(conn, x), "appel": x["call_id"]} for x in mem[:limite]],
-                   "note": "Un groupe soumet souvent par ses sous-groupes ou ses membres : ce sont alors leurs positions, "
-                           "pas celle du groupe."}
+                   "note": "A group often submits through its sub-groups or members: those are then their positions, "
+                           "not the group's."}
             return {k: v for k, v in out.items() if v is not None}
         if slug:
             return {"dossier": slug, **sm.dossier_section(conn, slug, limit=min(limite, 25))}
@@ -490,28 +503,27 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
                          dossier: str | None = None, acteurs: list[str] | None = None,
                          qualifications: list[dict] | None = None, max_comparaisons: int = 6,
                          ctx: Context | None = None) -> dict[str, Any]:
-    """Compare les positions écrites de deux acteurs (soumissions officielles), en deux temps :
-    1. comparer_soumissions(a, b) : les deux soumissions retenues (appel commun), leurs textes et la consigne ; TU
-       qualifies chaque point (accord / partiel / conflit / un seul côté, force du langage de chacun, citations
-       mot pour mot). Si une comparaison existe déjà en cache, elle est renvoyée directement.
+    """Compares the written positions of two actors (official submissions), in two steps:
+    1. comparer_soumissions(a, b): the two selected submissions (common call), their texts and instructions; YOU
+       qualify each point (agreement / partial / conflict / one side only, strength of language on each side,
+       verbatim quotes). If a comparison is already cached, it is returned directly.
     2. comparer_soumissions(a=<doc_id A>, b=<doc_id B>, qualifications=[{point, a_position, b_position, a_force,
-       b_force, relation, a_citation, b_citation, explication}]) : le serveur vérifie chaque citation dans le
-       document (force ramenée à 2 si elle n'y est pas) et calcule l'indication d'ensemble par règles fixes
-       (alignées, partiellement, non alignées, pas de position commune ; decompte.regle).
-    - a, b : nom d'acteur (« EU », « LMDC », « Saudi Arabia », « AOSIS ») ou doc_id. On prend l'appel le plus récent
-      auquel les deux ont répondu (ou `appel`, ou le plus récent des appels du `dossier` : GGA, finance, ACE…) ;
-      s'il y en a plusieurs, les autres sont listés (`autres_appels_communs`) : le dire, ne pas choisir en silence.
-      Dossier ambigu → `candidats`, à faire préciser.
-    - Groupe qui n'a pas soumis en son nom (fréquent : le G77 répond par ses sous-groupes) : repli, chaque étape dite
-      dans `repli` — 1) soumissions de ses SOUS-GROUPES (G77 → Groupe africain, PMA, AOSIS, Groupe arabe, LMDC…) et
-      de ses MEMBRES sur l'appel commun, avec la couverture ; sa dernière soumission propre sur le dossier est donnée
-      (`derniere_soumission_propre`) ; 2) sans appel commun : dernière soumission de chacun (appels différents).
-    - `ecart_dates` : écart entre les deux soumissions ; au-delà d'un an, avertissement à reprendre tel quel.
-    - b absent : compare la soumission de `a` avec les autres Parties du même appel (comparaisons en cache
-      d'abord, quelques nouvelles par requête ; relancer pour la suite).
-    - acteurs=["EU","LMDC","AOSIS",…] + dossier=… : matrice d'alignement LUE DANS LE CACHE (paires déjà comparées,
-      paires « à calculer » avec leur appel commun) ; aucune comparaison lancée.
-    Présenter comme une aide à l'analyse (pas un jugement), avec les citations et liens des deux documents."""
+       b_force, relation, a_citation, b_citation, explication}]): the server checks each quote in the document
+       (strength lowered to 2 if not found) and computes the overall indication by fixed rules
+       (aligned, partially, not aligned, no common position; decompte.regle).
+    - a, b: actor name ("EU", "LMDC", "Saudi Arabia", "AOSIS") or doc_id. Uses the most recent call both answered
+      (or `appel`, or the most recent call of the `dossier`: GGA, finance, ACE…); if there are several, the others
+      are listed (`autres_appels_communs`): say so, do not pick silently. Ambiguous item → `candidats`: ask.
+    - Group that did not submit in its own name (common: the G77 answers through sub-groups): fallback, each step
+      stated in `repli` — 1) submissions by its SUB-GROUPS (G77 → African Group, LDC, AOSIS, Arab Group, LMDC…) and
+      its MEMBERS on the common call, with coverage; its own latest submission on the item is given
+      (`derniere_soumission_propre`); 2) no common call: each side's latest submission (different calls).
+    - `ecart_dates`: gap between the two submissions; over a year, a warning to relay as is.
+    - b missing: compares `a`'s submission with the other Parties on the same call (cached comparisons first,
+      a few new ones per request; call again for more).
+    - acteurs=["EU","LMDC","AOSIS",…] + dossier=…: alignment matrix READ FROM THE CACHE (pairs already compared,
+      pairs "to compute" with their common call); no comparison is run.
+    Present it as an analytical aid (not a judgement), with the quotes and links of both documents."""
     from . import soumissions as sm
 
     conn = db.get()
@@ -523,14 +535,14 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
                 return err
         if acteurs:
             if not slug:
-                return {"erreur": "acteurs=[…] demande dossier=… (slug ou alias)"}
+                return {"erreur": "acteurs=[…] requires dossier=… (slug or alias)"}
             return sm.alignment_matrix(conn, slug, acteurs)
         if not a:
-            return {"erreur": "préciser a (et b), ou acteurs=[…] avec dossier=…"}
+            return {"erreur": "specify a (and b), or acteurs=[…] with dossier=…"}
         if qualifications is not None:
             _need_user(ctx)
             if not (str(a).isdigit() and str(b or "").isdigit()):
-                return {"erreur": "qualifications=… demande les doc_id des deux soumissions (a=…, b=…)"}
+                return {"erreur": "qualifications=… requires the doc_id of both submissions (a=…, b=…)"}
             return sm.score_client(conn, int(a), int(b), qualifications)
         if not b:
             return sm.compare_in_call(conn, sm.latest_doc(conn, a, appel), max_n=max(1, min(max_comparaisons, 10)))
@@ -555,11 +567,11 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
         call = conn.execute("SELECT * FROM sub_calls WHERE id=?", (common,)).fetchone() if common else None
         out["appel_commun"] = sm._call_public(call) if call else None
         if not common:
-            out["attention"] = ("Pas d'appel commun : les deux soumissions répondent à des questions différentes ; "
-                                "la comparaison est indicative.")
+            out["attention"] = ("No common call: the two submissions answer different questions; "
+                                "the comparison is only indicative.")
         elif len(info["appels_communs"]) > 1 and not appel:
             out["autres_appels_communs"] = sm.calls_brief(conn, info["appels_communs"][1:6])
-            out["choix_appel"] = "appel commun le plus récent retenu ; préciser appel=… pour un autre"
+            out["choix_appel"] = "most recent common call used; specify appel=… for another"
         gap = sm.date_gap(conn, da, dbb)
         if gap:
             out["ecart_dates"] = gap
@@ -570,15 +582,15 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
 
 @mcp.tool(annotations=READ)
 def groupes(groupe: str | None = None, partie: str | None = None) -> dict[str, Any]:
-    """Groupes de négociation : qui est membre de quoi, avec la SOURCE et la date de chaque liste.
-    - groupe=« LDC » / « PMA », « AOSIS », « G77 », « EU », « Umbrella », « BASIC », « EIG », « LLDC », « SIDS » :
-      membres (nom, ISO3, année d'adhésion si la source la donne).
-    - partie=« China », « Brazil », « Tuvalu »… : groupes dont elle est membre.
-    - sans argument : tous les groupes et l'état de leur liste.
-    Statut : verifie (liste sourcée, nombre conforme) ; verifie_par_equivalence (AGN = groupe régional africain de
-    l'ONU, Groupe arabe = Ligue des États arabes : le dire avec la phrase `equivalence`) ; ecart (à vérifier) ;
-    non_verifie (LMDC, AILAC, ALBA, CfRN : pas de liste officielle — ne JAMAIS en déduire la composition, citer
-    seulement le nombre annoncé par la source)."""
+    """Negotiating groups: who belongs to what, with the SOURCE and date of each list.
+    - groupe="LDC" / "PMA", "AOSIS", "G77", "EU", "Umbrella", "BASIC", "EIG", "LLDC", "SIDS":
+      members (name, ISO3, year joined if the source gives it).
+    - partie="China", "Brazil", "Tuvalu"…: groups it belongs to.
+    - no argument: all groups and the status of their list.
+    Status: verifie (sourced list, count matches); verifie_par_equivalence (AGN = UN African regional group,
+    Arab Group = League of Arab States: say so with the `equivalence` sentence); ecart (to check);
+    non_verifie (LMDC, AILAC, ALBA, CfRN: no official list — NEVER infer the membership, only quote the
+    number given by the source)."""
     from . import groupes as grp
 
     return grp.query(db.get(), groupe=groupe, partie=partie)
@@ -586,7 +598,7 @@ def groupes(groupe: str | None = None, partie: str | None = None) -> dict[str, A
 
 @mcp.tool(annotations=READ)
 def mes_sujets(ctx: Context | None = None) -> dict[str, Any]:
-    """Sujets suivis par l'utilisateur (alertes Telegram et tableau de bord) et dernières alertes."""
+    """Topics followed by the user (Telegram and dashboard alerts), followed items and latest alerts."""
     user = _need_user(ctx)
     conn = db.get()
     rows = conn.execute(
@@ -604,25 +616,25 @@ def mes_sujets(ctx: Context | None = None) -> dict[str, Any]:
 def suivre(mots_cles: str | None = None, dossier: str | None = None, arreter: int | None = None,
            ne_plus_suivre: bool = False, libelle: str | None = None, niveaux: list[str] | None = None,
            types: list[str] | None = None, ctx: Context | None = None) -> dict[str, Any]:
-    """Alertes (Telegram + tableau de bord). Un seul des trois modes :
-    - mots_cles=… : alerte sur chaque nouveau document correspondant ; expressions séparées par des virgules, en
-      anglais ET en français (« fossil fuels, combustibles fossiles, transition away ») ; « * » + types = tout
-      nouveau document de ces types (ex. types=["projet_texte"]).
-    - dossier=… (slug ou alias : GGA, finance, ACE, art6…) : alerte à chaque nouveau texte du dossier ;
-      ne_plus_suivre=true pour arrêter.
-    - arreter=<id> : supprimer une alerte par mots-clés (identifiant donné par mes_sujets)."""
+    """Alerts (Telegram + dashboard). Exactly one of three modes:
+    - mots_cles=…: alert on each new matching document; comma-separated phrases, in English AND French
+      ("fossil fuels, combustibles fossiles, transition away"); "*" + types = every new document of those types
+      (e.g. types=["projet_texte"]).
+    - dossier=… (slug or alias: GGA, finance, ACE, art6…): alert on each new text of the item;
+      ne_plus_suivre=true to stop.
+    - arreter=<id>: delete a keyword alert (id given by mes_sujets)."""
     user = _need_user(ctx)
     conn = db.get()
     modes = [x is not None and x != "" for x in (mots_cles, dossier, arreter)]
     if sum(modes) != 1:
-        return {"erreur": "préciser exactement un de : mots_cles, dossier, arreter"}
+        return {"erreur": "specify exactly one of: mots_cles, dossier, arreter"}
     if arreter is not None:
         return {"ok": alerts.remove_subscription(conn, user["id"], arreter), "alerte_supprimee": arreter}
     if dossier:
         live, _, _ = _live()
         slug = live.dossier_from_alias(dossier) or (dossier if live.dossier(dossier) else None)
         if not slug:
-            return {"erreur": "dossier inconnu : voir l'outil `dossiers` pour la liste et les alias"}
+            return {"erreur": "unknown item: see the `dossiers` tool for the list and aliases"}
         live.follow(conn, user["id"], slug, not ne_plus_suivre)
         return {"ok": True, "dossier": slug, "suivi": not ne_plus_suivre}
     sid = alerts.add_subscription(conn, user["id"], libelle or mots_cles[:60], mots_cles, niveaux, types)
@@ -654,7 +666,7 @@ def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
     try:
         found_title, pages = extract.extract(config.DATA_DIR / doc["raw_path"], doc["mime"] or "")
     except Exception as exc:
-        return {"ecarts": [f"contenu illisible pour la vérification : {type(exc).__name__}"]}
+        return {"ecarts": [f"content unreadable for verification: {type(exc).__name__}"]}
     detect = getattr(extract, "detect_date", None)
     date_read = detect(pages) if detect else _parse_date(pages[0].text[:1500] if pages else "")
     title_read = extract.guess_title(pages, found_title)
@@ -662,24 +674,24 @@ def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
     out["titre_lu_dans_le_document"] = title_read
     if date_read:
         if doc["published"] and str(doc["published"])[:10] != date_read:
-            out["ecarts"].append(f"date de publication {doc['published']} remplacée par la date du document {date_read}")
+            out["ecarts"].append(f"publication date {doc['published']} replaced by the document's date {date_read}")
         conn.execute("UPDATE documents SET published=? WHERE id=?", (date_read, doc_id))
     else:
-        out["ecarts"].append("aucune date lisible dans l'en-tête du document : date de publication non renseignée "
-                             "(ne pas la déduire du numéro ou du jour de récupération)")
+        out["ecarts"].append("no readable date in the document header: publication date left empty "
+                             "(do not infer it from the issue number or the retrieval day)")
     title = doc["title"] or ""
     if titre:
         typed = _parse_date(titre)
         if typed and date_read and typed != date_read:
             fixed = " ".join(_DATE_IN_TEXT.sub(date_read, titre).split())
-            out["ecarts"].append(f"le titre saisi porte la date {typed}, le document est daté du {date_read} : titre corrigé")
+            out["ecarts"].append(f"the title entered carries the date {typed}, the document is dated {date_read}: title corrected")
             ingest._set_title(conn, doc_id, fixed[:250])
             title = fixed
         words = {w for w in re.findall(r"[a-zà-ÿ0-9]{4,}", titre.lower())}
         read = {w for w in re.findall(r"[a-zà-ÿ0-9]{4,}", (title_read or "").lower())}
         if title_read and words and read and not words & read:
-            out["ecarts"].append(f"le titre saisi ne ressemble pas au titre lu dans le document (« {title_read[:120]} ») : "
-                                 "vérifier qu'il s'agit du bon document")
+            out["ecarts"].append(f"the title entered does not resemble the title read in the document (“{title_read[:120]}”): "
+                                 "check that this is the right document")
     conn.commit()
     out["titre_retenu"] = title
     if not out["ecarts"]:
@@ -690,21 +702,21 @@ def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
 @mcp.tool(annotations=WRITE)
 def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, type: str | None = None,
                 organisation: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
-    """Ajouter au corpus (public) une page ou un PDF accessible en ligne : communiqué, déclaration,
-    analyse… Préciser le niveau (2 officiel, 4 compte rendu, 5 position d'un acteur). La date de publication et le
-    titre sont LUS DANS LE DOCUMENT et comparés à la saisie : `verification.ecarts` dit ce qui a été corrigé (date
-    du titre saisi contredite par l'en-tête, titre sans rapport). Page bloquée (anti-bot) : chercher la version PDF
-    du même document, sinon déposer le fichier via le tableau de bord ou Telegram."""
+    """Add to the (public) corpus a web page or PDF available online: press release, statement, analysis…
+    Specify the level (2 official, 4 daily report, 5 actor's position). Publication date and title are READ FROM
+    THE DOCUMENT and compared with what was entered: `verification.ecarts` says what was corrected (date in the
+    title contradicted by the header, unrelated title). Blocked page (anti-bot): look for the PDF version of the
+    same document, otherwise upload the file via the dashboard or Telegram. Contributors only."""
     from . import fetch
 
     user = _need_user(ctx)
     if not auth.can_contribute(user):
-        return {"erreur": "reserved for contributors: guest accounts can search the corpus but not add documents / réservé aux contributeurs : les comptes invités consultent le corpus sans y ajouter de documents"}
+        return {"erreur": "reserved for contributors: guest accounts can search the corpus but not add documents"}
     res = fetch.Client().get(url)
     if not res.ok or fetch.is_antibot(res):
-        return {"erreur": f"inaccessible ({res.status}{', anti-bot' if res.ok else ''}) : chercher la version PDF du même "
-                          "document (ex. ENB : /sites/default/files/AAAA-MM/enbNNNNNe.pdf), sinon déposer le fichier "
-                          "via le tableau de bord ou Telegram"}
+        return {"erreur": f"unreachable ({res.status}{', anti-bot' if res.ok else ''}): look for the PDF version of the "
+                          "same document (e.g. ENB: /sites/default/files/YYYY-MM/enbNNNNNe.pdf), otherwise upload the "
+                          "file via the dashboard or Telegram"}
     meta = {k: v for k, v in {"title": titre, "level": niveau, "doc_type": type, "org": organisation}.items() if v}
     conn = db.get()
     doc_id, new, status = ingest.ingest_bytes(conn, res.content, url=res.url, mime=res.mime, meta=meta,
@@ -719,7 +731,7 @@ def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, t
 
 @mcp.tool(annotations=READ)
 def etat_corpus() -> dict[str, Any]:
-    """Volume du corpus par niveau, type et statut ; date du dernier ajout ; sources surveillées."""
+    """Corpus volume by level, type and status; date of the latest addition; monitored sources."""
     conn = db.get()
     out = search.stats(conn)
     out["sources_surveillees"] = [dict(r) for r in conn.execute(
@@ -738,17 +750,17 @@ def _live():
 @mcp.tool(annotations=READ)
 def dossiers(textes: bool = False, a_recuperer: bool = False, limite: int = 30,
              ctx: Context | None = None) -> dict[str, Any]:
-    """Les dossiers de négociation de la COP31 (atténuation, GGA, finance, art. 6, transition juste…) avec leur
-    état (selon l'index de Carbon Brief), le nombre de textes, de positions et de notes. Point d'entrée pour
-    « où en est-on ? ». Utiliser ensuite `dossier(slug)`.
-    textes=true : en plus, les derniers textes de négociation annoncés, tous dossiers (cote, titre, heure,
-    crochets, options, récupéré ou non) ; a_recuperer=true : seulement ceux pas encore récupérés dans le corpus."""
+    """COP31 negotiation items (mitigation, GGA, finance, Art. 6, just transition…) with their status (per the
+    Carbon Brief index), number of texts and positions, and aliases. Entry point for "where do things stand?".
+    Then use `dossier(slug)`.
+    textes=true: also the latest negotiation texts announced, all items (symbol, title, time, brackets, options,
+    retrieved or not); a_recuperer=true: only those not yet retrieved in the corpus."""
     live, _, _ = _live()
     conn = db.get()
     rows = live.overview(conn, _user(ctx))
     out = {"dossiers": [{k: d[k] for k in ("slug", "nom", "alias", "enjeu", "etat", "nb_textes", "a_recuperer",
-                                           "nb_positions", "nb_notes", "dernier")} for d in rows],
-           "source_index": f"{live.CB_CREDIT} — {live.CB_TEXTS_PAGE} (à citer)"}
+                                           "nb_positions", "dernier")} for d in rows],
+           "source_index": f"{live.CB_CREDIT} — {live.CB_TEXTS_PAGE} (to cite)"}
     if textes or a_recuperer:
         ts = live.texts(conn, None, pending_only=a_recuperer, limit=min(limite, 100))
         out["textes"] = [{**{k: t[k] for k in ("dossier", "symbol", "title", "body", "agenda_item", "published",
@@ -759,16 +771,15 @@ def dossiers(textes: bool = False, a_recuperer: bool = False, limite: int = 30,
 
 @mcp.tool(annotations=READ)
 def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
-    """Tout un dossier : état, textes de négociation successifs (crochets, options, lien vers le document et
-    le diff), brief IA s'il est activé, positions relevées pendant la COP (citation exacte et source),
-    positions écrites et appels à soumissions liés (qui a soumis, alignements déjà calculés),
-    positions de référence (Carbon Brief) et, pour les contributeurs, notes de terrain. `slug` ou alias (ex. GGA, finance,
-    MWP, ACE ; table des alias : outil `dossiers`). Mot ambigu → `candidats` : faire préciser, ne pas choisir.
-    Index des textes et positions de référence : citer « selon le suivi de Carbon Brief ». Un brief éventuel est rédigé par IA :
-    le présenter comme tel et s'appuyer sur ses sources numérotées."""
+    """A whole negotiation item: status, successive negotiation texts (brackets, options, link to the document and
+    the diff), AI brief if enabled, positions recorded during the COP (exact quote and source), written positions
+    and linked calls for submissions (who submitted, alignments already computed), reference positions (Carbon
+    Brief). Each text carries its `etape` (draft, for_adoption = L document forwarded to the plenary, adopted).
+    `slug` or alias (e.g. GGA, finance, MWP, ACE; alias table: `dossiers` tool). Ambiguous word → `candidats`:
+    ask the user, do not pick. Text index and reference positions: cite "according to Carbon Brief's tracker".
+    Any brief is AI-written: present it as such and rely on its numbered sources."""
     live, positions, briefs = _live()
     conn = db.get()
-    user = _user(ctx)
     word = slug
     slug, err = _resolve_dossier(word)
     if err:
@@ -780,7 +791,8 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
         "etat": [x["status"] for x in live.status_by_dossier(conn).get(slug, [])],
         "textes": [{**{k: t[k] for k in ("symbol", "title", "body", "agenda_item", "published", "pages", "brackets",
                                          "options", "pdf_url", "note")},
-                    "statut": "récupéré" if t["doc_id"] else "à récupérer",
+                    "statut": "retrieved" if t["doc_id"] else "to retrieve",
+                    "etape": live.text_stage(dict(t)),
                     "lien": f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t["doc_id"] else None,
                     "diff": f"{config.PUBLIC_BASE}/diff/{t['doc_id']}" if t["doc_id"] else None}
                    for t in live.texts(conn, slug, limit=40)],
@@ -793,13 +805,11 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
         "soumissions": _sub_section(conn, slug),
         "positions_reference": [{k: p[k] for k in ("actor", "stance", "issue", "source_url")}
                                 for p in pos if p["source_kind"] == "carbonbrief"],
-        "credit": f"Index et positions de référence : {live.CB_CREDIT} (citer). Positions COP : extraites de sources "
-                  "publiques, citation vérifiée mot pour mot. Positions écrites : points des soumissions officielles "
-                  "récentes des Parties (niveau 2, citation vérifiée), datées du dépôt. Brief : rédigé par IA, à vérifier sur les sources.",
+        "credit": f"Index and reference positions: {live.CB_CREDIT} (cite). COP positions: extracted from public "
+                  "sources, quote checked word for word. Written positions: points from recent official Party "
+                  "submissions (level 2, quote checked), dated by filing. Brief: AI-written, check against the sources.",
         "page": f"{config.PUBLIC_BASE}/dossiers/{slug}",
     }
-    if auth.can_restricted(user):
-        out["notes_terrain_internes"] = live.notes(conn, slug, limit=30)
     return out
 
 
@@ -817,13 +827,13 @@ def _sub_section(conn, slug: str) -> dict[str, Any] | None:
 def positions(acteur: str | None = None, dossier: str | None = None, depuis: str | None = None,
               limite: int = 80, divisions: bool = False, groupe: str | None = None,
               ctx: Context | None = None) -> dict[str, Any]:
-    """Qui veut quoi : positions d'un acteur (EU, G77 and China, LMDC, AOSIS, LDC, AGN, Arab Group, China,
-    Saudi Arabia…) et/ou sur un dossier, avec attitude, enjeu, citation exacte, date et source. `depuis` :
-    « 24h », « 3j » ou date ISO (positions relevées depuis). Sources : comptes rendus de négociation (l'ENB, niveau 4,
-    attribue les interventions en salle : « X, supported by Y, opposed by Z »), déclarations officielles, soumissions.
-    divisions=true (+ groupe=« G77 » par défaut, « AOSIS », « AGN »… ; dossier= facultatif) : DIVISIONS INTERNES du
-    groupe — enjeux où des sous-groupes ou membres soutiennent pendant que d'autres s'opposent, avec les alliés hors
-    groupe de chaque camp (ex. AOSIS et PMA avec l'UE, contre le Groupe arabe et l'Inde)."""
+    """Who wants what: positions of an actor (EU, G77 and China, LMDC, AOSIS, LDC, AGN, Arab Group, China,
+    Saudi Arabia…) and/or on an item, with stance, issue, exact quote, date and source. `depuis`: "24h", "3d"
+    (or "3j") or ISO date (positions recorded since). Sources: negotiation reports (ENB, level 4, attributes
+    interventions in the room: "X, supported by Y, opposed by Z"), official statements, submissions.
+    divisions=true (+ groupe="G77" by default, "AOSIS", "AGN"…; dossier= optional): the group's INTERNAL
+    DIVISIONS — issues where some sub-groups or members support while others oppose, with each camp's allies
+    outside the group (e.g. AOSIS and LDCs with the EU, against the Arab Group and India)."""
     live, pos, _ = _live()
     conn = db.get()
     live.ensure_schema(conn)
@@ -837,7 +847,7 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
 
         gid = grp.group_id(groupe or acteur or "G77")
         if not gid:
-            return {"erreur": f"groupe inconnu : {groupe or acteur} (voir l'outil `groupes`)"}
+            return {"erreur": f"unknown group: {groupe or acteur} (see the `groupes` tool)"}
         return pos.divisions(conn, gid, dossier=slug, since=_since(depuis))
     where, params = ["access='public'"], []
     if acteur:
@@ -851,8 +861,8 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
                     ({' OR '.join('lower(actor) LIKE ?' for _ in words)}) GROUP BY actor ORDER BY n DESC LIMIT 10""",
                 [f"%{w}%" for w in words])]
             return {"positions": [], "acteur": exact,
-                    "message": f"aucune position relevée pour « {acteur} » (nom canonique « {exact} »)"
-                               + (f" ; noms proches : {', '.join(near)}" if near else "")}
+                    "message": f"no position recorded for “{acteur}” (canonical name “{exact}”)"
+                               + (f"; similar names: {', '.join(near)}" if near else "")}
         where.append("actor=?")
         params.append(exact)
     if slug:
@@ -866,23 +876,10 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
             FROM positions WHERE {' AND '.join(where)} ORDER BY COALESCE(said_on, created_at) DESC LIMIT ?""",
         (*params, min(limite, 300))).fetchall()
     return {"positions": [dict(r) for r in rows],
-            "note": "source_kind=carbonbrief : positions de référence d'avant la COP (Carbon Brief, à citer) ; "
-                    "extraction/bluesky : relevées pendant la COP, citation vérifiée dans la source ; "
-                    "soumission : position écrite, point d'une soumission officielle récente à la CCNUCC (niveau 2), "
-                    "datée du dépôt (said_on), citation vérifiée (détail : soumissions(document=…))."}
-
-
-@mcp.tool(annotations=WRITE)
-def noter(texte: str, dossier: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
-    """Enregistrer une note de terrain (interne, restreinte), rattachée à un dossier :
-    ce qui a été dit en salle, par qui, sur quel paragraphe."""
-    live, _, _ = _live()
-    user = _need_user(ctx)
-    if not auth.can_restricted(user):
-        return {"erreur": "reserved for contributors / réservé aux contributeurs"}
-    slug = live.dossier_from_alias(dossier) if dossier else None
-    nid, slug = live.add_note(db.get(), user, texte, dossier_slug=slug, via="mcp")
-    return {"ok": True, "note": nid, "dossier": slug, "page": f"{config.PUBLIC_BASE}/dossiers/{slug or ''}"}
+            "note": "source_kind=carbonbrief: pre-COP reference positions (Carbon Brief, to cite); "
+                    "extraction/bluesky: recorded during the COP, quote checked in the source; "
+                    "soumission: written position, a point from a recent official UNFCCC submission (level 2), "
+                    "dated by filing (said_on), quote checked (detail: soumissions(document=…))."}
 
 
 # --- méthodes toutes prêtes (prompts MCP : menu « + » de Claude, « / » ailleurs) -------------------------

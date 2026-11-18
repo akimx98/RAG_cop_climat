@@ -1,0 +1,79 @@
+{% extends "base.html" %}{% from "_doc.html" import lvl, docline, links with context %}{% from "_live.html" import when, textstate with context %}{% block title %}{{ q ~ ' · ' if q }}{{ L('Base de données', 'Database') }} · COP Tracker{% endblock %}{% block body %}
+<style>
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line-2);margin:0 0 18px;overflow-x:auto}
+.tabs a{padding:10px 14px;text-decoration:none;color:var(--ink-2);font-weight:600;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs a.on{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs a:hover{color:var(--ink)}
+</style>
+<section class="hero" style="margin-bottom:18px">
+<div class="eyebrow"><a href="/about">{{ L('À propos', 'About') }}</a></div>
+<h1>{{ L('Base de données', 'Database') }}</h1>
+<p>{{ L('Tout le corpus, consultable à la main : ', 'The whole corpus, to explore by hand: ') }}{{ '{:,}'.format(stats.documents).replace(',', ' ') }} documents, {{ '{:,}'.format(stats.passages).replace(',', ' ') }} {{ L('passages citables', 'citable passages') }}. {{ L('C\'est ce que lit votre LLM connecté.', 'This is what your connected LLM reads.') }}</p>
+</section>
+<nav class="tabs" aria-label="{{ L('Vues', 'Views') }}">
+<a href="/database" class="{{ 'on' if tab == 'search' }}">{{ L('Recherche', 'Search') }}</a>
+<a href="/database?tab=negotiations" class="{{ 'on' if tab == 'negotiations' }}">{{ L('Dossiers de négociation', 'Negotiation items') }}</a>
+<a href="/database?tab=texts" class="{{ 'on' if tab == 'texts' }}">{{ L('Textes de session', 'Session texts') }}</a>
+<a href="/database?tab=latest" class="{{ 'on' if tab == 'latest' }}">{{ L('Derniers documents', 'Latest documents') }}</a>
+</nav>
+
+{% if tab == 'search' %}
+<form method="get">
+<div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+<input type="search" name="q" value="{{ q }}" aria-label="{{ L('Recherche', 'Search') }}" placeholder="{{ L('transitioning away from fossil fuels · objectif 2040 de l\'UE · FCCC/PA/CMA/2026/L.3', 'transitioning away from fossil fuels · EU 2040 target · FCCC/PA/CMA/2026/L.3') }}" autofocus><button>{{ L('Chercher', 'Search') }}</button></div>
+<div class="row chips" style="margin-top:12px">{% for l in ['1','2','3','4','5'] %}<label><input type="checkbox" name="niveau" value="{{ l }}" {{ 'checked' if l in levels }}>{{ lvl(l) }}</label>{% endfor %}</div>
+<details class="small" style="margin-top:8px"><summary style="cursor:pointer">{{ L('Types de document', 'Document types') }}</summary>
+<div class="row chips" style="margin-top:8px">{% for t in DOC_TYPES %}{% if t != 'note_interne' %}<label><input type="checkbox" name="type" value="{{ t }}" {{ 'checked' if t in types }}>{{ t|replace('_', ' ') }}</label>{% endif %}{% endfor %}</div></details>
+</form>
+<p class="small muted" style="margin:10px 0 0">{{ L('Mots et sens à la fois, plusieurs langues. Pour une formule onusienne, l\'anglais exact entre guillemets place le texte de référence en tête. Niveaux : 1 adopté · 2 officiel non adopté · 3 science et données · 4 compte rendu · 5 position d\'un acteur.', 'Keywords and meaning at once, across languages. For a UN phrase, the exact English wording in quotes puts the reference text first. Levels: 1 adopted · 2 official, not adopted · 3 science and data · 4 report · 5 an actor\'s position.') }}</p>
+{% if q %}
+<h2>{{ hits|length }} {% if lang == 'en' %}result{{ 's' if hits|length != 1 }}{% else %}résultat{{ 's' if hits|length > 1 }}{% endif %}</h2>
+<div class="card flush">
+{% for h in hits %}<div class="item">{{ docline(h) }}
+<div class="meta" style="margin-top:8px">{% if h.cote %}<span class="tag">{{ h.cote }}</span>{% endif %}{% if h.paragraphe %}<span class="tag">{{ h.paragraphe }}</span>{% endif %}<span class="tag">p. {{ h.page or 1 }}</span></div>
+<blockquote>{{ h.extrait }}</blockquote>
+{{ links(h) }}</div>
+{% else %}<p class="empty">{{ L("Rien trouvé. Essayez d'autres mots, ou la formule anglaise du texte.", 'Nothing found. Try other words, or the English wording of the text.') }}</p>{% endfor %}</div>
+{% endif %}
+
+{% elif tab == 'negotiations' %}
+<p class="muted" style="margin-top:0">{{ L('Un dossier par point de négociation : textes successifs et crochets, positions, soumissions officielles.', 'One page per negotiation item: successive texts and brackets, positions, official submissions.') }}</p>
+<div class="dgrid">
+{% for d in rows %}
+<a class="card dcard" href="/database/negotiations/{{ d.slug }}">
+<div class="spread"><span class="eyebrow">{{ d.alias[0]|upper }}</span>{% if d.suivi %}<span class="pill ok">✓ {{ L('suivi', 'following') }}</span>{% endif %}</div>
+<div class="title">{{ DN(d) }}</div>
+<div class="small muted">{{ DN(d, 'enjeu') }}</div>
+<div class="row">
+{% for e in d.etat %}<span class="pill">{{ e }}</span>{% endfor %}
+<span class="pill">{{ d.nb_textes }} {% if lang == 'en' %}text{{ 's' if d.nb_textes != 1 }}{% else %}texte{{ 's' if d.nb_textes > 1 }}{% endif %}</span>
+<span class="pill">{{ d.nb_positions }} positions</span>
+</div>
+{% if d.dernier %}<div class="small muted">{{ L('Dernier', 'Latest') }} : {{ d.dernier.symbol or '' }} {{ (d.dernier.title or '')[:80] }} · {{ when(d.dernier.published) }}{% if d.dernier.brackets is not none %} · {{ d.dernier.brackets }} {{ L('crochets', 'brackets') }}{% endif %}</div>{% endif %}
+</a>
+{% endfor %}
+</div>
+
+{% elif tab == 'texts' %}
+<p class="muted" style="margin-top:0">{{ L('Chaque document de session annoncé, avec son étape (projet, proposé pour adoption, adopté), ses crochets et options. Un texte', 'Every session document announced, with its stage (draft, forwarded for adoption, adopted), brackets and options. A text marked') }} <span class="pill warn">⏳ {{ L('à récupérer', 'to retrieve') }}</span> {{ L("n'est pas encore dans le corpus : il s'ouvre sur unfccc.int.", 'is not in the corpus yet: it opens on unfccc.int.') }}</p>
+<div class="row chips" style="margin-bottom:12px"><a href="/database?tab=texts" class="{{ 'on' if not dossier }}">{{ L('Tous', 'All') }}</a>{% for slug, name in names.items() %}<a href="/database?tab=texts&dossier={{ slug }}" class="{{ 'on' if dossier == slug }}">{{ name }}</a>{% endfor %}</div>
+<div class="card flush">
+{% for t in texts %}<div class="item" id="t{{ t.id }}">
+<div class="title">{% if t.doc_id %}<a href="/doc/{{ t.doc_id }}">{{ t.symbol or '' }} {{ t.title }}</a>{% else %}{{ t.symbol or '' }} {{ t.title }}{% endif %}</div>
+<div class="meta">{% if t.dossier %}<a href="/database/negotiations/{{ t.dossier }}">{{ names.get(t.dossier, t.cb_topic) }}</a>{% else %}<span>{{ t.cb_topic or '' }}</span>{% endif %}<span class="sep">·</span><span>{{ t.body }}, {{ L('point', 'item') }} {{ t.agenda_item or '?' }}</span><span class="sep">·</span><span>{{ when(t.published) }}</span>{% if t.brackets is not none %}<span class="sep">·</span><span><b>{{ t.brackets }}</b> {{ L('crochets', 'brackets') }}</span>{% endif %}{% if t.options %}<span class="sep">·</span><span><b>{{ t.options }}</b> options</span>{% endif %}</div>
+<div class="actions">{{ textstate(t) }}{% if t.doc_id %}<a href="/diff/{{ t.doc_id }}">{{ L('Ce qui a changé', 'What changed') }}</a>{% endif %}{% if t.pdf_url %}<a href="{{ t.pdf_url }}" target="_blank" rel="noopener">unfccc.int ↗</a>{% endif %}</div>
+{% if not t.doc_id and user.is_admin %}<form class="row" method="post" action="/textes/{{ t.id }}/deposer" enctype="multipart/form-data" style="margin-top:8px"><input type="file" name="file" accept=".pdf,.docx" required style="flex:1;min-width:200px"><button class="secondary">{{ L('Déposer ce texte', 'Upload this text') }}</button></form>{% endif %}
+</div>{% else %}<p class="empty">{{ L('Aucun texte.', 'No texts.') }}</p>{% endfor %}
+</div>
+<p class="small muted">Index : <a href="{{ cb_page }}">{{ credit }}</a> ({{ L('cité', 'credited') }}).</p>
+
+{% else %}
+<div class="row chips" style="margin:0 0 12px">
+<a href="/database?tab=latest" class="{{ 'on' if not level }}">{{ L('Tous', 'All') }}</a>
+{% for l in ['1','2','3','4','5'] %}<a href="/database?tab=latest&niveau={{ l }}" class="{{ 'on' if level==l }}">{{ lvl(l) }}</a>{% endfor %}
+</div>
+<div class="card flush">
+{% for d in latest %}<div class="item">{{ docline(d) }}</div>{% else %}<p class="empty">{{ L('Aucun document.', 'No documents.') }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

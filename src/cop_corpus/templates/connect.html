@@ -1,0 +1,131 @@
+{% extends "base.html" %}{% block title %}{{ L('Connecter un LLM', 'Connect an LLM') }} · COP Tracker{% endblock %}{% block body %}
+<style>
+.narrow{max-width:900px;margin:0 auto}
+.addr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.addr code{flex:1;min-width:0;padding:10px 12px;font-size:13px;background:var(--surface-2)}
+.how{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+@media(max-width:820px){.how{grid-template-columns:minmax(0,1fr)}}
+.flow{display:grid;gap:8px;margin:0;padding:0;list-style:none;counter-reset:f}
+.flow li{counter-increment:f;display:flex;gap:10px;font-size:14.5px}
+.flow li::before{content:counter(f);flex:none;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 12px/24px var(--sans);text-align:center}
+.prompts{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.prompts li{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.prompts li span{flex:1;font:15px/1.5 var(--serif)}
+.prompts li em{display:block;font:600 11px/1.2 var(--sans);font-style:normal;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:3px}
+.prompts button{padding:6px 12px;font-size:12.5px;flex:none}
+.shot{margin:0;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface-2)}
+.shot img{display:block;width:100%;height:auto;max-height:340px;object-fit:contain}
+.shot figcaption{font-size:12px;color:var(--muted);padding:6px 10px}
+details.llm{border:1px solid var(--line);border-radius:8px;background:var(--surface);margin:0 0 10px}
+details.llm > summary{cursor:pointer;list-style:none;padding:14px 18px;font-weight:650;display:flex;justify-content:space-between;gap:10px;align-items:center}
+details.llm > summary::-webkit-details-marker{display:none}
+details.llm > summary::after{content:"+";font-size:20px;color:var(--muted);line-height:1}
+details.llm[open] > summary::after{content:"–"}
+details.llm > summary small{font-weight:500;color:var(--muted);font-size:13px;flex:1;margin-left:8px}
+details.llm .in{padding:0 18px 16px}
+details.llm ol{margin:0 0 12px;padding-left:20px;display:grid;gap:4px}
+.skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin:8px 0 0;padding:0;list-style:none}
+.skills li{border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px}
+.skills li a{font-family:var(--mono);font-size:12.5px;font-weight:600}
+</style>
+<div class="narrow">
+<section class="hero">
+<div class="eyebrow">{{ L('Demander', 'Ask') }}</div>
+<h1>{{ L('Connecter un LLM', 'Connect an LLM') }}</h1>
+<p>{{ L('Branchez Claude, ChatGPT ou Le Chat sur le corpus de la COP31 : votre assistant cherche dans les textes à jour et cite le passage exact, au lieu de répondre de mémoire.', 'Plug Claude, ChatGPT or Le Chat into the COP31 corpus: your assistant searches the up-to-date texts and quotes the exact passage instead of answering from memory.') }}</p>
+</section>
+
+<div class="card" id="address">
+<h2>{{ L('Votre adresse personnelle', 'Your personal address') }}</h2>
+{% if user and token %}
+{% if regenerated %}<p class="banner">{{ L('Nouvelle adresse : l\'ancienne est révoquée, mettez à jour vos connecteurs.', 'New address: the old one is revoked, update your connectors.') }}</p>{% endif %}
+<div class="addr"><code id="mcp">{{ base }}/u/{{ token }}/mcp</code><button type="button" class="secondary" data-copy="#mcp" data-done="✓ {{ L('Copiée', 'Copied') }}">{{ L('Copier', 'Copy') }}</button></div>
+<p class="small muted" style="margin:10px 0 0">{{ L('Elle vaut mot de passe : ne la partagez pas. Elle vous identifie, donc votre LLM connaît vos sujets. Si elle a fuité, vous pouvez la', 'Treat it like a password: do not share it. It identifies you, so your LLM knows your topics. If it has leaked, you can') }}
+<form method="post" style="display:inline" data-q="{{ L('L\'adresse actuelle cessera de fonctionner dans vos connecteurs. Continuer ?', 'The current address will stop working in your connectors. Continue?') }}" onsubmit="return confirm(this.dataset.q)"><button class="secondary" style="padding:3px 9px;font-size:12.5px">{{ L('révoquer et en générer une nouvelle', 'revoke it and generate a new one') }}</button></form></p>
+{% elif user %}
+<p>{{ L("Votre adresse n'a pas encore été générée.", 'Your address has not been generated yet.') }}</p>
+<form method="post"><button>{{ L('Générer mon adresse', 'Generate my address') }}</button></form>
+{% else %}
+<p style="margin-top:0">{{ L('Créez un compte gratuit pour obtenir votre adresse : elle relie votre LLM au corpus et à vos sujets.', 'Create a free account to get your address: it links your LLM to the corpus and to your topics.') }}</p>
+<div class="row"><button type="button" data-auth="signup">{{ L('Créer un compte gratuit', 'Create a free account') }}</button><button type="button" class="secondary" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</button></div>
+{% endif %}
+</div>
+
+<div class="how">
+<div>
+<h2>{{ L('Le principe', 'How it works') }}</h2>
+<ol class="flow">
+<li><span>{{ L('Vous posez une question à votre LLM, comme d\'habitude.', 'You ask your LLM a question, as usual.') }}</span></li>
+<li><span>{{ L('Il interroge COP Tracker : projets de texte et leurs versions, décisions adoptées, positions, soumissions, programme du jour.', 'It queries COP Tracker: draft texts and their versions, adopted decisions, positions, submissions, the day\'s programme.') }}</span></li>
+<li><span>{{ L('Il répond en citant le passage exact, avec sa référence, son niveau de fiabilité et un lien vers l\'original. Rien trouvé : il le dit.', 'It answers by quoting the exact passage, with its reference, reliability level and a link to the original. Nothing found: it says so.') }}</span></li>
+</ol>
+{% if shots.get('connect-example') %}<figure class="shot" style="margin-top:14px"><img src="{{ shots['connect-example'] }}" alt="{{ L('Exemple de réponse sourcée', 'Example of a sourced answer') }}" loading="lazy"><figcaption>{{ L('Exemple de réponse, avec citations et liens', 'Example answer, with quotes and links') }}</figcaption></figure>{% endif %}
+</div>
+<div>
+<h2>{{ L('À essayer', 'Try asking') }}</h2>
+<ul class="prompts">
+{% for k, p in [
+  (L('Décoder', 'Decode'), L("Comment ont évolué les projets de texte sur mes sujets depuis hier ? Qu'est-ce qui reste entre crochets ?", "How have the draft texts on my topics changed since yesterday? What is still in brackets?")),
+  (L('Comparer', 'Compare'), L("Sur l'objectif mondial d'adaptation, compare les positions de l'UE, du groupe africain et de l'AOSIS.", "On the global goal on adaptation, compare the positions of the EU, the African Group and AOSIS.")),
+  (L('Planifier', 'Plan'), L("Propose-moi deux événements cet après-midi pertinents pour mes sujets, et des personnes à essayer de rencontrer.", "Suggest two events this afternoon that are relevant to my topics, and people worth trying to meet.")),
+  (L('Suivre', 'Follow'), L("Suis le dossier finance et le sujet « loss and damage fund ».", "Follow the finance negotiations and the topic “loss and damage fund”.")),
+  (L('Vérifier', 'Check'), L("Vérifie : « l'Accord de Paris oblige à sortir des fossiles ».", "Fact-check: “the Paris Agreement requires a fossil fuel phase-out”.")),
+] %}<li><span><em>{{ k }}</em>{{ p }}</span><button type="button" class="secondary" data-copy="{{ p }}" data-done="✓">{{ L('Copier', 'Copy') }}</button></li>{% endfor %}
+</ul>
+</div>
+</div>
+
+<h2 style="margin-top:34px">{{ L('Brancher votre LLM', 'Plug in your LLM') }}</h2>
+<p class="small muted" style="margin-top:-4px">{{ L('Il faut un LLM qui accepte un connecteur MCP distant. Selon l\'offre, c\'est parfois réservé aux abonnements payants.', 'You need an LLM that accepts a remote MCP connector. Depending on the plan, this is sometimes limited to paid subscriptions.') }}</p>
+
+<details class="llm" open><summary>Claude <small>{{ L('web, bureau, mobile · recommandé', 'web, desktop, mobile · recommended') }}</small></summary><div class="in">
+<ol>
+<li>{{ L('Paramètres → Connecteurs → Ajouter un connecteur personnalisé.', 'Settings → Connectors → Add custom connector.') }}</li>
+<li>{{ L('Nom', 'Name') }} <code>COP31</code> · URL : {{ L('votre adresse personnelle ci-dessus, sans OAuth.', 'your personal address above, no OAuth.') }}</li>
+<li>{{ L('Dans une conversation, menu + → Connecteurs → activer COP31. Le même menu propose des méthodes toutes prêtes (point de négociation, position d\'un pays, plaidoyer…).', 'In a chat, + menu → Connectors → turn on COP31. The same menu offers ready-made methods (negotiation update, a country\'s position, advocacy note…).') }}</li>
+</ol>
+{% if shots.get('connect-claude') %}<figure class="shot"><img src="{{ shots['connect-claude'] }}" alt="Claude" loading="lazy"></figure>{% endif %}
+<p style="margin:14px 0 4px"><b>Skills</b> <span class="pill">{{ L('facultatif, conseillé', 'optional, recommended') }}</span></p>
+<p class="small" style="margin:0">{{ L('Des méthodes de travail qui apprennent à Claude à bien se servir du corpus. Commencez par', 'Working methods that teach Claude to use the corpus well. Start with') }} <code>cop31-protocol</code> ({{ L('règles de citation', 'citation rules') }}). {{ L('Import : Paramètres → Capacités → Skills → Importer, un fichier par skill ; ou le plugin complet pour Claude Code et les organisations.', 'Upload: Settings → Capabilities → Skills → Upload, one file per skill; or the full plugin for Claude Code and organisations.') }}</p>
+<ul class="skills">
+{% set about_skill = {
+ 'cop31-protocol': L('Règles de base : citer, niveau, rien inventer', 'Core rules: quote, level, never invent'),
+ 'negotiation-update': L('Où en est un point, ce qui a bougé', 'Where an item stands, what moved'),
+ 'decode-text': L('Décoder un paragraphe ou un projet', 'Decode a paragraph or draft'),
+ 'plan-my-day': L('Ma journée selon mes sujets', 'My day around my topics'),
+ 'daily-brief': L('Le point du matin sur mes sujets', 'Morning update on my topics'),
+ 'eu-position': L("Position de l'UE et cohérence", 'EU position and consistency'),
+ 'fact-check': L('Vérifier une affirmation', 'Fact-check a claim'),
+ 'beginner-brief': L('Un enjeu expliqué simplement', 'An issue explained simply'),
+ 'find-your-way': L('Se repérer : organes, sigles, salles', 'Find your way: bodies, acronyms, rooms'),
+} %}
+{% for s in SKILLS() %}<li><a href="/telechargements/skill-{{ s }}.zip">{{ s }}</a><br><span class="muted">{{ about_skill.get(s, '') }}</span></li>{% endfor %}
+</ul>
+<p class="small" style="margin:10px 0 0"><a href="/telechargements/cop31-plugin.zip">{{ L('Plugin complet (tous les skills)', 'Full plugin (all skills)') }}</a></p>
+</div></details>
+
+<details class="llm"><summary>ChatGPT <small>{{ L('mode développeur', 'developer mode') }}</small></summary><div class="in">
+<ol>
+<li>{{ L('Paramètres → Applications et connecteurs → Paramètres avancés → activer le mode développeur.', 'Settings → Apps & Connectors → Advanced settings → turn on Developer mode.') }}</li>
+<li>{{ L('Créer un connecteur : votre adresse personnelle, sans authentification.', 'Create a connector: your personal address, no authentication.') }}</li>
+<li>{{ L('Pour de meilleures réponses, collez', 'For better answers, paste') }} <a href="/telechargements/chatgpt-instructions.txt">{{ L('ces instructions', 'these instructions') }}</a> {{ L('dans un projet ChatGPT ou un GPT personnalisé.', 'into a ChatGPT project or a custom GPT.') }}</li>
+</ol>
+{% if shots.get('connect-chatgpt') %}<figure class="shot"><img src="{{ shots['connect-chatgpt'] }}" alt="ChatGPT" loading="lazy"></figure>{% endif %}
+</div></details>
+
+<details class="llm"><summary>Le Chat <small>Mistral</small></summary><div class="in">
+<ol>
+<li>{{ L('Le Chat → Intelligence → Connecteurs → + Ajouter un connecteur → onglet « Connecteur MCP personnalisé ».', 'Le Chat → Intelligence → Connectors → + Add connector → “Custom MCP connector” tab.') }}</li>
+<li>{{ L('Nom', 'Name') }} <code>COP31</code> · URL : {{ L('votre adresse personnelle, puis Connecter (aucune authentification demandée).', 'your personal address, then Connect (no authentication asked).') }}</li>
+<li>{{ L('Dans une conversation, activez COP31 dans le menu des outils. Pour de meilleures réponses, collez', 'In a chat, turn on COP31 in the tools menu. For better answers, paste') }} <a href="/telechargements/mistral-instructions.txt">{{ L('ces instructions', 'these instructions') }}</a> {{ L('dans un agent Le Chat.', 'into a Le Chat agent.') }}</li>
+</ol>
+{% if shots.get('connect-lechat') %}<figure class="shot"><img src="{{ shots['connect-lechat'] }}" alt="Le Chat" loading="lazy"></figure>{% endif %}
+</div></details>
+
+<details class="llm"><summary>{{ L('Autres assistants', 'Other assistants') }}</summary><div class="in">
+<p style="margin:0">{{ L('Tout assistant qui accepte un connecteur MCP distant (« HTTP » ou « streamable HTTP ») : collez votre adresse personnelle, sans authentification, puis les', 'Any assistant that accepts a remote MCP connector (“HTTP” or “streamable HTTP”): paste your personal address, no authentication, then the') }} <a href="/telechargements/chatgpt-instructions.txt">instructions</a>.</p>
+</div></details>
+
+<p class="small muted" style="margin-top:20px">{{ L('Vos questions restent chez votre LLM : COP Tracker ne reçoit que ses recherches dans le corpus. Les réponses sont rédigées par une IA : ouvrez le passage cité avant de le reprendre.', 'Your questions stay with your LLM: COP Tracker only receives its searches in the corpus. Answers are written by AI: open the quoted passage before reusing it.') }}</p>
+</div>
+{% endblock %}

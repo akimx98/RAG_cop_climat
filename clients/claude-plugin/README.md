@@ -1,11 +1,14 @@
-# Plugin Claude « COP31 — veille indépendante »
+# Claude plugin "COP31 Tracker"
 
-Skills : `protocole-cop31` (règles de base), `verifier-affirmation`, `point-negociation`, `brief-novice`,
-`decoder-texte`, `position-ue`, `brief-du-jour`, `se-reperer`.
+Independent, free, open-source (MIT) assistant to follow COP31 (Antalya, 9–20 November 2026). Skills answer in the
+user's language (English or French).
 
-Prérequis : le connecteur MCP COP31 (adresse personnelle `https://<domaine>/u/<jeton>/mcp`, page
-« Claude / ChatGPT » du tableau de bord).
+Skills: `cop31-protocol` (base rules: exact citations, reliability levels, no guessing), `fact-check`,
+`negotiation-update`, `beginner-brief`, `decode-text`, `eu-position`, `daily-brief`, `find-your-way`, `plan-my-day`.
 
-Installation : depuis ce dossier, ou en zippant `clients/claude-plugin` et en l'important dans
-Claude (Paramètres → Personnalisation → Plugins / Skills). Un administrateur Claude Entreprise peut le
-distribuer à toute l'organisation.
+Requirement: the COP31 MCP connector (personal address `https://<domain>/u/<token>/mcp`, "Claude / ChatGPT" page
+of the dashboard).
+
+Installation: from this folder, or zip `clients/claude-plugin` and import it into Claude (Settings → Customize →
+Plugins / Skills). A Claude Enterprise admin can distribute it to the whole organisation.
+For ChatGPT and Le Chat (Mistral), paste `clients/chatgpt-instructions.md` or `clients/mistral-instructions.md`.

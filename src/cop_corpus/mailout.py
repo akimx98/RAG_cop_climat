@@ -22,7 +22,7 @@ def enabled() -> bool:
     return PROVIDER in ("resend", "brevo") and bool(API_KEY)
 
 
-def send(to: str, subject: str, text: str, idempotency_key: str | None = None) -> bool:
+def send(to: str, subject: str, text: str, idempotency_key: str | None = None, reply_to: str | None = None) -> bool:
     """Envoie un e-mail texte ; vrai si le service l'a accepté. Trois essais sur erreur réseau, 5xx ou 429
     (en respectant Retry-After) ; une clé d'idempotence évite un double envoi si un essai a abouti sans réponse."""
     import logging
@@ -33,6 +33,8 @@ def send(to: str, subject: str, text: str, idempotency_key: str | None = None) -
     if PROVIDER == "resend":
         url, headers = "https://api.resend.com/emails", {"Authorization": f"Bearer {API_KEY}"}
         body = {"from": FROM, "to": [to], "subject": subject, "text": text}
+        if reply_to:
+            body["reply_to"] = reply_to
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
     else:
@@ -40,6 +42,8 @@ def send(to: str, subject: str, text: str, idempotency_key: str | None = None) -
         url, headers = "https://api.brevo.com/v3/smtp/email", {"api-key": API_KEY, "accept": "application/json"}
         body = {"sender": {"name": name or "COP31 tracker", "email": addr}, "to": [{"email": to}],
                 "subject": subject, "textContent": text}
+        if reply_to:
+            body["replyTo"] = {"email": reply_to}
     for attempt in range(3):
         try:
             r = httpx.post(url, headers=headers, json=body, timeout=15)

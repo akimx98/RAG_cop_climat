@@ -14,9 +14,9 @@ sources (ODS/ONU, EUR-Lex, Conseil UE, GIEC, PNUE, ENB, Carbon Brief, OWID…)
    ▼
 data/cop.sqlite3  documents · passages (FTS5) · vecteurs · utilisateurs · sujets · alertes · émissions
    │
-   ├── tableau de bord web   /           fil d'alertes, sujets, recherche, versions, dépôt, admin
-   ├── MCP                   /u/<jeton>/mcp   Claude (plugin clients/claude-plugin) et ChatGPT
-   └── bot Telegram          alertes, /suivre, /cherche, dépôt de PDF par transfert
+   ├── site web              /           connecter un LLM, planifier ma journée, mes sujets, à propos, base de données
+   ├── MCP                   /u/<jeton>/mcp   Claude (plugin clients/claude-plugin), ChatGPT, Le Chat
+   └── bot Telegram          alertes sur mes sujets, récapitulatif sans IA 7 h et 19 h, /cherche
 ```
 
 ## Installation locale
@@ -52,7 +52,7 @@ cop recuperer --url presscorner/detail --vides   # retélécharge des documents 
 cop doublons --calculer            # empreintes manquantes et doublons de contenu (même texte, deux fichiers)
 cop ingest-file note.pdf --title "Note de coordination UE"       # dépôt local (restreint par défaut)
 cop serve --port 8000 --with-worker                              # tout en un, en local
-cop worker                                                       # veilleur + bot Telegram + digest 7 h
+cop worker                                                       # veilleur + bot Telegram + récapitulatif 7 h et 19 h
 pytest
 ```
 
@@ -62,20 +62,18 @@ Voir la [documentation de référence](docs/architecture.md) (§2 niveaux, §3 d
 
 ## Documents internes
 
-Trois façons de les ajouter, tous classés **restreint** par défaut (visibles des seuls membres accrédités,
-jamais envoyés à l'API d'embeddings) :
-- **Telegram** : transférer le PDF ou le Word au bot (légende = titre ; `#public` pour un document public) ;
-- **tableau de bord** : page « Déposer » (fichiers multiples ou URL) ;
-- **ligne de commande** : `cop ingest-file`.
-
-Telegram n'est pas chiffré de bout en bout : par défaut, les alertes sur documents internes n'en donnent ni le
-titre ni un extrait (`COP_TELEGRAM_RESTRICTED_SNIPPETS=0`).
+Le dépôt de documents par les contributeurs (site, Telegram, adresse `depot-<code>@`) et les notes de terrain sont
+retirés. Les documents internes déjà présents restent **restreints** (visibles des seuls comptes autorisés, jamais
+envoyés à l'API d'embeddings, masqués dans Telegram). Un administrateur peut encore ajouter un fichier en ligne de
+commande (`cop ingest-file`) ou déposer le PDF d'un texte de session bloqué par un anti-bot (base de données, onglet
+« Session texts »).
 
 ## Sources protégées par un anti-bot
 
 Jamais contournées (`unfccc.int`, SEORS, page « Party groupings » de la CCNUCC). Les documents à cote FCCC passent
 par l'ODS de l'ONU ; le reste se dépose à la main (Telegram ou tableau de bord) ; `cop log --outcome antibot` liste
-ce qui a été bloqué. ENB : les pages HTML sont bloquées mais les PDF quotidiens passent (source `enb-daily-pdf`).
+ce qui a été bloqué. SEORS : bouton « Relevé SEORS → COP31 » (Admin → Programme) à cliquer sur la page SEORS
+ouverte dans son navigateur, ou relevé automatique horaire dès que la CCNUCC autorise l'adresse du serveur. ENB : les pages HTML sont bloquées mais les PDF quotidiens passent (source `enb-daily-pdf`).
 Mode dégradé : version PDF de la même page, `deposer_url` d'une autre adresse publique, sinon dépôt manuel. Relevé SEORS des salles des side events : ouvrir SEORS dans un navigateur, coller
 `agenda.SEORS_SNIPPET` dans la console, enregistrer le presse-papiers dans `releve.tsv`, puis
 `cop programme-seors releve.tsv` (dans le conteneur).
@@ -114,7 +112,6 @@ Première installation (pour mémoire) : `deploy/.env` depuis `deploy/.env.examp
 ### Courrier entrant
 
 MX de `cop31.akimx.fr` → le VPS, port 25 (service `mail`, STARTTLS avec le certificat de Caddy).
-`depot-<code>@cop31.akimx.fr` : une adresse secrète par collègue (page Déposer), contenu restreint par
-défaut, `[public]` dans l'objet pour le rendre public. `veille@cop31.akimx.fr` : abonnements aux lettres ;
+Seule adresse acceptée : `veille@cop31.akimx.fr`, abonnements aux lettres (le dépôt par `depot-<code>@` est retiré) ;
 expéditeurs autorisés → niveau 4 public, les autres (et les confirmations d'abonnement) attendent dans
 Admin → Courrier. Messages bruts archivés dans `data/mail/archive/`.

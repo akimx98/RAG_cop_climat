@@ -114,21 +114,23 @@ def since_previous(conn, doc_id: int, max_items: int = 40) -> dict[str, Any] | N
     return compare(conn, prev, doc_id, max_items=max_items) if prev else None
 
 
-def delta_line(d: dict[str, Any]) -> str:
+def delta_line(d: dict[str, Any], lang: str = "fr") -> str:
     """Résumé d'une ligne : « 3 § modifiés · crochets 40→22 (-18, levés) · options 5→3 (-2) »."""
     av, ap = d["avant"], d["apres"]
+    en = lang == "en"
 
     def part(label: str, old: int, new: int) -> str | None:
         if not old and not new:
             return None
         if old == new:
-            return f"{label} {new} (inchangé)"
+            return f"{label} {new} ({'unchanged' if en else 'inchangé'})"
         delta = new - old
-        tag = ", levés" if delta < 0 else ", nouveaux"  # moins de crochets/options = convergence
+        # moins de crochets/options = convergence
+        tag = (", resolved" if en else ", levés") if delta < 0 else (", new" if en else ", nouveaux")
         return f"{label} {old}→{new} ({delta:+d}{tag})"
 
-    bits = [f"{d['nb_changements']} § modifiés"]
-    for b in (part("crochets", av["crochets"], ap["crochets"]),
+    bits = [f"{d['nb_changements']} {'§ changed' if en else '§ modifiés'}"]
+    for b in (part("brackets" if en else "crochets", av["crochets"], ap["crochets"]),
               part("options", av["options"], ap["options"])):
         if b:
             bits.append(b)

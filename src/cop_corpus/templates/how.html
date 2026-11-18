@@ -1,0 +1,110 @@
+{% extends "base.html" %}{% block title %}{{ L('Comment ça marche', 'How it works') }} · COP Tracker{% endblock %}{% block body %}
+<style>
+.how{max-width:900px;margin:0 auto;font-size:16px;line-height:1.65}
+.how h1{font-size:clamp(28px,4vw,40px);margin:6px 0 12px}
+.how h2{font:700 21px/1.3 var(--sans);text-transform:none;letter-spacing:-.01em;color:var(--ink);margin:38px 0 10px;padding-top:16px;border-top:1px solid var(--line-2)}
+.how .lede{font-size:18px;color:var(--ink-2)}
+.schema{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto;margin:18px 0 6px}
+.schema svg{display:block;min-width:760px;width:100%;height:auto}
+.schema text{font-family:var(--sans);fill:var(--ink)}
+.schema .h{font-size:11px;font-weight:700;letter-spacing:.09em;fill:var(--muted)}
+.schema .b{font-size:13.5px;font-weight:650}
+.schema .s{font-size:11.5px;fill:var(--muted)}
+.schema .box{fill:var(--surface-2);stroke:var(--line-2)}
+.schema .core{fill:var(--accent-soft);stroke:var(--accent)}
+.schema .use{fill:var(--surface);stroke:var(--line-2)}
+.schema .arr{stroke:var(--accent);stroke-width:1.6;fill:none}
+.schema .tip{fill:var(--accent)}
+.levels{display:grid;gap:6px;margin:8px 0;padding:0;list-style:none}
+.levels li{display:flex;gap:10px;align-items:baseline;font-size:15px}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media(max-width:760px){.cols2{grid-template-columns:minmax(0,1fr)}}
+.cols2 ul{margin:0;padding-left:20px;display:grid;gap:6px;font-size:15px}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin:8px 0 0}
+.tools div{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--surface);font-size:14px;line-height:1.5}
+.tools b{display:block;margin-bottom:2px;font-size:15px}
+</style>
+<article class="how">
+<div class="eyebrow">{{ L('À propos', 'About') }}</div>
+<h1>{{ L('Comment ça marche', 'How it works') }}</h1>
+<p class="lede">{{ L('COP Tracker collecte les textes de la COP31, les découpe en passages citables, compare leurs versions, et les met à disposition de votre LLM, de votre agenda et de vos alertes. Voici le chemin, sans jargon.', 'COP Tracker collects the COP31 texts, splits them into citable passages, compares their versions, and makes them available to your LLM, your schedule and your alerts. Here is the path, without jargon.') }}</p>
+
+<figure class="schema" style="margin-left:0;margin-right:0">
+<svg viewBox="0 0 900 380" role="img" aria-label="{{ L('Schéma : sources, traitement par COP Tracker, usages', 'Diagram: sources, processing by COP Tracker, uses') }}">
+<defs><marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="tip"/></marker></defs>
+<text x="20" y="28" class="h">{{ L('SOURCES', 'SOURCES') }}</text>
+<rect x="20" y="42" width="220" height="56" rx="7" class="box"/><text x="32" y="65" class="b">{{ L('Textes de l\'ONU', 'UN texts') }}</text><text x="32" y="84" class="s">{{ L('projets de texte, décisions, NDC', 'drafts, decisions, NDCs') }}</text>
+<rect x="20" y="106" width="220" height="56" rx="7" class="box"/><text x="32" y="129" class="b">{{ L('Soumissions officielles', 'Official submissions') }}</text><text x="32" y="148" class="s">{{ L('Parties et observateurs', 'Parties and observers') }}</text>
+<rect x="20" y="170" width="220" height="56" rx="7" class="box"/><text x="32" y="193" class="b">{{ L('Comptes rendus, lettres', 'Reports, newsletters') }}</text><text x="32" y="212" class="s">ENB, Carbon Brief, TWN…</text>
+<rect x="20" y="234" width="220" height="56" rx="7" class="box"/><text x="32" y="257" class="b">{{ L('Droit de l\'UE, science', 'EU law, science') }}</text><text x="32" y="276" class="s">{{ L('GIEC, PNUE, données d\'émissions', 'IPCC, UNEP, emissions data') }}</text>
+<rect x="20" y="298" width="220" height="56" rx="7" class="box"/><text x="32" y="321" class="b">{{ L('Programmes', 'Programmes') }}</text><text x="32" y="340" class="s">{{ L('side events, pavillons, réunions', 'side events, pavilions, meetings') }}</text>
+<path d="M240 70H262M240 134H262M240 198H262M240 262H262M240 326H262M262 70V326" class="arr"/><path d="M262 198H292" class="arr" marker-end="url(#tip)"/>
+<text x="298" y="28" class="h">COP TRACKER</text>
+<rect x="298" y="42" width="290" height="312" rx="10" class="core"/>
+<text x="316" y="72" class="b">1 · {{ L('Collecter', 'Collect') }}</text><text x="316" y="90" class="s">{{ L('en continu, sans forcer les protections', 'continuously, never forcing protections') }}</text>
+<text x="316" y="124" class="b">2 · {{ L('Découper et classer', 'Split and label') }}</text><text x="316" y="142" class="s">{{ L('passages citables, niveau de fiabilité', 'citable passages, reliability level') }}</text>
+<text x="316" y="176" class="b">3 · {{ L('Comparer les versions', 'Compare versions') }}</text><text x="316" y="194" class="s">{{ L('ce qui change, crochets ; projet → adopté', 'what changed, brackets; draft → adopted') }}</text>
+<text x="316" y="228" class="b">4 · {{ L('Indexer', 'Index') }}</text><text x="316" y="246" class="s">{{ L('par mots et par sens, toutes langues', 'by words and by meaning, any language') }}</text>
+<text x="316" y="280" class="b">5 · {{ L('Croiser avec vos sujets', 'Match your topics') }}</text><text x="316" y="298" class="s">{{ L('alertes, récapitulatifs, programme du jour', 'alerts, digests, the day\'s programme') }}</text>
+<text x="316" y="334" class="s">{{ L('une seule base, sur un petit serveur', 'one database, on a small server') }}</text>
+<path d="M588 198H618" class="arr"/><path d="M618 70V326M618 70H646M618 154H646M618 242H646M618 326H646" class="arr"/>
+<path d="M640 70H648" class="arr" marker-end="url(#tip)"/><path d="M640 154H648" class="arr" marker-end="url(#tip)"/><path d="M640 242H648" class="arr" marker-end="url(#tip)"/><path d="M640 326H648" class="arr" marker-end="url(#tip)"/>
+<text x="652" y="28" class="h">{{ L('USAGES', 'USES') }}</text>
+<rect x="652" y="42" width="228" height="56" rx="7" class="use"/><text x="664" y="65" class="b">{{ L('Votre LLM', 'Your LLM') }}</text><text x="664" y="84" class="s">{{ L('Claude, ChatGPT, Le Chat : il cite', 'Claude, ChatGPT, Le Chat: it quotes') }}</text>
+<rect x="652" y="126" width="228" height="56" rx="7" class="use"/><text x="664" y="149" class="b">{{ L('Planifier ma journée', 'Plan my day') }}</text><text x="664" y="168" class="s">{{ L('calendrier filtrable par sujet', 'calendar filtered by topic') }}</text>
+<rect x="652" y="214" width="228" height="56" rx="7" class="use"/><text x="664" y="237" class="b">{{ L('Alertes', 'Alerts') }}</text><text x="664" y="256" class="s">{{ L('Telegram, site, 7 h et 19 h', 'Telegram, website, 7am and 7pm') }}</text>
+<rect x="652" y="298" width="228" height="56" rx="7" class="use"/><text x="664" y="321" class="b">{{ L('Base de données', 'Database') }}</text><text x="664" y="340" class="s">{{ L('recherche à la main, versions', 'search by hand, versions') }}</text>
+</svg>
+</figure>
+{% if stats and stats.documents %}<p class="small muted">{{ L('Aujourd\'hui :', 'Today:') }} {{ '{:,}'.format(stats.documents).replace(',', ' ') }} documents, {{ '{:,}'.format(stats.passages).replace(',', ' ') }} {{ L('passages citables', 'citable passages') }}{% if n_sources %}, {{ n_sources }} {{ L('sources suivies', 'sources tracked') }}{% endif %}{% if n_events %}, {{ '{:,}'.format(n_events).replace(',', ' ') }} {{ L('événements au programme', 'events in the programme') }}{% endif %}.</p>{% endif %}
+
+<h2>{{ L('Les sources, et leur niveau de fiabilité', 'Sources, and how reliable they are') }}</h2>
+<p>{{ L('Les textes officiels viennent du système de documents de l\'ONU ; les textes de session sont repérés grâce à l\'index public de Carbon Brief ; les soumissions viennent du portail de la CCNUCC. S\'y ajoutent le droit de l\'UE, les rapports scientifiques, les comptes rendus quotidiens et des lettres d\'information. Chaque document reçoit un niveau, pour ne jamais confondre un texte adopté et un communiqué :', 'Official texts come from the UN document system; session texts are spotted through Carbon Brief\'s public index; submissions come from the UNFCCC portal. On top of that: EU law, scientific reports, daily reports and newsletters. Every document gets a level, so an adopted text is never confused with a press release:') }}</p>
+<ul class="levels">
+<li><span class="lvl lvl-1">1</span>{{ L('Texte adopté : Convention, Accord de Paris, décisions COP/CMA, droit de l\'UE.', 'Adopted text: Convention, Paris Agreement, COP/CMA decisions, EU law.') }}</li>
+<li><span class="lvl lvl-2">2</span>{{ L('Officiel non adopté : projets de texte de la COP31, NDC, soumissions des Parties.', 'Official, not adopted: COP31 draft texts, NDCs, Parties\' submissions.') }}</li>
+<li><span class="lvl lvl-3">3</span>{{ L('Science et données : GIEC, PNUE, données d\'émissions.', 'Science and data: IPCC, UNEP, emissions data.') }}</li>
+<li><span class="lvl lvl-4">4</span>{{ L('Compte rendu de référence : Earth Negotiations Bulletin, Carbon Brief, Third World Network.', 'Reference report: Earth Negotiations Bulletin, Carbon Brief, Third World Network.') }}</li>
+<li><span class="lvl lvl-5">5</span>{{ L('Position d\'un acteur : déclarations, ONG, presse. Jamais une preuve.', 'An actor\'s position: statements, NGOs, press. Never proof.') }}</li>
+</ul>
+
+<h2>{{ L('Le traitement', 'The processing') }}</h2>
+<p>{{ L('Chaque document est découpé en passages que l\'on peut citer : un paragraphe numéroté d\'un projet de décision, une page d\'un rapport. Quand une nouvelle version d\'un texte sort, elle est comparée à la précédente paragraphe par paragraphe : ce qui a été ajouté, retiré, modifié, et combien de crochets (passages sans accord) et d\'options restent. L\'étape du texte est repérée à sa cote : projet, document transmis à la plénière pour adoption, texte adopté.',
+ 'Every document is split into passages you can quote: a numbered paragraph of a draft decision, a page of a report. When a new version of a text comes out, it is compared with the previous one paragraph by paragraph: what was added, removed, changed, and how many brackets (passages without agreement) and options remain. The stage of a text is read from its symbol: draft, document forwarded to the plenary for adoption, adopted text.') }}</p>
+<p>{{ L('Pour retrouver un passage, la recherche combine les mots exacts et le sens (un passage sur « les combustibles fossiles » est trouvé avec « fossil fuels »). À pertinence égale, le texte qui fait foi passe devant.', 'To find a passage, search combines exact words and meaning (a passage on “combustibles fossiles” is found with “fossil fuels”). When two results are equally relevant, the authoritative text comes first.') }}</p>
+
+<h2>{{ L('Ce que votre LLM peut faire', 'What your LLM can do') }}</h2>
+<p>{{ L('Une fois connecté, votre LLM dispose d\'outils pour interroger COP Tracker. Il ne voit que ce que ces outils renvoient, et doit citer le passage exact.', 'Once connected, your LLM has tools to query COP Tracker. It only sees what these tools return, and must quote the exact passage.') }}</p>
+<div class="tools">
+<div><b>{{ L('Chercher et lire', 'Search and read') }}</b>{{ L('Retrouver un passage, lire ses voisins, ouvrir un document et ses versions.', 'Find a passage, read around it, open a document and its versions.') }}</div>
+<div><b>{{ L('Suivre un texte', 'Follow a text') }}</b>{{ L('Ce qui a changé entre deux versions, ce qui reste entre crochets sur un thème.', 'What changed between two versions, what is still in brackets on a theme.') }}</div>
+<div><b>{{ L('Dossiers et positions', 'Items and positions') }}</b>{{ L('L\'état d\'un point de négociation, qui veut quoi, les lignes de fracture.', 'The state of a negotiation item, who wants what, the dividing lines.') }}</div>
+<div><b>{{ L('Soumissions et groupes', 'Submissions and groups') }}</b>{{ L('Qui a soumis quoi, comparer deux Parties, les membres d\'un groupe de négociation.', 'Who submitted what, compare two Parties, the members of a negotiating group.') }}</div>
+<div><b>{{ L('Programme', 'Programme') }}</b>{{ L('Où et quand aller, ce que disent les pavillons, selon vos sujets.', 'Where and when to go, what the pavilions say, around your topics.') }}</div>
+<div><b>{{ L('Mes sujets', 'My topics') }}</b>{{ L('Ce qui a bougé sur vos sujets, suivre un nouveau dossier ou un mot-clé.', 'What moved on your topics, follow a new item or keyword.') }}</div>
+</div>
+
+<h2>{{ L('Où intervient l\'IA', 'Where AI comes in') }}</h2>
+<p>{{ L('Les réponses sont rédigées par votre LLM, chez vous : COP Tracker ne reçoit que ses recherches. Côté serveur, l\'IA sert à deux choses seulement : calculer le « sens » des passages pour la recherche (documents publics uniquement), et repérer dans les comptes rendus de négociation qui a dit quoi, une position n\'étant gardée que si sa citation figure mot pour mot dans la source. Les alertes, les comparaisons de versions, le calendrier et les récapitulatifs se font sans IA.',
+ 'Answers are written by your LLM, on your side: COP Tracker only receives its searches. On the server, AI is used for two things only: computing the “meaning” of passages for search (public documents only), and spotting who said what in negotiation reports, a position being kept only if its quote appears word for word in the source. Alerts, version comparisons, the calendar and digests use no AI.') }}</p>
+
+<div class="cols2">
+<div><h2>{{ L('Forces', 'Strengths') }}</h2><ul>
+<li>{{ L('Chaque affirmation renvoie au passage exact et à l\'original.', 'Every claim links to the exact passage and to the original.') }}</li>
+<li>{{ L('Les versions successives d\'un texte sont comparées automatiquement.', 'Successive versions of a text are compared automatically.') }}</li>
+<li>{{ L('Un seul endroit pour les textes, les positions, les soumissions et le programme.', 'One place for texts, positions, submissions and the programme.') }}</li>
+<li>{{ L('Un niveau de fiabilité sur chaque source.', 'A reliability level on every source.') }}</li>
+</ul></div>
+<div><h2>{{ L('Limites', 'Limits') }}</h2><ul>
+<li>{{ L('Un projet de texte n\'est pas adopté : citez toujours sa version et sa date.', 'A draft is not adopted: always cite its version and date.') }}</li>
+<li>{{ L('Certains documents n\'arrivent pas : réunions informelles, textes non publiés, sites qui bloquent les robots. Ne rien trouver ne prouve pas que rien n\'existe.', 'Some documents never arrive: informal meetings, unpublished texts, sites that block robots. Finding nothing does not prove nothing exists.') }}</li>
+<li>{{ L('Les LLM peuvent se tromper : ouvrez le passage cité avant de le reprendre.', 'LLMs can be wrong: open the quoted passage before reusing it.') }}</li>
+<li>{{ L('Salles et horaires changent : vérifiez chaque événement à sa source.', 'Rooms and times change: check each event at its source.') }}</li>
+</ul></div>
+</div>
+
+<h2>{{ L('Code ouvert', 'Open code') }}</h2>
+<p>{{ L('COP Tracker est open source, sous licence libre MIT. Le code, la liste des sources, la documentation technique et les consignes données aux LLM sont publics.', 'COP Tracker is open source, under the free MIT licence. The code, the list of sources, the technical documentation and the instructions given to LLMs are public.') }}
+{% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ SOURCE_URL.split('://')[-1] }}</a> · <a href="{{ SOURCE_URL }}/blob/main/docs/architecture.md" rel="noopener">{{ L('documentation technique', 'technical documentation') }}</a>{% endif %}</p>
+</article>
+{% endblock %}

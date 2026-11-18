@@ -1,24 +1,65 @@
-{% extends "base.html" %}{% block body %}
-<h1>{{ L('Mon compte', 'My account') }}</h1>
+{% extends "base.html" %}{% block title %}{{ L('Mon profil', 'My profile') }} · COP Tracker{% endblock %}{% block body %}
+<h1>{{ L('Mon profil', 'My profile') }}</h1>
+{% if done %}<p class="banner">✓ {{ {'profile': L('Profil enregistré.', 'Profile saved.'), 'password': L('Mot de passe enregistré.', 'Password saved.'), 'telegram': L('Telegram n\'est plus relié.', 'Telegram is no longer linked.')}[done] }}</p>{% endif %}
 <div class="grid">
+<div>
+<form class="card" method="post">
+<h2>{{ L('Identité', 'Profile') }}</h2>
+<input type="hidden" name="action" value="profile">
+<p class="muted" style="margin-top:0">{{ user.email }}</p>
+<p><label class="small" for="name">{{ L('Nom', 'Name') }}</label><input type="text" id="name" name="name" value="{{ user.name or '' }}" autocomplete="name"></p>
+<p><label class="small" for="org">{{ L('Organisation', 'Organisation') }}</label><input type="text" id="org" name="organisation" value="{{ user.organisation or '' }}" autocomplete="organization"></p>
+<p class="small">{{ L('Langue', 'Language') }} : <a href="/lang/en?next=/account" class="{{ 'muted' if lang != 'en' }}">English</a> · <a href="/lang/fr?next=/account" class="{{ 'muted' if lang != 'fr' }}">Français</a></p>
+<button>{{ L('Enregistrer', 'Save') }}</button>
+</form>
+
 <form class="card" method="post">
 <h2>{{ L('Changer de mot de passe', 'Change password') if user.password_hash else L('Choisir un mot de passe', 'Choose a password') }}</h2>
-{% if forgot %}<p class="banner">{{ L('Vous êtes connecté avec le code. Choisissez un nouveau mot de passe ci-dessous (ou gardez l\'ancien si vous l\'avez retrouvé).', 'You are signed in with the code. Choose a new password below (or keep the old one if you remembered it).') }}</p>{% endif %}
-{% if done %}<p class="banner">{{ L('Mot de passe enregistré. Connectez-vous désormais sur', 'Password saved. From now on, sign in at') }} <b>{{ base }}</b> {{ L('avec', 'with') }} <b>{{ user.email }}</b>.</p>
-{% elif not user.password_hash %}<p class="small muted" style="margin-top:0">{{ L("Facultatif. Sans mot de passe, vous vous connectez sur un autre appareil avec un code reçu par e-mail. Avec un mot de passe, c'est lui qui sert ; en cas d'oubli, un code par e-mail permet d'en choisir un nouveau.", 'Optional. Without a password, you sign in on another device with a code sent by e-mail. Once you set a password, it is used instead; if you forget it, a code by e-mail lets you choose a new one.') }}</p>{% endif %}
-{% if error %}<p class="banner warn">{% if error == 'short' %}{{ L('Au moins {min} caractères.', 'At least {min} characters.').replace('{min}', min|string) }}{% elif error == 'mismatch' %}{{ L('Les deux saisies ne correspondent pas.', 'The two entries do not match.') }}{% else %}{{ error }}{% endif %}</p>{% endif %}
+<input type="hidden" name="action" value="password">
+{% if forgot %}<p class="banner">{{ L('Vous êtes connecté avec le code. Choisissez un nouveau mot de passe ci-dessous.', 'You are signed in with the code. Choose a new password below.') }}</p>{% endif %}
+{% if not user.password_hash %}<p class="small muted" style="margin-top:0">{{ L("Facultatif. Sans mot de passe, vous vous connectez sur un autre appareil avec un code reçu par e-mail.", 'Optional. Without a password, you sign in on another device with a code sent by e-mail.') }}</p>{% endif %}
+{% if error in ['short', 'mismatch'] %}<p class="banner warn">{% if error == 'short' %}{{ L('Au moins {min} caractères.', 'At least {min} characters.').replace('{min}', min|string) }}{% else %}{{ L('Les deux saisies ne correspondent pas.', 'The two entries do not match.') }}{% endif %}</p>{% endif %}
 <input type="email" name="email" value="{{ user.email }}" autocomplete="username" hidden>
 <p><label class="small" for="pw">{{ L('Nouveau mot de passe', 'New password') }} ({{ min }} {{ L('caractères minimum', 'characters minimum') }})</label>
 <input type="password" id="pw" name="password" autocomplete="new-password" minlength="{{ min }}" required></p>
 <p><label class="small" for="pw2">{{ L('Confirmer', 'Confirm') }}</label>
 <input type="password" id="pw2" name="password2" autocomplete="new-password" minlength="{{ min }}" required></p>
 <button>{{ L('Enregistrer', 'Save') }}</button>
-<p class="small muted" style="margin-top:12px">{{ L('Votre navigateur ou gestionnaire de mots de passe peut le retenir.', 'Your browser or password manager can remember it.') }}</p>
 </form>
-<div class="card"><h2>{{ L('Identité', 'Profile') }}</h2>
-<p><b>{{ user.name or user.email }}</b><br><span class="muted">{{ user.email }}</span></p>
-<p class="small">{% if user.can_restricted %}{{ L('Documents internes : accès autorisé', 'Internal documents: access granted') }} · {% endif %}Telegram : {{ L('lié', 'linked') if user.telegram_chat_id else L('non lié', 'not linked') }}</p>
-<p class="small">{{ L('Adresse du connecteur Claude / ChatGPT', 'Claude / ChatGPT connector address') }} : <a href="/connecteur">{{ L('page Connecteur', 'Connector page') }}</a>.</p>
-<p class="small">{{ L('Prise en main : vos sujets, votre assistant IA, Telegram', 'Getting started: your topics, your AI assistant, Telegram') }} : <a href="/bienvenue">Guide</a>.</p>
-</div></div>
+</div>
+
+<div>
+<div class="card">
+<h2>{{ L('Mon LLM', 'My LLM') }}</h2>
+{% if token %}<p class="small" style="margin-top:0">{{ L('Adresse personnelle du connecteur', 'Personal connector address') }} :</p>
+<p><code id="mcp">{{ base }}/u/{{ token }}/mcp</code></p>{% endif %}
+<p class="small" style="margin:0">{% if user.mcp_seen_at %}✓ {{ L('Dernière utilisation', 'Last used') }} : {{ user.mcp_seen_at[:16]|replace('T', ' ') }} UTC · {% endif %}<a href="/connect">{{ L('Connecter un LLM, révoquer l\'adresse', 'Connect an LLM, revoke the address') }}</a></p>
+</div>
+
+<div class="card">
+<h2>Telegram</h2>
+{% if user.telegram_chat_id %}<p style="margin-top:0">✓ {{ L('Relié : vous recevez les alertes et le récapitulatif de 7 h et 19 h.', 'Linked: you get alerts and the 7am and 7pm digest.') }}</p>
+<form method="post"><input type="hidden" name="action" value="telegram_unlink"><button class="secondary">{{ L('Délier Telegram', 'Unlink Telegram') }}</button></form>
+{% else %}<p style="margin-top:0">{{ L('Non relié.', 'Not linked.') }} <a href="/topics#telegram">{{ L('Relier Telegram', 'Link Telegram') }}</a></p>{% endif %}
+</div>
+
+{% if invite and invite.open %}
+<div class="card">
+<h2>{{ L('Faire passer', 'Pass it on') }}</h2>
+<p style="margin:0">{{ L('Quelqu\'un pourrait s\'en servir ? Montrez-lui', 'Someone could use it? Show them') }} <a href="/inviter">{{ L('ce QR code', 'this QR code') }}</a>.</p>
+</div>
+{% endif %}
+
+<form class="card" method="post">
+<h2>{{ L('Supprimer mon compte', 'Delete my account') }}</h2>
+<input type="hidden" name="action" value="delete">
+{% if guest %}
+{% if error == 'delete' %}<p class="banner warn">{{ L('Tapez « supprimer » pour confirmer.', 'Type “delete” to confirm.') }}</p>{% endif %}
+<p class="small" style="margin-top:0">{{ L('Supprime définitivement votre compte, vos sujets et vos alertes. Irréversible. Tapez « supprimer » :', 'Permanently deletes your account, topics and alerts. This cannot be undone. Type “delete”:') }}</p>
+<p><input type="text" name="confirm" autocomplete="off" aria-label="{{ L('Confirmation', 'Confirmation') }}"></p>
+<button class="secondary" style="color:var(--lR)">{{ L('Supprimer définitivement', 'Delete permanently') }}</button>
+{% else %}<p class="small muted" style="margin:0">{{ L('Compte administrateur ou contributeur : écrivez-nous (page Contact) pour le supprimer.', 'Admin or contributor account: write to us (Contact page) to delete it.') }}</p>{% endif %}
+</form>
+</div>
+</div>
 {% endblock %}

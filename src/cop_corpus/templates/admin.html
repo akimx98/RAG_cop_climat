@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block body %}
 <h1>Administration</h1>
-<p><a class="btn secondary" href="/admin/courrier">Courrier (veille@ et dépôts par mail)</a></p>
+<p><a class="btn secondary" href="/admin/courrier">Courrier (lettres reçues sur veille@)</a> <a class="btn secondary" href="/admin/programme">Programme (relevé SEORS)</a></p>
 {% if created %}<div class="banner">Accès pour <b>{{ created.email }}</b> (à transmettre par un canal sûr)<br>
 Lien de première connexion, valable 24 h, pour choisir un mot de passe : <code>{{ created.login }}</code><br>Connecteur MCP : <code>{{ created.mcp }}</code></div>{% endif %}
 {% if link %}<div class="banner">Lien de connexion pour <b>{{ link.email }}</b>, valable 24 h, caduc dès que le mot de passe change :<br><code>{{ link.url }}</code></div>{% endif %}
@@ -17,7 +17,7 @@ Lien de première connexion, valable 24 h, pour choisir un mot de passe : <code>
 <p style="font:700 clamp(18px,3vw,26px)/1.3 var(--mono);word-break:break-all;margin:0 0 6px">{{ invite.url.split('://')[-1] }}</p>
 <p><a class="btn" href="/inviter">Écran à montrer (QR plein écran)</a></p></div></div>
 <p class="small muted">Code seul (page <code>/rejoindre</code>) : <b class="mono">{{ invite.code }}</b> · {{ invite.used }} / {{ invite.max }} comptes invités.
-Un invité voit les documents publics, suit des sujets, branche son assistant et Telegram ; il n'ajoute rien au corpus et ne voit ni documents internes ni notes de terrain. Anglais par défaut, bascule EN · FR en haut de page.</p>
+Un invité voit les documents publics, suit des sujets, branche son LLM et Telegram ; il n'ajoute rien au corpus et ne voit pas les documents internes. Anglais par défaut, bascule EN · FR en haut de page.</p>
 <div class="row">
 <form method="post"><input type="hidden" name="invite" value="basculer"><button class="secondary">{{ 'Fermer les inscriptions' if invite.open else 'Rouvrir les inscriptions' }}</button></form>
 <form method="post" onsubmit="return confirm('L\'ancien lien cessera de fonctionner (les comptes déjà créés restent). Continuer ?')"><input type="hidden" name="invite" value="regenerer"><button class="secondary">Nouveau code</button></form>

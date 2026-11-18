@@ -1,34 +1,17 @@
 {% extends "base.html" %}{% from "_live.html" import stance, when, textstate with context %}{% from "_doc.html" import docline with context %}{% block title %}{{ DN(d) }} · COP31{% endblock %}{% block body %}
-{% if message == 'note' %}<p class="banner">{{ L('Note enregistrée (interne).', 'Note saved (internal).') }}</p>{% elif message == 'brief' %}<p class="banner">{{ L('Brief régénéré.', 'Brief regenerated.') }}</p>{% elif message == 'plafond' %}<p class="banner warn">{{ L('Plafond de dépense IA atteint.', 'AI spending cap reached.') }}</p>{% endif %}
 <section class="hero">
-<div class="eyebrow"><a href="/dossiers">{{ L('Dossiers', 'Negotiations') }}</a> · {{ d.alias|join(', ') }}</div>
+<div class="eyebrow"><a href="/database">{{ L('Base de données', 'Database') }}</a> · <a href="/database?tab=negotiations">{{ L('Dossiers', 'Negotiation items') }}</a> · {{ d.alias|join(', ') }}</div>
 <h1>{{ DN(d) }}</h1>
 <p>{{ DN(d, 'enjeu') }}</p>
 <div class="row">
 {% for e in etat %}<span class="pill">{{ e.status }}</span>{% endfor %}
-<form method="post" action="/dossiers/{{ d.slug }}/suivre"><button class="star {{ 'on' if suivi }}">{{ L('✓ Suivi', '✓ Following') if suivi else L('Suivre ce dossier', 'Follow this negotiation') }}</button></form>
-<a class="small" href="/recherche?q={{ d.requete|urlencode }}">{{ L('Rechercher dans le corpus', 'Search the corpus') }} →</a>
+<form method="post" action="/database/negotiations/{{ d.slug }}/follow"><button class="star {{ 'on' if suivi }}">{{ L('✓ Suivi', '✓ Following') if suivi else L('Suivre ce dossier', 'Follow this negotiation') }}</button></form>
+<a class="small" href="/database?q={{ d.requete|urlencode }}">{{ L('Rechercher dans le corpus', 'Search the corpus') }} →</a>
 </div>
 </section>
 
 <div class="grid wide">
 <section>
-{% if BRIEFS %}
-<div class="spread"><h2>Brief</h2>{% if brief %}<span class="small muted">{{ when(brief.created_at) }} UTC · {{ L('depuis', 'since') }} {{ when(brief.period_start) }}</span>{% endif %}</div>
-<div class="card">
-{% if brief %}
-<p style="margin-top:0;font:16px/1.6 var(--serif)">{{ brief.body.essentiel|briefclean }}</p>
-{% set src = brief.sources %}
-<ul style="padding-left:18px;margin:0">{% for p in brief.body.points %}<li style="margin-bottom:8px">{{ p.texte|briefclean }}
-{% for n in p.sources %}{% set s = src[n-1] if n <= src|length else none %}{% if s and s.url %} <a class="small" href="{{ s.url }}" target="_blank" rel="noopener" title="{{ s.label }}">[{{ n }}]</a>{% endif %}{% endfor %}</li>{% endfor %}</ul>
-{% if brief.body.a_surveiller %}<p class="small" style="margin-bottom:0"><b>{{ L('À surveiller :', 'To watch:') }}</b> {{ brief.body.a_surveiller|map('briefclean')|join(' · ') }}</p>{% endif %}
-<details class="small muted" style="margin-top:10px"><summary>{{ L('Sources du brief', 'Brief sources') }}</summary><ol>{% for s in src %}<li>{% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.label }}</a>{% else %}{{ s.label }}{% endif %}</li>{% endfor %}</ol></details>
-{% else %}<p class="muted" style="margin:0">{{ L("Pas encore de brief : il est rédigé à 7 h et 19 h (heure d'Antalya) dès qu'il y a du nouveau.", 'No brief yet: one is written at 7am and 7pm (Antalya time) whenever there is something new.') }}</p>{% endif %}
-{% if can_contribute(user) %}<form method="post" action="/dossiers/{{ d.slug }}/brief" style="margin-top:12px"><button class="secondary">{{ L('Rédiger le brief maintenant (24 h)', 'Write the brief now (last 24 h)') }}</button></form>{% endif %}
-<p class="small muted" style="margin-bottom:0">{{ L('Rédigé par IA à partir des seules sources publiques citées ; vérifiez avant de reprendre.', 'Written by AI from the cited public sources only; check before reusing.') }}</p>
-</div>
-{% endif %}
-
 <h2>{{ L('Textes de négociation', 'Negotiating texts') }}</h2>
 {% if spark %}<div class="card"><div class="small muted">{{ L('Crochets au fil des versions', 'Brackets across versions') }}</div>{{ spark|safe }}</div>{% endif %}
 <div class="card flush">
@@ -39,7 +22,7 @@
 <div class="actions">{{ textstate(t) }}
 {% if t.doc_id and t.version and t.version > 1 %}<a href="/diff/{{ t.doc_id }}">{{ L('Ce qui a changé', 'What changed') }} (v{{ t.version }})</a>{% endif %}
 {% if t.pdf_url %}<a href="{{ t.pdf_url }}" target="_blank" rel="noopener">unfccc.int ↗</a>{% endif %}
-{% if not t.doc_id and can_contribute(user) %}<a href="/textes?dossier={{ d.slug }}#t{{ t.id }}">{{ L('Déposer le PDF', 'Upload the PDF') }}</a>{% endif %}</div>
+{% if not t.doc_id and user.is_admin %}<a href="/database?tab=texts&dossier={{ d.slug }}#t{{ t.id }}">{{ L('Déposer le PDF', 'Upload the PDF') }}</a>{% endif %}</div>
 {% if t.note %}<div class="small muted">{{ t.note }}</div>{% endif %}
 </div>{% else %}<p class="empty">{{ L("Aucun texte annoncé pour l'instant.", 'No text announced yet.') }}</p>{% endfor %}
 </div>
@@ -73,14 +56,6 @@
 </section>
 
 <section>
-{% if restricted %}
-<h2 id="notes">{{ L('Notes de terrain', 'Field notes') }} <span class="pill">{{ L('accès restreint', 'restricted') }}</span></h2>
-<div class="card">
-<form method="post" action="/dossiers/{{ d.slug }}/note"><p><textarea name="text" rows="3" placeholder="{{ L('Ce que vous avez entendu en salle : qui a dit quoi, sur quel paragraphe…', 'What you heard in the room: who said what, on which paragraph…') }}"></textarea></p><button>{{ L('Ajouter la note', 'Add note') }}</button></form>
-<p class="small muted">{{ L("Interne (contributeurs seulement), jamais envoyée à un service d'IA. Sur téléphone :", 'Internal (contributors only), never sent to an AI service. On your phone:') }} <code>/note {{ d.alias[0] }} …</code> {{ L('au bot.', 'to the bot.') }}</p>
-</div>
-<div class="card flush">{% for n in notes %}<div class="item"><div class="meta" style="margin:0 0 4px"><span>{{ n.auteur or n.email }}</span><span class="sep">·</span><span>{{ when(n.created_at) }} UTC</span><span class="sep">·</span><span>{{ n.via }}</span></div><div style="white-space:pre-wrap">{{ n.text }}</div></div>{% else %}<p class="empty">{{ L('Aucune note.', 'No notes.') }}</p>{% endfor %}</div>
-{% endif %}
 <h2>{{ L('Dans le corpus (7 jours)', 'In the corpus (7 days)') }}</h2>
 <div class="card flush">{% for h in hits %}<div class="item">{{ docline(h) }}<blockquote>{{ h.extrait[:300] }}</blockquote></div>{% else %}<p class="empty">{{ L('Rien de récent.', 'Nothing recent.') }}</p>{% endfor %}</div>
 <h2>{{ L('Sur Bluesky', 'On Bluesky') }}</h2>

@@ -1,0 +1,96 @@
+{% extends "base.html" %}{% from "_doc.html" import lvl, docline with context %}{% block title %}{{ L('Mes sujets', 'My topics') }} · COP Tracker{% endblock %}{% block body %}
+<style>
+.ways{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:0 0 22px}
+@media(max-width:760px){.ways{grid-template-columns:minmax(0,1fr)}}
+.ways div{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--surface);font-size:14px}
+.ways b{display:block;margin-bottom:3px}
+.ways q{font:15px/1.5 var(--serif);color:var(--ink-2)}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px;margin:0 0 14px}
+.items label{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line-2);border-radius:6px;padding:9px 11px;cursor:pointer;background:var(--surface);font-size:14px}
+.items label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.items label small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted);font-size:12px;line-height:1.35;margin-top:2px}
+.items input{margin-top:3px}
+.news-item{padding:12px 0;border-top:1px solid var(--line)}
+.news-item:first-child{border-top:0}
+.news-item h3{margin:0 0 6px;font-size:15.5px}
+.news-item ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:14px}
+.stage{font-size:12.5px;font-weight:600;white-space:nowrap}
+</style>
+<section class="hero">
+<div class="eyebrow">{{ L('Être alerté', 'Get alerted') }}</div>
+<h1>{{ L('Mes sujets', 'My topics') }}</h1>
+<p>{{ L('Vos sujets guident tout : les alertes, le récapitulatif du matin et du soir, et ce que regarde votre LLM quand vous lui demandez « qu\'est-ce qui a changé sur mes sujets ? » ou « que faire cet après-midi ? ».', 'Your topics drive everything: alerts, the morning and evening digest, and what your LLM looks at when you ask “what changed on my topics?” or “what should I attend this afternoon?”.') }}</p>
+</section>
+{% if message %}<p class="banner">{{ {'saved': L('Dossiers enregistrés.', 'Negotiation items saved.'), 'added': L('Sujet ajouté.', 'Topic added.'), 'removed': L('Sujet retiré.', 'Topic removed.')}.get(message, '') }}</p>{% endif %}
+
+<div class="ways">
+<div><b>{{ L('Ici, à la main', 'Here, by hand') }}</b>{{ L('Cochez des dossiers de négociation, ajoutez des sujets par mots-clés.', 'Tick negotiation items, add keyword topics.') }}</div>
+<div><b>{{ L('Ou en le demandant à votre LLM', 'Or by asking your LLM') }}</b><q>{{ L('Suis le dossier sur l\'adaptation et le sujet « early warning systems ».', 'Follow the adaptation negotiations and the topic “early warning systems”.') }}</q> <a href="/connect" class="small">{{ L('Connecter un LLM', 'Connect an LLM') }}</a></div>
+</div>
+
+<div class="grid wide">
+<section>
+<form class="card" method="post" id="items">
+<h2>{{ L('Dossiers de négociation', 'Negotiation items') }}</h2>
+<input type="hidden" name="action" value="dossiers">
+<p class="small muted" style="margin-top:-4px">{{ L('Une alerte à chaque nouveau texte : projet, proposé pour adoption, adopté. Avec ce qui a changé depuis la version précédente.', 'An alert for each new text: draft, forwarded for adoption, adopted. With what changed since the previous version.') }}</p>
+<div class="items">
+{% for d in dossiers %}<label><input type="checkbox" name="dossiers" value="{{ d.slug }}" {{ 'checked' if d.slug in followed }}><span>{{ DN(d) }}<small>{{ DN(d, 'enjeu') }}</small></span></label>{% endfor %}
+</div>
+<button>{{ L('Enregistrer', 'Save') }}</button>
+</form>
+
+<div class="card" id="keywords">
+<h2>{{ L('Sujets par mots-clés', 'Keyword topics') }}</h2>
+<p class="small muted" style="margin-top:-4px">{{ L('Tout nouveau document qui contient ces mots vous est signalé : projets de texte, comptes rendus, lettres d\'information, soumissions…', 'Any new document containing these words is flagged to you: draft texts, reports, newsletters, submissions…') }}</p>
+{% for s in subs %}
+<div class="row" style="justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)">
+<div style="min-width:0;flex:1"><b>{{ s.libelle }}</b><div class="small muted mono">{{ s.requete }}</div>
+{% if s.niveaux or s.types %}<div class="small muted">{% if s.niveaux %}{{ L('niveaux', 'levels') }} {{ s.niveaux|join(', ') }}{% endif %}{% if s.types %} · types {{ s.types|join(', ') }}{% endif %}</div>{% endif %}</div>
+<form method="post" action="/topics/{{ s.id }}/delete"><button class="secondary">{{ L('Retirer', 'Remove') }}</button></form>
+</div>
+{% endfor %}
+<form method="post" style="border-top:1px solid var(--line);padding-top:14px;margin-top:4px">
+<p><label class="small" for="label">{{ L('Nom', 'Name') }}</label><input type="text" id="label" name="label" value="{{ form.get('label', '') }}" placeholder="{{ L('ex. Systèmes d\'alerte précoce', 'e.g. Early warning systems') }}"></p>
+<p><label class="small" for="query">{{ L('Mots-clés, séparés par des virgules (en anglais, et en français si utile)', 'Keywords, separated by commas (in English, plus other languages if useful)') }}</label>
+<input type="text" id="query" name="query" value="{{ form.get('query', '') }}" placeholder="early warning, early warnings for all, EW4All"></p>
+<details class="small" style="margin:0 0 12px"><summary style="cursor:pointer">{{ L('Filtres avancés', 'Advanced filters') }}</summary>
+<p class="small" style="margin:10px 0 4px">{{ L('Niveaux (vide = tous)', 'Levels (empty = all)') }}</p>
+<div class="row chips">{% for l in ['1','2','3','4','5'] %}<label><input type="checkbox" name="levels" value="{{ l }}"> {{ lvl(l) }}</label>{% endfor %}</div>
+<p class="small" style="margin:10px 0 4px">{{ L('Types (vide = tous ; sans mots-clés = tout document de ces types)', 'Types (empty = all; without keywords = every document of these types)') }}</p>
+<div class="row chips">{% for t in ['projet_texte','decision','conclusions_sb','ndc','soumission','compte_rendu','analyse','communique'] %}<label><input type="checkbox" name="types" value="{{ t }}"> {{ t|replace('_', ' ') }}</label>{% endfor %}</div>
+</details>
+<div class="row"><button name="action" value="add">{{ L('Ajouter', 'Add') }}</button><button class="secondary" name="action" value="preview">{{ L('Aperçu (14 jours)', 'Preview (14 days)') }}</button></div>
+</form>
+{% if preview is not none %}<h2>{{ L('Aperçu', 'Preview') }} : {{ preview|length }} document(s)</h2>
+{% for d in preview %}<div class="item" style="padding:10px 0">{{ docline(d) }}{% if d.extrait %}<blockquote>{{ d.extrait }}</blockquote>{% endif %}</div>{% else %}<p class="muted">{{ L('Rien sur la période.', 'Nothing in that period.') }}</p>{% endfor %}{% endif %}
+</div>
+</section>
+
+<section>
+<div class="card">
+<h2>{{ L('Dernières 24 heures', 'Last 24 hours') }}</h2>
+{% if news.aucun_sujet %}<p class="muted" style="margin:0">{{ L('Choisissez des sujets : ce qui bouge sur eux apparaîtra ici.', 'Choose topics: what moves on them will show here.') }}</p>{% endif %}
+{% for it in news.sujets if it.textes or it.comptes_rendus or it.documents %}
+<div class="news-item"><h3>{% if it.type == 'dossier' %}<a href="/database/negotiations/{{ it.slug }}">{{ it.nom }}</a>{% else %}{{ it.nom }}{% endif %}</h3>
+<ul>
+{% for t in it.textes or [] %}<li><span class="stage">{{ t.etape_libelle }}</span> {% if t.doc_id %}<a href="/doc/{{ t.doc_id }}">{{ t.cote or '' }} {{ (t.titre or '')[:90] }}</a>{% else %}{{ t.cote or '' }} {{ (t.titre or '')[:90] }}{% endif %}
+{% if t.changements %}<br><span class="small muted">{{ t.changements }} · <a href="/diff/{{ t.doc_id }}">{{ L('ce qui a changé', 'what changed') }}</a></span>{% endif %}</li>{% endfor %}
+{% for r in it.comptes_rendus or [] %}<li>📰 <a href="{{ r.lien }}">{{ (r.titre or '')[:90] }}</a> <span class="small muted">{{ r.organisation or '' }}</span></li>{% endfor %}
+{% for d in it.documents or [] %}<li>{{ lvl(d.niveau) }}<a href="/doc/{{ d.doc_id }}">{{ (d.titre or L('Sans titre', 'Untitled'))[:100] }}</a></li>{% endfor %}
+</ul></div>
+{% endfor %}
+{% if not news.aucun_sujet and news.sans_nouveaute|length == news.sujets|length %}<p class="muted" style="margin:0">{{ L('Rien de neuf sur vos sujets depuis 24 heures.', 'Nothing new on your topics in the last 24 hours.') }}</p>{% endif %}
+</div>
+
+<div class="card" id="telegram">
+<h2>{{ L('Alertes sur Telegram', 'Alerts on Telegram') }}</h2>
+<p style="margin-top:0">{{ L('Recevez sur votre téléphone : une alerte à chaque nouveau texte de vos dossiers, les documents de vos sujets par mots-clés, et un récapitulatif de vos sujets à 7 h et 19 h (heure d\'Antalya).', 'Get on your phone: an alert for each new text on your items, the documents matching your keyword topics, and a digest of your topics at 7am and 7pm (Antalya time).') }}</p>
+{% if user.telegram_chat_id %}<p class="banner" style="margin:0">✓ {{ L('Telegram est relié.', 'Telegram is linked.') }} <a href="/account">{{ L('Gérer', 'Manage') }}</a></p>
+{% elif BOT %}<p><a class="btn" href="https://t.me/{{ BOT }}?start={{ user.telegram_code }}">{{ L('Ouvrir', 'Open') }} @{{ BOT }}</a></p>
+<p class="small muted" style="margin:0">{{ L('Puis appuyez sur Démarrer. Sinon, envoyez au bot', 'Then tap Start. Otherwise send the bot') }} <code>/start {{ user.telegram_code }}</code>.</p>
+{% else %}<p class="muted" style="margin:0">{{ L('Bot Telegram non configuré.', 'Telegram bot not configured.') }}</p>{% endif %}
+</div>
+</section>
+</div>
+{% endblock %}

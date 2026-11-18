@@ -5,5 +5,6 @@
 {%- endmacro %}
 {% macro when(s) -%}{{ (s or '')[:16]|replace('T', ' ') }}{%- endmacro %}
 {% macro textstate(t) -%}
+{% if t.stage %}<span class="pill">{{ {'adopted': L('✅ adopté', '✅ adopted'), 'for_adoption': L('🔨 proposé pour adoption', '🔨 forwarded for adoption'), 'draft': L('📝 projet', '📝 draft'), 'other': L('📄 document', '📄 document')}[t.stage] }}</span>{% endif %}
 {% if t.doc_id %}<span class="pill ok">✓ {{ L('récupéré', 'retrieved') }}</span>{% else %}<span class="pill warn">⏳ {{ L('à récupérer', 'to retrieve') }}</span>{% endif %}
 {%- endmacro %}

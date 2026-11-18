@@ -1,0 +1,110 @@
+{# Fenêtre de connexion et d'inscription : les formulaires partent en arrière-plan (JSON), l'erreur reste dans la
+   fenêtre. Sans JavaScript, ils restent des formulaires ordinaires (/signin, /join). #}
+<dialog class="auth" id="auth" aria-labelledby="auth-title" data-open="{{ open_modal or '' }}">
+<button type="button" class="auth-close" data-close aria-label="{{ L('Fermer', 'Close') }}">×</button>
+<div class="auth-tabs" role="tablist">
+<button type="button" role="tab" id="tab-signin" aria-controls="pane-signin" aria-selected="true" data-tab="signin">{{ L('Se connecter', 'Sign in') }}</button>
+<button type="button" role="tab" id="tab-signup" aria-controls="pane-signup" aria-selected="false" data-tab="signup">{{ L('Créer un compte', 'Create account') }}</button>
+</div>
+<div class="auth-body">
+<h2 id="auth-title" class="sr-only" style="position:absolute;left:-9999px">COP Tracker</h2>
+
+<section id="pane-signin" role="tabpanel" aria-labelledby="tab-signin">
+<form method="post" action="/signin" data-ajax="signin">
+<input type="hidden" name="next" value="{{ next or path or '/' }}">
+<p class="banner warn msg" data-error role="alert"></p>
+<p class="banner msg" data-sent></p>
+<div data-step="email">
+<p><label class="small" for="si-email">E-mail</label>
+<input type="email" id="si-email" name="email" autocomplete="username" required></p>
+</div>
+<div data-step="password" hidden>
+<p class="small muted" data-who></p>
+<p><label class="small" for="si-password">{{ L('Mot de passe', 'Password') }}</label>
+<input type="password" id="si-password" name="password" autocomplete="current-password" disabled></p>
+</div>
+<div data-step="code" hidden>
+<p class="small muted" data-who></p>
+<p><label class="small" for="si-code">{{ L('Code à 6 chiffres reçu par e-mail', '6-digit code sent by e-mail') }}</label>
+<input type="text" id="si-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" disabled
+ style="font:600 22px/1.2 var(--mono);letter-spacing:.3em"></p>
+</div>
+<div class="row" style="margin-top:16px">
+<button>{{ L('Continuer', 'Continue') }}</button>
+<button type="submit" class="secondary" name="action" value="forgot" data-only="password" hidden formnovalidate>{{ L('Mot de passe oublié ?', 'Forgot password?') }}</button>
+<button type="submit" class="secondary" name="action" value="resend" data-only="code" hidden formnovalidate>{{ L('Renvoyer le code', 'Send a new code') }}</button>
+</div>
+<p class="small muted" style="margin:14px 0 0">{{ L('Sans mot de passe ? Un code vous est envoyé par e-mail.', 'No password? We e-mail you a code.') }}</p>
+</form>
+</section>
+
+<section id="pane-signup" role="tabpanel" aria-labelledby="tab-signup" hidden>
+{% if invite_code or open_signup %}
+<form method="post" action="{{ '/join/' ~ invite_code if invite_code else '/join' }}" data-ajax="signup">
+<input type="hidden" name="code" value="{{ invite_code }}">
+<p class="banner warn msg" data-error role="alert">{{ signup_error or '' }}</p>
+<div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+{% if invite_code %}<p class="banner">{{ L('Invitation reçue : pas de mot de passe, vous êtes connecté tout de suite.', 'You were invited: no password needed, you are signed in straight away.') }}</p>{% endif %}
+<p><label class="small" for="su-email">E-mail</label>
+<input type="email" id="su-email" name="email" value="{{ (form or {}).get('email') or '' }}" autocomplete="username" required></p>
+<p><label class="small" for="su-org">{{ L('Organisation (facultatif)', 'Organisation (optional)') }}</label>
+<input type="text" id="su-org" name="organisation" value="{{ (form or {}).get('organisation') or '' }}" autocomplete="organization" placeholder="{{ L('ONG, délégation, média, université…', 'NGO, delegation, media, university…') }}"></p>
+{% if not invite_code %}
+<p><label class="small" for="su-pw">{{ L('Mot de passe (10 caractères minimum)', 'Password (at least 10 characters)') }}</label>
+<input type="password" id="su-pw" name="password" autocomplete="new-password" minlength="10" required></p>
+<p><label class="small" for="su-pw2">{{ L('Confirmer', 'Confirm') }}</label>
+<input type="password" id="su-pw2" name="password2" autocomplete="new-password" minlength="10" required></p>
+{% endif %}
+<p style="margin-top:16px"><button>{{ L('Créer mon compte', 'Create my account') }}</button></p>
+<p class="small muted" style="margin:0">{{ L('Gratuit. Votre e-mail sert uniquement à vous connecter et à vous envoyer ce que vous demandez ; il n\'est jamais partagé.', 'Free. Your e-mail is only used to sign you in and send what you ask for; it is never shared.') }}</p>
+</form>
+{% else %}
+<p class="banner warn msg" data-error role="alert">{{ signup_error or '' }}</p>
+<p class="muted">{{ L('Les inscriptions libres sont fermées pour le moment. Avec un code d\'invitation :', 'Open sign-ups are closed for now. With an invitation code:') }}</p>
+{% endif %}
+{% if not invite_code %}
+<form method="post" action="/join" data-ajax="code" class="small muted" style="margin-top:14px">
+<input type="hidden" name="check_code" value="1">
+<label for="invite-code">{{ L('Un code d\'invitation ? Pas besoin de mot de passe :', 'Got an invitation code? No password needed:') }}</label>
+<span class="row" style="margin-top:6px"><input type="text" id="invite-code" name="code" autocomplete="off" autocapitalize="none" style="width:160px" required><button class="secondary">OK</button></span>
+</form>
+{% endif %}
+</section>
+</div>
+</dialog>
+<script>
+(function(){
+const dlg=document.getElementById('auth');if(!dlg)return;
+const tabs=[...dlg.querySelectorAll('[data-tab]')];
+function show(which){tabs.forEach(t=>{const on=t.dataset.tab===which;t.setAttribute('aria-selected',on);document.getElementById('pane-'+t.dataset.tab).hidden=!on;});
+ const f=document.getElementById('pane-'+which).querySelector('input:not([type=hidden]):not([disabled]):not([tabindex="-1"])');if(f)setTimeout(()=>f.focus(),30);}
+function open(which){if(!dlg.open)dlg.showModal();show(which||'signin');}
+window.openAuth=open;
+tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.tab)));
+document.addEventListener('click',e=>{const b=e.target.closest('[data-auth]');if(b){e.preventDefault();open(b.dataset.auth);}});
+dlg.querySelector('[data-close]').addEventListener('click',()=>dlg.close());
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
+// Étapes de la connexion : e-mail → mot de passe ou code.
+const si=dlg.querySelector('form[data-ajax=signin]');
+function step(name,data){si.querySelectorAll('[data-step]').forEach(d=>{const on=d.dataset.step===name;d.hidden=!on;d.querySelectorAll('input').forEach(i=>{i.disabled=!on;i.required=on;});});
+ si.querySelectorAll('[data-only]').forEach(b=>b.hidden=b.dataset.only!==name);
+ si.querySelectorAll('[data-who]').forEach(p=>p.textContent=data&&data.email||'');
+ const email=si.querySelector('[name=email]');email.readOnly=name!=='email';
+ const f=si.querySelector('[data-step='+name+'] input');if(f&&name!=='email')setTimeout(()=>f.focus(),30);}
+async function send(form,submitter){
+ const fd=new FormData(form);if(submitter&&submitter.name)fd.set(submitter.name,submitter.value);
+ const err=form.querySelector('[data-error]'),sent=form.querySelector('[data-sent]');if(err)err.textContent='';if(sent)sent.textContent='';
+ const btns=form.querySelectorAll('button');btns.forEach(b=>b.disabled=true);
+ try{const r=await fetch(form.action,{method:'POST',body:fd,headers:{'X-Requested-With':'fetch'},credentials:'same-origin'});
+  const j=await r.json();
+  if(j.redirect){location.href=j.redirect;return;}
+  if(form===si&&j.step)step(j.step,j);
+  if(j.error&&err)err.textContent=j.error;
+  if(j.sent&&sent)sent.textContent={{ L('"Code envoyé "', '"Code sent "')|safe }}+j.sent+'.';
+ }catch(x){if(err)err.textContent={{ L('"Connexion impossible : réessayez."', '"Could not reach the server: try again."')|safe }};}
+ finally{btns.forEach(b=>b.disabled=false);}}
+dlg.querySelectorAll('form[data-ajax]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();send(f,e.submitter);}));
+step('email');
+const want=dlg.dataset.open;if(want)open(want);
+})();
+</script>

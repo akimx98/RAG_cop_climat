@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block title %}Contact · COP Tracker{% endblock %}{% block body %}
+<div style="max-width:620px;margin:0 auto">
+<section class="hero">
+<div class="eyebrow">{{ L('À propos', 'About') }}</div>
+<h1>Contact</h1>
+<p>{{ L('Une question, une source à ajouter, une erreur repérée ? COP Tracker est un projet indépendant, gratuit et open source, sans lien avec la CCNUCC ni avec une délégation : écrivez-nous, la réponse arrive par e-mail.', 'A question, a source to add, a mistake spotted? COP Tracker is an independent, free and open-source project, not affiliated with the UNFCCC or any delegation: write to us, the reply comes by e-mail.') }}</p>
+</section>
+{% if sent %}<p class="banner">✓ {{ L('Message envoyé. Merci !', 'Message sent. Thank you!') }}</p>
+{% else %}
+<form class="card" method="post">
+{% if error %}<p class="banner warn">{{ error }}</p>{% endif %}
+<div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+<p><label class="small" for="c-name">{{ L('Nom', 'Name') }}</label><input type="text" id="c-name" name="name" value="{{ form.get('name') or (user.name if user else '') or '' }}" autocomplete="name"></p>
+<p><label class="small" for="c-email">{{ L('E-mail pour la réponse', 'E-mail for the reply') }}</label><input type="email" id="c-email" name="email" value="{{ form.get('email') or (user.email if user else '') }}" autocomplete="email" required></p>
+<p><label class="small" for="c-org">{{ L('Organisation (facultatif)', 'Organisation (optional)') }}</label><input type="text" id="c-org" name="organisation" value="{{ form.get('organisation') or (user.organisation if user else '') or '' }}" autocomplete="organization"></p>
+<p><label class="small" for="c-msg">Message</label><textarea id="c-msg" name="message" rows="6" required minlength="10">{{ form.get('message') or '' }}</textarea></p>
+<button>{{ L('Envoyer', 'Send') }}</button>
+</form>
+{% endif %}
+{% if SOURCE_URL %}<p class="small muted">{{ L('Pour une suggestion technique, vous pouvez aussi ouvrir un ticket sur', 'For a technical suggestion, you can also open an issue on') }} <a href="{{ SOURCE_URL }}/issues" rel="noopener">GitHub</a>.</p>{% endif %}
+</div>
+{% endblock %}

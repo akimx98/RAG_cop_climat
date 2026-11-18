@@ -187,7 +187,8 @@ _COLUMNS = {
         "mail_code": "TEXT",       # partie secrète de l'adresse de dépôt depot-<code>@<domaine>
         "organisation": "TEXT",    # déclarée à l'inscription par invitation
         "source": "TEXT",          # comptes invités : 'invitation' (lien/QR) ou 'inscription' (libre) ; NULL = créé par un admin
-        "lang": "TEXT",            # 'en' | 'fr' choisi par l'utilisateur ; NULL = langue par défaut du rôle
+        "lang": "TEXT",            # 'en' | 'fr' choisi par l'utilisateur ; NULL = anglais
+        "mcp_seen_at": "TEXT",     # dernier appel MCP (prise en main : « LLM connecté »), mis à jour au plus 1×/h
     },
 }
 

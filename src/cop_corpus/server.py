@@ -40,6 +40,18 @@ def rate_limited(user: dict) -> bool:
     return False
 
 
+def _seen(user: dict) -> None:
+    """Date du dernier appel MCP (au plus une écriture par heure) : coche « LLM connecté » dans la prise en main."""
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    if (user.get("mcp_seen_at") or "")[:13] != now[:13]:
+        try:
+            conn = db.get()
+            conn.execute("UPDATE users SET mcp_seen_at=? WHERE id=?", (now, user["id"]))
+            conn.commit()
+        except Exception:
+            pass
+
+
 class TokenPathMiddleware:
     def __init__(self, app):
         self.app = app
@@ -51,19 +63,20 @@ class TokenPathMiddleware:
             if m:
                 user = auth.by_token(db.get(), m.group(1))
                 if not user:
-                    await JSONResponse({"error": "jeton invalide ou révoqué"}, status_code=401)(scope, receive, send)
+                    await JSONResponse({"error": "invalid or revoked token"}, status_code=401)(scope, receive, send)
                     return
                 if rate_limited(user):
-                    await JSONResponse({"error": "trop de requêtes : réessayez dans une minute"}, status_code=429,
+                    await JSONResponse({"error": "too many requests: try again in a minute"}, status_code=429,
                                        headers={"Retry-After": "60"})(scope, receive, send)
                     return
+                _seen(user)
                 scope = dict(scope)
                 scope["path"] = m.group(2).rstrip("/") or "/mcp"
                 scope["raw_path"] = scope["path"].encode()
                 scope["cop_user"] = user
             elif path.rstrip("/") == "/mcp":
                 await JSONResponse(
-                    {"error": "utiliser votre adresse personnelle /u/<jeton>/mcp (page « Claude / ChatGPT » du tableau de bord)"},
+                    {"error": "use your personal address /u/<token>/mcp (Connect an LLM page of the website)"},
                     status_code=401,
                 )(scope, receive, send)
                 return

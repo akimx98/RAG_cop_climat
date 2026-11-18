@@ -14,8 +14,8 @@
 {% if invite.open %}
 <p class="url" id="invite-url">{{ invite.url.split('://')[-1] }}</p>
 <p class="row" style="justify-content:inherit">
-<button type="button" class="secondary" data-done="{{ L('Lien copié', 'Link copied') }}" onclick="navigator.clipboard.writeText('{{ invite.url }}').then(()=>{this.textContent=this.dataset.done})">{{ L('Copier le lien', 'Copy the link') }}</button>
-<a class="btn secondary" href="/a-propos">{{ L('Qu\'est-ce que COP Tracker ?', 'What is COP Tracker?') }}</a></p>
+<button type="button" class="secondary" data-done="{{ L('Lien copié', 'Link copied') }}" data-copy="{{ invite.url }}">{{ L('Copier le lien', 'Copy the link') }}</button>
+<a class="btn secondary" href="/about">{{ L('Qu\'est-ce que COP Tracker ?', 'What is COP Tracker?') }}</a></p>
 {% if user and user.is_admin %}<p class="small muted">{{ invite.used }} / {{ invite.max }} {{ L('places utilisées', 'places used') }} · <a href="/admin#invitations">{{ L('changer le plafond', 'change the cap') }}</a></p>{% endif %}
 {% else %}<p class="banner warn" style="margin-top:16px">{{ L('Les inscriptions sont fermées pour le moment.', 'Sign-ups are closed for now.') }}</p>{% endif %}
 </div>

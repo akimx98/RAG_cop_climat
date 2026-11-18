@@ -1,5 +1,4 @@
-"""Deux langues : anglais par défaut pour les invités et les visiteurs, français pour les comptes créés
-par un administrateur. Un choix explicite (lien EN · FR, mémorisé dans le compte) l'emporte toujours.
+"""Deux langues : anglais par défaut pour tous ; le français sur choix explicite.
 
 Dans les gabarits : {{ L("texte français", "English text") }}.
 """
@@ -13,8 +12,6 @@ COOKIE = "lang"
 def default_for(user: dict | None) -> str:
     if user and user.get("lang") in LANGS:
         return user["lang"]
-    if user and user.get("source") not in ("invitation", "inscription") and (user.get("is_admin") or user.get("can_restricted")):
-        return "fr"
     return "en"
 
 

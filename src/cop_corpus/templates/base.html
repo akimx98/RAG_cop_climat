@@ -38,26 +38,56 @@ a:hover{color:var(--accent-hover)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 
 /* En-tête */
-header{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
-.bar{max-width:1180px;margin:auto;display:flex;align-items:center;gap:14px;padding:10px 20px}
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
+.bar{max-width:1180px;margin:auto;display:flex;align-items:center;gap:12px;padding:10px 20px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);flex:none}
 .brand svg{width:30px;height:30px;border-radius:4px}
 .brand b{font-weight:750;letter-spacing:-.01em;font-size:16px}
 .brand small{display:block;font-size:11.5px;color:var(--muted);line-height:1.1;font-weight:500}
 .countdown{font-size:11.5px;font-weight:650;color:var(--warm);background:var(--warm-soft);padding:3px 9px;border-radius:4px;white-space:nowrap;flex:none}
-nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;padding:2px;margin-left:6px;
-  -webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
-nav::-webkit-scrollbar{display:none}
-nav a{text-decoration:none;color:var(--ink-2);padding:7px 12px;border-radius:6px;font-size:14px;font-weight:550;white-space:nowrap;transition:background .15s,color .15s}
-nav a:hover{background:var(--surface-2);color:var(--ink)}
-nav a.on{background:var(--ink);color:var(--bg)}
-.langs{display:flex;gap:2px;margin-left:auto;flex:none;font-size:12px;font-weight:650}
+nav.main{display:flex;align-items:center;gap:2px;flex:1;min-width:0;margin-left:8px}
+nav.main > a,.menu > summary{text-decoration:none;color:var(--ink-2);padding:7px 11px;border-radius:6px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s;list-style:none}
+.menu > summary::-webkit-details-marker{display:none}
+nav.main > a:hover,.menu > summary:hover{background:var(--surface-2);color:var(--ink)}
+nav.main > a.on,.menu.on > summary{color:var(--accent);background:var(--accent-soft)}
+.menu{position:relative}
+.menu > summary::after{content:"";display:inline-block;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-2px,-2px);margin-left:8px;opacity:.6}
+.menu-list{position:absolute;top:calc(100% + 6px);left:0;min-width:220px;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:6px;display:grid;gap:1px;z-index:30}
+.menu-list.right{left:auto;right:0}
+.menu-list a{display:block;text-decoration:none;color:var(--ink);padding:8px 11px;border-radius:5px;font-size:14px}
+.menu-list a small{display:block;color:var(--muted);font-size:12px;line-height:1.35}
+.menu-list a:hover,.menu-list a.on{background:var(--surface-2)}
+.menu-list hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.right-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
+.langs{display:flex;gap:2px;font-size:12px;font-weight:650}
 .langs a{color:var(--muted);text-decoration:none;padding:3px 7px;border-radius:4px}
 .langs a.on{color:var(--ink);background:var(--surface-2);border:1px solid var(--line)}
-.logout{font-size:13px;color:var(--muted);text-decoration:none;white-space:nowrap;flex:none}
-.logout:hover{color:var(--warm)}
-@media(max-width:720px){.bar{flex-wrap:wrap;gap:8px 10px;padding:10px 16px}nav{order:3;flex-basis:100%;margin:0 -4px}.brand small{display:none}}
+.avatar > summary{width:34px;height:34px;padding:0!important;border-radius:50%!important;display:flex;align-items:center;justify-content:center;background:var(--ink)!important;color:var(--bg)!important;font:700 13px/1 var(--sans)}
+.avatar > summary::after{display:none}
+.signin-btn{padding:7px 14px;font-size:13.5px}
+@media(max-width:860px){.bar{flex-wrap:wrap;gap:8px 10px;padding:10px 16px}.brand small{display:none}
+ nav.main{order:3;flex-basis:100%;margin:0 -6px;flex-wrap:wrap;row-gap:2px}
+ nav.main > a,.menu > summary{padding:6px 9px;font-size:13.5px}
+ .menu-list{position:fixed;left:16px;right:16px;top:auto;min-width:0}}
 
+/* Pied de page */
+footer.site{border-top:1px solid var(--line);margin-top:40px}
+footer.site .in{max-width:1180px;margin:auto;padding:22px 20px 34px;display:flex;flex-wrap:wrap;gap:8px 22px;font-size:13px;color:var(--muted)}
+footer.site a{color:var(--muted)}
+
+/* Fenêtre de connexion */
+dialog.auth{border:0;padding:0;border-radius:10px;width:min(440px,calc(100vw - 32px));background:var(--surface);color:var(--ink);box-shadow:0 24px 70px rgba(0,0,0,.3)}
+dialog.auth::backdrop{background:rgba(10,16,22,.45)}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}
+.auth-tabs button{background:transparent;color:var(--muted);border-radius:0;padding:14px;font-weight:650;border-bottom:2px solid transparent}
+.auth-tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.auth-tabs button:hover{background:var(--surface-2);color:var(--ink)}
+.auth-body{padding:22px 24px 24px}
+.auth-body form p{margin:0 0 12px}
+.auth-close{position:absolute;top:8px;right:8px;background:transparent;color:var(--muted);padding:6px 10px;font-size:18px}
+.auth-close:hover{background:var(--surface-2);color:var(--ink)}
+.auth .msg{margin:0 0 12px}
+.auth .msg:empty{display:none}
 main{max-width:1180px;margin:auto;padding:28px 20px 64px}
 @media(max-width:720px){main{padding:18px 16px 48px}}
 
@@ -194,36 +224,60 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 </style>
 </head>
 <body>
+{% set initials = ((user.name or user.email or '?')[:1]|upper) if user else '' %}
+{% set about_on = path in ['/about', '/how-it-works', '/contact'] or path.startswith('/database') %}
 <header><div class="bar">
 <a class="brand" href="/">
 <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="4" fill="#17456b"/><path d="M12 8H8v16h4M20 8h4v16h-4" stroke="#fff" stroke-width="2.6" fill="none"/></svg>
 <span><b>COP Tracker</b><small>{{ L('COP31 · Antalya · projet indépendant', 'COP31 · Antalya · independent project') }}</small></span>
 </a>
 <span class="countdown" id="countdown" hidden data-day="{{ L('Jour', 'Day') }}" data-before="{{ L('J-', 'D-') }}"></span>
-{% if user %}
-<nav aria-label="{{ L('Navigation principale', 'Main navigation') }}">
-<a href="/" class="{{ 'on' if path=='/' }}">{{ L('Fil', 'Feed') }}</a>
-<a href="/dossiers" class="{{ 'on' if path.startswith('/dossiers') }}">{{ L('Dossiers', 'Negotiations') }}</a>
-<a href="/textes" class="{{ 'on' if path.startswith('/textes') }}">{{ L('Textes', 'Draft texts') }}</a>
-<a href="/recherche" class="{{ 'on' if path.startswith('/recherche') }}">{{ L('Recherche', 'Search') }}</a>
-<a href="/sujets" class="{{ 'on' if path.startswith('/sujets') }}">{{ L('Mes sujets', 'My topics') }}</a>
-<a href="/bienvenue" class="{{ 'on' if path.startswith('/bienvenue') }}">{{ L('Guide', 'Guide') }}</a>
-{% if can_contribute(user) %}<a href="/deposer" class="{{ 'on' if path.startswith('/deposer') }}">{{ L('Déposer', 'Add') }}</a>{% endif %}
-<a href="/connecteur" class="{{ 'on' if path.startswith('/connecteur') }}">{{ L('Assistant IA', 'AI assistant') }}</a>
-<a href="/telegram" class="{{ 'on' if path.startswith('/telegram') }}">Telegram</a>
-<a href="/compte" class="{{ 'on' if path.startswith('/compte') }}">{{ L('Compte', 'Account') }}</a>
-<a href="/a-propos" class="{{ 'on' if path.startswith('/a-propos') or path.startswith('/about') }}">{{ L('À propos', 'About') }}</a>
-{% if user.is_admin %}<a href="/admin" class="{{ 'on' if path.startswith('/admin') }}">Admin</a>{% endif %}
+<nav class="main" aria-label="{{ L('Navigation principale', 'Main navigation') }}">
+<a href="/connect" class="{{ 'on' if path.startswith('/connect') }}">{{ L('Connecter un LLM', 'Connect an LLM') }}</a>
+<a href="/plan" class="{{ 'on' if path.startswith('/plan') }}">{{ L('Planifier ma journée', 'Plan my day') }}</a>
+<a href="/topics" class="{{ 'on' if path.startswith('/topics') }}">{{ L('Mes sujets', 'My topics') }}</a>
+<details class="menu {{ 'on' if about_on }}"><summary>{{ L('À propos', 'About') }}</summary>
+<div class="menu-list">
+<a href="/about" class="{{ 'on' if path == '/about' }}">{{ L("Qu'est-ce que COP Tracker", 'What is COP Tracker') }}</a>
+<a href="/how-it-works" class="{{ 'on' if path == '/how-it-works' }}">{{ L('Comment ça marche', 'How it works') }}</a>
+<a href="/database" class="{{ 'on' if path.startswith('/database') }}">{{ L('Base de données', 'Database') }}</a>
+<a href="/contact" class="{{ 'on' if path == '/contact' }}">Contact</a>
+</div></details>
 </nav>
-{% endif %}
+<div class="right-tools">
 <span class="langs">{% for code in ['en', 'fr'] %}<a href="/lang/{{ code }}?next={{ path|urlencode }}" class="{{ 'on' if lang == code }}" hreflang="{{ code }}" lang="{{ code }}">{{ code|upper }}</a>{% endfor %}</span>
-{% if user %}<a href="/logout" class="logout">{{ L('Sortir', 'Sign out') }}</a>{% elif not path.startswith('/connexion') %}<a href="/connexion" class="logout">{{ L('Se connecter', 'Sign in') }}</a>{% endif %}
+{% if user %}
+<details class="menu avatar"><summary aria-label="{{ L('Compte', 'Account') }}" title="{{ user.email }}">{{ initials }}</summary>
+<div class="menu-list right">
+<a href="/account"><b>{{ user.name or user.email }}</b><small>{{ user.email }}</small></a>
+<hr>
+<a href="/account">{{ L('Mon profil', 'My profile') }}</a>
+{% if user.is_admin %}<a href="/admin">{{ L('Administration', 'Admin') }}</a>{% endif %}
+<a href="/logout">{{ L('Se déconnecter', 'Sign out') }}</a>
+</div></details>
+{% else %}
+<button type="button" class="signin-btn secondary" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</button>
+{% endif %}
+</div>
 </div></header>
 <main>{% block body %}{% endblock %}</main>
+<footer class="site"><div class="in">
+<span>COP Tracker · {{ L('projet indépendant, gratuit et open source, sans lien avec la CCNUCC ni avec une délégation', 'an independent, free and open-source project, not affiliated with the UNFCCC or any delegation') }}</span>
+{% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ L('Code source (licence MIT)', 'Source code (MIT licence)') }}</a>{% endif %}
+<a href="/how-it-works">{{ L('Comment ça marche', 'How it works') }}</a>
+<a href="/contact">Contact</a>
+</div></footer>
+{% if not user %}{% include "_auth.html" %}{% endif %}
 <script>
 // Compteur de la COP (heure d'Antalya, 9–20 novembre 2026).
 (function(){const el=document.getElementById('countdown');if(!el)return;
 const day=d=>Math.floor((d.getTime()+3*3600e3)/864e5);const now=day(new Date()),start=day(new Date(Date.UTC(2026,10,9))),end=day(new Date(Date.UTC(2026,10,20)));
 if(now<start)el.textContent=el.dataset.before+(start-now);else if(now<=end)el.textContent=el.dataset.day+' '+(now-start+1)+' / '+(end-start+1);else return;el.hidden=false;})();
+// Menus déroulants : un seul ouvert, fermés par un clic ailleurs ou Échap.
+document.addEventListener('click',e=>{document.querySelectorAll('details.menu[open]').forEach(d=>{if(!d.contains(e.target))d.open=false;});});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('details.menu[open]').forEach(d=>d.open=false);});
+// Boutons « copier ».
+document.addEventListener('click',e=>{const b=e.target.closest('[data-copy]');if(!b)return;const src=b.dataset.copy.startsWith('#')?document.querySelector(b.dataset.copy).textContent:b.dataset.copy;
+navigator.clipboard.writeText(src.trim()).then(()=>{const t=b.textContent;b.textContent=b.dataset.done||'✓';setTimeout(()=>b.textContent=t,1600);}).catch(()=>{});});
 </script>
 </body></html>

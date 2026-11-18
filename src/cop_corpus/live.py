@@ -492,6 +492,35 @@ def notes(conn, dossier_slug: str | None = None, since: str | None = None, limit
     return [dict(r) for r in rows]
 
 
+# --- étape d'un texte ----------------------------------------------------------------
+
+_ADOPTED = re.compile(r"\b(as adopted|adopted by|advance unedited|decision -/|\d+/(?:CP|CMA|CMP)\.\d+)", re.I)
+STAGES = {
+    "adopted": ("✅", "adopté", "adopted"),
+    "for_adoption": ("🔨", "proposé pour adoption (document L)", "forwarded for adoption (L document)"),
+    "draft": ("📝", "projet", "draft"),
+    "other": ("📄", "document de session", "session document"),
+}
+
+
+def text_stage(t: dict) -> str:
+    """Étape d'un texte de session, sans IA : adopté (titre ou cote de décision), proposé pour adoption (document L,
+    texte que les coprésidents transmettent à la plénière), projet (texte de négociation, note informelle), autre."""
+    title, symbol, kind = t.get("title") or "", t.get("symbol") or "", (t.get("cb_type") or "").lower()
+    if _ADOPTED.search(title) or _ADOPTED.search(kind):
+        return "adopted"
+    if "/L." in symbol:
+        return "for_adoption"
+    if any(k in kind for k in ("draft", "informal", "in-session")):
+        return "draft"
+    return "other"
+
+
+def stage_label(stage: str, lang: str = "en") -> str:
+    icon, fr, en = STAGES.get(stage, STAGES["other"])
+    return f"{icon} {en if lang == 'en' else fr}"
+
+
 # --- suivi de dossiers ---------------------------------------------------------------
 
 def follow(conn, user_id: int, slug: str, on: bool = True) -> None:
@@ -532,27 +561,30 @@ def notify_new_texts(conn, send) -> int:
         link = f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t["doc_id"] else (t["pdf_url"] or "")
         delta = since_previous(conn, t["doc_id"]) if t["doc_id"] else None
 
+        stage = text_stage(dict(t))
+
         def message(u: dict) -> str:
             from . import i18n
 
-            en = i18n.default_for(u) == "en"
+            lang = i18n.default_for(u)
+            en = lang == "en"
             if t["doc_id"]:
-                state = "✅ retrieved" if en else "✅ récupéré"
-            elif u.get("is_admin") or u.get("can_restricted"):
-                state = "⏳ à récupérer — ouvrez le lien puis transférez le PDF au bot"
+                state = "in the corpus" if en else "dans le corpus"
             else:
-                state = "⏳ not in the corpus yet — opens on unfccc.int" if en else "⏳ pas encore dans le corpus — s'ouvre sur unfccc.int"
+                state = ("not in the corpus yet, opens on unfccc.int" if en
+                         else "pas encore dans le corpus, s'ouvre sur unfccc.int")
             counts = " · ".join(x for x in (
                 f"{t['pages']} p." if t["pages"] else "",
                 f"{t['brackets']} {'brackets' if en else 'crochets'}" if t["brackets"] is not None else "",
                 f"{t['options']} options" if t["options"] else "") if x)
-            name = ((d.get("nom_en") if en else None) or d["nom"]) if d else (t["cb_topic"] or "Texte")
-            msg = (f"🆕 <b>{html.escape(name)}</b>\n"
+            name = ((d.get("nom_en") if en else None) or d["nom"]) if d else (t["cb_topic"] or "Text")
+            msg = (f"{stage_label(stage, lang)} · <b>{html.escape(name)}</b>\n"
                    f"{html.escape(t['symbol'] or '')} {html.escape((t['title'] or '')[:200])}\n"
-                   f"{html.escape(t['body'] or '')} · {'item' if en else 'point'} {html.escape(t['agenda_item'] or '?')} · {html.escape(counts)}\n"
-                   f"{state}\n{link}\n<i>Index : {CB_CREDIT}</i>")
+                   f"{html.escape(t['body'] or '')} · {'item' if en else 'point'} {html.escape(t['agenda_item'] or '?')}"
+                   f"{' · ' + html.escape(counts) if counts else ''}\n"
+                   f"{state}: {link}\n<i>Index: {CB_CREDIT}</i>")
             if delta:
-                msg += f"\n📊 {html.escape(diff.delta_line(delta))}\n{config.PUBLIC_BASE}/diff/{t['doc_id']}"
+                msg += f"\n📊 {html.escape(diff.delta_line(delta, lang))}\n{config.PUBLIC_BASE}/diff/{t['doc_id']}"
             return msg
 
         # diff_notified : marqué dès qu'on a le texte, pour que notify_retrieved ne ré-alerte pas ce texte.
@@ -587,11 +619,15 @@ def notify_retrieved(conn, send) -> int:
         if not delta:
             continue  # première version de la lignée : l'annonce suffisait, rien à comparer
         d = dossier(t["dossier"]) if t["dossier"] else None
-        msg = (f"📊 <b>{html.escape(d['nom'] if d else (t['cb_topic'] or 'Texte'))}</b> — texte récupéré\n"
-               f"{html.escape(t['symbol'] or '')} {html.escape((t['title'] or '')[:200])}\n"
-               f"{html.escape(diff.delta_line(delta))}\n{config.PUBLIC_BASE}/diff/{t['doc_id']}")
+        from . import i18n
+
         for u in followers(conn, t["dossier"]):
-            send(u["telegram_chat_id"], msg)
+            lang = i18n.default_for(u)
+            name = ((d.get("nom_en") if lang == "en" else None) or d["nom"]) if d else (t["cb_topic"] or "Text")
+            send(u["telegram_chat_id"],
+                 f"📊 <b>{html.escape(name)}</b> · {'text now in the corpus' if lang == 'en' else 'texte récupéré'}\n"
+                 f"{html.escape(t['symbol'] or '')} {html.escape((t['title'] or '')[:200])}\n"
+                 f"{html.escape(diff.delta_line(delta, lang))}\n{config.PUBLIC_BASE}/diff/{t['doc_id']}")
         n += 1
     return n
 

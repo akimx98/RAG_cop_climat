@@ -1,8 +1,9 @@
-"""Tableau de bord web : fil d'alertes, sujets suivis, recherche, documents,
-versions, dépôt de documents internes, liaison Telegram, connecteur MCP, admin."""
+"""Site web : accueil, connecter un LLM, planifier ma journée, mes sujets, à propos (comment ça marche, base de
+données, contact), compte, documents et versions, administration. Anglais par défaut, français au choix."""
 
 from __future__ import annotations
 
+import json
 import mimetypes
 import re
 from pathlib import Path
@@ -13,7 +14,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
 
-from . import alerts, auth, config, db, diff, i18n, ingest, mailin, qr, search
+from . import alerts, auth, config, db, diff, i18n, mailin, qr, search
 
 TEMPLATES = Environment(
     loader=FileSystemLoader(str(Path(__file__).parent / "templates")),
@@ -80,6 +81,12 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx["base"] = config.PUBLIC_BASE
     ctx["path"] = request.url.path
     ctx["SOURCE_URL"] = config.SOURCE_URL
+    if not ctx["user"] and "open_signup" not in ctx:
+        try:
+            o = auth.open_signup_settings(db.get())
+            ctx["open_signup"] = o["open"] and o["used"] < o["max"]
+        except Exception:
+            ctx["open_signup"] = False
     resp = HTMLResponse(TEMPLATES.get_template(name).render(**ctx))
     if request.query_params.get("lang") in i18n.LANGS:
         resp.set_cookie(i18n.COOKIE, lang, max_age=365 * 86400, samesite="lax")
@@ -112,11 +119,19 @@ def current_user(request: Request) -> dict | None:
     return None
 
 
+def _next_url(request: Request) -> str:
+    q = request.url.query
+    return request.url.path + (f"?{q}" if q else "")
+
+
 def login_required(handler):
+    """Page réservée aux comptes : sinon l'accueil, avec la fenêtre de connexion ouverte et un retour ici."""
     async def wrapper(request: Request):
         user = current_user(request)
         if not user:
-            return render(request, "login.html", user=None, next=request.url.path)
+            from urllib.parse import quote
+
+            return RedirectResponse(f"/?signin=1&next={quote(_next_url(request))}", status_code=303)
         request.state.user = user
         return await handler(request)
     return wrapper
@@ -127,20 +142,6 @@ def admin_required(handler):
         user = current_user(request)
         if not user or not user.get("is_admin"):
             return Response("Réservé aux administrateurs", status_code=403)
-        request.state.user = user
-        return await handler(request)
-    return wrapper
-
-
-def contributor_required(handler):
-    """Ajout au corpus commun : administrateurs et contributeurs seulement (pas les invités)."""
-    async def wrapper(request: Request):
-        user = current_user(request)
-        if not user:
-            return render(request, "login.html", user=None, next=request.url.path)
-        if not auth.can_contribute(user):
-            return Response("Réservé aux contributeurs : les comptes invités consultent le corpus sans y ajouter de documents.",
-                            status_code=403)
         request.state.user = user
         return await handler(request)
     return wrapper
@@ -187,28 +188,47 @@ def _send_login_code(user: dict, code: str) -> tuple[bool, bool]:
     return mailed, tg
 
 
+def _wants_json(request: Request) -> bool:
+    """Formulaires de la fenêtre de connexion : envoyés en arrière-plan, réponse JSON (l'erreur reste dans la fenêtre)."""
+    return request.headers.get("x-requested-with") == "fetch"
+
+
+def _safe_next(value: str | None) -> str:
+    value = value or "/"
+    return value if value.startswith("/") and not value.startswith("//") else "/"
+
+
+def _go(request: Request, url: str, user: dict | None = None, token: str | None = None) -> Response:
+    resp = JSONResponse({"redirect": url}) if _wants_json(request) else RedirectResponse(url, status_code=303)
+    return _session(resp, user, token) if user else resp
+
+
 async def login_form(request: Request):
     """Connexion en deux temps : l'e-mail, puis le mot de passe si le compte en a un, sinon un code à 6 chiffres
     envoyé par e-mail (et par Telegram si le compte est relié). Mot de passe oublié : le même code, puis la page
-    Compte pour en choisir un nouveau."""
+    Compte pour en choisir un nouveau. Utilisée par la fenêtre de connexion (JSON) et par la page /signin."""
     if request.method == "GET":
         if current_user(request):
             return RedirectResponse("/", status_code=303)
-        return render(request, "login.html", user=None, step="email", email=request.query_params.get("email", ""))
+        return render(request, "login.html", user=None, step="email", email=request.query_params.get("email", ""),
+                      next=_safe_next(request.query_params.get("next")))
     conn = db.get()
     form = await request.form()
     email = (form.get("email") or "").strip()
-    nxt = form.get("next") or "/"
-    nxt = nxt if nxt.startswith("/") and not nxt.startswith("//") else "/"
+    nxt = _safe_next(form.get("next"))
     T = lambda fr, en: i18n.pick(lang_of(request), fr, en)  # noqa: E731
-    page = lambda step, **kw: render(request, "login.html", user=None, step=step, email=email, next=nxt, **kw)  # noqa: E731
+
+    def page(step, **kw):
+        if _wants_json(request):
+            return JSONResponse({"step": step, "email": email, **{k: v for k, v in kw.items() if v}})
+        return render(request, "login.html", user=None, step=step, email=email, next=nxt, **kw)
 
     if form.get("password"):
         user = auth.check_password(conn, email, form.get("password") or "", _client(request))
         if not user:
             return page("password", error=T("E-mail ou mot de passe incorrect (ou trop d'essais : réessayez dans 15 minutes).",
                                             "Incorrect e-mail or password (or too many attempts: try again in 15 minutes)."))
-        return _session(RedirectResponse(nxt, status_code=303), user)
+        return _go(request, nxt, user)
 
     user = auth.by_email(conn, email)
     if form.get("code") is not None and form.get("action") != "resend":
@@ -217,12 +237,12 @@ async def login_form(request: Request):
             auth._failures.setdefault(key, []).append(__import__("time").time())
             return page("code", error=T("Code incorrect ou expiré.", "Wrong or expired code."))
         if user.get("password_hash"):  # mot de passe oublié : on propose d'en choisir un nouveau
-            return _session(RedirectResponse("/compte?oubli=1", status_code=303), user)
-        return _session(RedirectResponse(nxt, status_code=303), user)
+            return _go(request, "/account?forgot=1", user)
+        return _go(request, nxt, user)
 
     if not user:
-        return page("email", error=T("Aucun compte avec cet e-mail : créez-en un depuis la page d'accueil.",
-                                     "No account with this e-mail: create one from the home page."))
+        return page("email", error=T("Aucun compte avec cet e-mail : créez-en un (onglet « Créer un compte »).",
+                                     "No account with this e-mail: create one (Create account tab)."))
     if user.get("password_hash") and form.get("action") not in ("forgot", "resend"):
         return page("password")
     code, why = auth.issue_login_code(conn, user)
@@ -231,8 +251,8 @@ async def login_form(request: Request):
                                     "A code was just sent: wait a minute before asking for another one."))
     mailed, tg = _send_login_code(user, code)
     if not (mailed or tg):
-        return page("email", error=T("L'envoi de code n'est pas encore disponible : demandez un lien de connexion à un administrateur.",
-                                     "Sign-in codes can't be sent yet: ask an administrator for a sign-in link."))
+        return page("email", error=T("L'envoi de code n'est pas encore disponible : écrivez-nous (page Contact).",
+                                     "Sign-in codes can't be sent yet: write to us (Contact page)."))
     where = " + ".join(x for x in (T("par e-mail", "by e-mail") if mailed else "", "Telegram" if tg else "") if x)
     return page("code", sent=where)
 
@@ -244,72 +264,48 @@ async def login_link(request: Request):
         return render(request, "login.html", user=None,
                       error=i18n.pick(lang_of(request), "Lien expiré ou déjà utilisé (le mot de passe a changé depuis). Demandez-en un nouveau.",
                                      "Link expired or already used (the password has changed since). Ask for a new one."))
-    return _session(RedirectResponse("/compte", status_code=303), user)
+    return _session(RedirectResponse("/account", status_code=303), user)
 
 
 async def join(request: Request):
-    """Page d'arrivée publique : ce que fait l'outil, puis création d'un compte invité (documents publics, pas de dépôt).
+    """Création d'un compte invité (corpus public, pas de dépôt), depuis la fenêtre de l'accueil.
 
-    - `/` et `/join` : inscription libre, e-mail + mot de passe (+ organisation) ;
-    - `/join/<code>` (lien ou QR d'invitation) : e-mail (+ organisation) seulement, connexion immédiate."""
+    - `/join` (POST) : inscription libre, e-mail + mot de passe (+ organisation) ;
+    - `/join/<code>` (lien ou QR d'invitation) : l'accueil s'ouvre sur la fenêtre d'inscription ; e-mail (+ organisation)
+      seulement, connexion immédiate."""
     conn = db.get()
     code = (request.path_params.get("code") or request.query_params.get("code") or "").strip().lower()
     if current_user(request):
-        return RedirectResponse("/bienvenue", status_code=303)
-    stats = search.stats(conn)
-    open_ = auth.open_signup_settings(conn)
-
-    def page(**kw):
-        lang = lang_of(request)
-        if kw.get("error"):
-            kw["error"] = i18n.pick(lang, *auth.SIGNUP_ERRORS[kw["error"]])
-        kw.setdefault("form", {})
-        invited = bool(code) and auth.invite_valid(conn, code)
-        return render(request, "join.html", user=None, code=code if invited else "", invited=invited, stats=stats,
-                      open_signup=open_["open"] and open_["used"] < open_["max"], **kw)
-
+        return RedirectResponse("/", status_code=303)
+    lang = lang_of(request)
     if request.method == "GET":
         if code and not auth.invite_valid(conn, code):
-            return page(error="bad_code")
-        return page()
+            return await _landing(request, None, signup_error=i18n.pick(lang, *auth.SIGNUP_ERRORS["bad_code"]))
+        return await _landing(request, None, invite_code=code if code else "", open_modal="signup")
     form = await request.form()
     code = (form.get("code") or code).strip().lower()
+
+    async def fail(err: str):
+        msg = i18n.pick(lang, *auth.SIGNUP_ERRORS[err])
+        invited = bool(code) and auth.invite_valid(conn, code)
+        if _wants_json(request):
+            return JSONResponse({"error": msg, "invited": invited})
+        return await _landing(request, None, invite_code=code if invited else "", open_modal="signup",
+                              signup_error=msg, form=form)
+
     if form.get("check_code"):  # saisie manuelle d'un code d'invitation
-        return RedirectResponse(f"/join/{code}#signup", status_code=303)
+        if not auth.invite_valid(conn, code):
+            return await fail("bad_code")
+        return _go(request, f"/join/{code}")
     if form.get("website"):  # champ piège invisible : rempli seulement par les robots
-        return page(form=form, error="bad_email")
+        return await fail("bad_email")
     if not code and form.get("password") != form.get("password2"):
-        return page(form=form, error="mismatch")
+        return await fail("mismatch")
     user, token, error = auth.signup(conn, code, form.get("email") or "", form.get("organisation") or "",
-                                     "" if code else (form.get("password") or ""), _client(request), lang=lang_of(request))
+                                     "" if code else (form.get("password") or ""), _client(request), lang=lang)
     if error:
-        if error == "bad_code":
-            code = ""
-        return page(form=form, error=error)
-    return _session(RedirectResponse("/bienvenue", status_code=303), user, token)
-
-
-@login_required
-async def welcome(request: Request):
-    """Bien démarrer : dossiers à suivre, connecteur Claude / ChatGPT, Telegram."""
-    from . import live
-
-    conn = db.get()
-    user = request.state.user
-    saved = False
-    if request.method == "POST":
-        form = await request.form()
-        chosen = set(form.getlist("dossiers"))
-        for d in live.dossiers():
-            live.follow(conn, user["id"], d["slug"], d["slug"] in chosen)
-        topic = (form.get("sujet") or "").strip()
-        if topic:
-            alerts.add_subscription(conn, user["id"], topic[:60], topic)
-        saved = True
-    token = auth.mcp_token(user) or request.cookies.get(TOKEN_COOKIE)
-    return render(request, "welcome.html", dossiers=live.dossiers(), followed=live.followed(conn, user["id"]),
-                  subs=alerts.list_subscriptions(conn, user["id"]), token=token, saved=saved,
-                  invite=auth.invite_settings(conn))
+        return await fail(error)
+    return _go(request, "/?welcome=1", user, token)
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -324,16 +320,265 @@ async def static_file(request: Request):
     return FileResponse(path, headers={"Cache-Control": "public, max-age=604800"})
 
 
+# --- pages publiques ---------------------------------------------------------------------------------------------
+
+def _onboarding(conn, user: dict) -> dict[str, bool]:
+    from . import live
+
+    return {"llm": bool(user.get("mcp_seen_at")),
+            "topics": bool(alerts.list_subscriptions(conn, user["id"]) or live.followed(conn, user["id"])),
+            "telegram": bool(user.get("telegram_chat_id"))}
+
+
+async def _landing(request: Request, user: dict | None, invite_code: str = "", open_modal: str = "",
+                   signup_error: str = "", form=None) -> HTMLResponse:
+    """Accueil, connecté ou non : les trois usages, l'appel à l'action principal, et la fenêtre de connexion."""
+    conn = db.get()
+    open_ = auth.open_signup_settings(conn)
+    if not open_modal and not user:
+        if request.query_params.get("signin"):
+            open_modal = "signin"
+        elif request.query_params.get("signup"):
+            open_modal = "signup"
+    return render(request, "home.html", user=user, stats=search.stats(conn),
+                  steps=_onboarding(conn, user) if user else None, welcome=bool(request.query_params.get("welcome")),
+                  invite_code=invite_code, open_modal=open_modal, signup_error=signup_error, form=form or {},
+                  open_signup=open_["open"] and open_["used"] < open_["max"],
+                  next=_safe_next(request.query_params.get("next")))
+
+
+async def home(request: Request):
+    user = current_user(request)
+    if user:
+        request.state.user = user
+    return await _landing(request, user)
+
+
 async def about_page(request: Request):
-    """Page publique « Qu'est-ce que COP Tracker ? » : fonctionnement, sources, limites, code ouvert."""
+    """À propos : qu'est-ce que COP Tracker (court, renvoie vers les autres pages)."""
     return render(request, "about.html", user=current_user(request), stats=search.stats(db.get()))
 
 
+async def how_page(request: Request):
+    """Comment ça marche : schéma et explications pour un non-développeur, forces et limites."""
+    from . import catalog
+
+    conn = db.get()
+    try:
+        n_sources = len(catalog.load())
+    except Exception:
+        n_sources = None
+    pav = conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE name='pav_events'").fetchone()[0]
+    n_events = conn.execute("SELECT COUNT(*) FROM pav_events WHERE cancelled=0").fetchone()[0] if pav else None
+    return render(request, "how.html", user=current_user(request), stats=search.stats(conn), n_sources=n_sources,
+                  n_events=n_events)
+
+
+_contact_hits: dict[str, list[float]] = {}
+
+
+async def contact_page(request: Request):
+    """Contact : formulaire court ; le message part par e-mail vers COP_CONTACT_EMAIL (adresse jamais affichée)."""
+    import time
+
+    from . import mailout
+
+    user = current_user(request)
+    sent = error = None
+    form: dict = {}
+    if request.method == "POST":
+        form = dict(await request.form())
+        T = lambda fr, en: i18n.pick(lang_of(request, user), fr, en)  # noqa: E731
+        ip = _client(request)
+        now = time.time()
+        recent = [t for t in _contact_hits.get(ip, []) if now - t < 3600]
+        message = (form.get("message") or "").strip()
+        reply = (form.get("email") or (user or {}).get("email") or "").strip()
+        if form.get("website"):  # champ piège : un robot
+            sent = True
+        elif len(recent) >= 5:
+            error = T("Trop de messages envoyés : réessayez plus tard.", "Too many messages: try again later.")
+        elif len(message) < 10:
+            error = T("Le message est trop court.", "Your message is too short.")
+        elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", reply):
+            error = T("Indiquez une adresse e-mail valide pour la réponse.", "Please give a valid e-mail address for the reply.")
+        elif not config.CONTACT_EMAIL or not mailout.enabled():
+            error = T("Le formulaire n'est pas encore configuré.", "The contact form is not configured yet.")
+        else:
+            name = (form.get("name") or "").strip()[:80]
+            body = (f"From: {name} <{reply}>\nAccount: {(user or {}).get('email') or '—'}\n"
+                    f"Organisation: {(form.get('organisation') or '').strip()[:120] or '—'}\n\n{message[:5000]}")
+            ok = mailout.send(config.CONTACT_EMAIL, f"[COP Tracker] {name or reply}"[:120], body, reply_to=reply)
+            _contact_hits[ip] = recent + [now]
+            sent = ok or None
+            if not ok:
+                error = T("L'envoi a échoué : réessayez dans un moment.", "Sending failed: please try again in a moment.")
+    return render(request, "contact.html", user=user, sent=sent, error=error, form=form)
+
+
+# --- connecter un LLM ---------------------------------------------------------------------------------------------
+
+def _token_for(request: Request, conn, user: dict) -> str | None:
+    token = auth.mcp_token(user)
+    if not token:  # compte ancien jamais revu depuis le chiffrement : le cookie du navigateur peut le fournir
+        cookie = request.cookies.get(TOKEN_COOKIE)
+        token = cookie if cookie and auth.by_token(conn, cookie) else None
+    return token
+
+
+SCREENSHOTS = ("connect-claude", "connect-chatgpt", "connect-lechat", "connect-example")
+
+
+def _shots() -> dict[str, str]:
+    """Captures d'écran fournies (static/<nom>.png|.jpg|.webp), affichées si présentes."""
+    out = {}
+    for name in SCREENSHOTS:
+        for ext in ("png", "jpg", "webp"):
+            if (STATIC_DIR / f"{name}.{ext}").is_file():
+                out[name] = f"/static/{name}.{ext}"
+                break
+    return out
+
+
+async def connect_page(request: Request):
+    conn = db.get()
+    user = current_user(request)
+    token = regenerated = None
+    if user:
+        request.state.user = user
+        token = _token_for(request, conn, user)
+        if request.method == "POST":
+            token = auth.reset_token(conn, user["id"])
+            regenerated = True
+    resp = render(request, "connect.html", user=user, token=token, regenerated=regenerated, shots=_shots())
+    if regenerated:
+        resp.set_cookie(TOKEN_COOKIE, token, max_age=30 * 86400, httponly=True,
+                        secure=config.PUBLIC_BASE.startswith("https"), samesite="strict")
+    return resp
+
+
+# --- planifier ma journée -----------------------------------------------------------------------------------------
+
+def _today_day() -> int:
+    from datetime import datetime
+
+    from . import agenda
+
+    d = datetime.now(agenda.ANTALYA).date()
+    if (d.year, d.month) == (agenda.YEAR, agenda.MONTH) and agenda.FIRST_DAY <= d.day <= agenda.LAST_DAY:
+        return d.day
+    return agenda.FIRST_DAY
+
+
+async def plan_page(request: Request):
+    """Calendrier géant : tous les événements connus, filtrables (jour, mots, type, zone, pavillon, mes sujets)."""
+    from . import events
+
+    conn = db.get()
+    user = current_user(request)
+    if user:
+        request.state.user = user
+    qp = request.query_params
+    day_s = qp.get("day") or ""
+    day = int(day_s) if day_s.isdigit() and int(day_s) in events.DAYS else _today_day()
+    kinds = [k for k in qp.getlist("type") if k in events.KINDS]
+    zone = qp.get("zone") if qp.get("zone") in ("blue", "green") else ""
+    place = (qp.get("place") or "").strip()
+    q = (qp.get("q") or "").strip()[:200]
+    mine = bool(qp.get("mine")) and bool(user)
+    terms = events.topic_terms(conn, user) if mine else None
+    res = events.query(conn, day, q=q, kinds=kinds, zone=zone, place=place, terms=terms)
+    return render(request, "plan.html", user=user, day=day, days=events.DAYS, kinds=kinds, zone=zone, place=place,
+                  q=q, mine=mine, no_terms=mine and not terms, res=res, slots=events.by_slot(res["events"]),
+                  KINDS=events.KINDS, today=_today_day())
+
+
+# --- mes sujets ---------------------------------------------------------------------------------------------------
+
 @login_required
-async def invite_page(request: Request):
-    """Écran à montrer à quelqu'un qu'on croise : QR code + lien court de l'invitation."""
-    inv = auth.invite_settings(db.get())
-    return render(request, "invite.html", invite=inv)
+async def topics_page(request: Request):
+    from datetime import datetime, timedelta, timezone
+
+    from . import live, topics
+
+    conn = db.get()
+    user = request.state.user
+    lang = lang_of(request, user)
+    message = None
+    preview = None
+    form: dict = {}
+    if request.method == "POST":
+        f = await request.form()
+        action = f.get("action")
+        if action == "dossiers":
+            chosen = set(f.getlist("dossiers"))
+            for d in live.dossiers():
+                live.follow(conn, user["id"], d["slug"], d["slug"] in chosen)
+            message = "saved"
+        elif action in ("add", "preview"):
+            query = (f.get("query") or "").strip()
+            levels = f.getlist("levels") or None
+            types = f.getlist("types") or None
+            if action == "preview":
+                preview = alerts.preview(conn, query or "*", levels, types, user, days=14)
+                form = {"query": query, "label": f.get("label") or ""}
+            elif query or types:
+                alerts.add_subscription(conn, user["id"], (f.get("label") or "").strip() or query[:60] or "New documents",
+                                        query or "*", levels, types)
+                message = "added"
+        if message:
+            return RedirectResponse(f"/topics?ok={message}", status_code=303)
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    news = topics.whats_new(conn, user, since, lang)
+    followed = live.followed(conn, user["id"])
+    return render(request, "topics.html", dossiers=live.dossiers(), followed=followed,
+                  subs=alerts.list_subscriptions(conn, user["id"]), news=news, preview=preview, form=form,
+                  message=request.query_params.get("ok"))
+
+
+@login_required
+async def topic_delete(request: Request):
+    alerts.remove_subscription(db.get(), request.state.user["id"], int(request.path_params["sid"]))
+    return RedirectResponse("/topics?ok=removed", status_code=303)
+
+
+# --- base de données ----------------------------------------------------------------------------------------------
+
+@login_required
+async def database_page(request: Request):
+    """Base de données : recherche, dossiers de négociation, textes de session, derniers documents."""
+    from . import live
+
+    conn = db.get()
+    user = request.state.user
+    qp = request.query_params
+    tab = qp.get("tab") if qp.get("tab") in ("search", "negotiations", "texts", "latest") else "search"
+    q = (qp.get("q") or "").strip()
+    levels = [x for x in qp.getlist("niveau") if x]
+    types = [x for x in qp.getlist("type") if x]
+    ctx: dict = {"tab": tab, "q": q, "levels": levels, "types": types}
+    if tab == "search" and q:
+        ctx["hits"] = search.search(conn, q, {"levels": levels, "doc_types": types}, user, limit=25)
+    elif tab == "negotiations":
+        ctx["rows"] = live.overview(conn, user)
+    elif tab == "texts":
+        ctx["dossier"] = qp.get("dossier") or ""
+        ctx["texts"] = live.texts(conn, ctx["dossier"] or None, limit=300)
+        ctx["names"] = {d["slug"]: (d.get("nom_en") or d["nom"]) if lang_of(request, user) == "en" else d["nom"]
+                        for d in live.dossiers()}
+        ctx["credit"], ctx["cb_page"] = live.CB_CREDIT, live.CB_TEXTS_PAGE
+        for t in ctx["texts"]:
+            t["stage"] = live.text_stage(t)
+    elif tab == "latest":
+        level = qp.get("niveau")
+        ctx["level"] = level
+        ctx["latest"] = search.latest(conn, user, {"levels": [level]} if level else {}, limit=60)
+    ctx["stats"] = search.stats(conn)
+    return render(request, "database.html", **ctx)
+
+
+async def account_redirect(request: Request):
+    return RedirectResponse("/account" + (f"?{request.url.query}" if request.url.query else ""), status_code=303)
 
 
 @login_required
@@ -343,17 +588,35 @@ async def account_page(request: Request):
     error = done = None
     if request.method == "POST":
         form = await request.form()
-        pw, pw2 = form.get("password") or "", form.get("password2") or ""
-        if len(pw) < auth.PASSWORD_MIN:
-            error = "short"
-        elif pw != pw2:
-            error = "mismatch"
+        action = form.get("action") or "password"
+        if action == "profile":
+            conn.execute("UPDATE users SET name=?, organisation=? WHERE id=?",
+                         ((form.get("name") or "").strip()[:80] or None, (form.get("organisation") or "").strip()[:120] or None,
+                          user["id"]))
+            conn.commit()
+            done = "profile"
+        elif action == "telegram_unlink":
+            conn.execute("UPDATE users SET telegram_chat_id=NULL WHERE id=?", (user["id"],))
+            conn.commit()
+            done = "telegram"
+        elif action == "delete":
+            if (form.get("confirm") or "").strip().lower() in ("delete", "supprimer") and auth.delete_guest(conn, user["id"]):
+                return await logout(request)
+            error = "delete"
         else:
-            auth.set_password(conn, user["id"], pw)
-            user = auth.by_id(conn, user["id"])
-            done = True
+            pw, pw2 = form.get("password") or "", form.get("password2") or ""
+            if len(pw) < auth.PASSWORD_MIN:
+                error = "short"
+            elif pw != pw2:
+                error = "mismatch"
+            else:
+                auth.set_password(conn, user["id"], pw)
+                done = "password"
+        user = auth.by_id(conn, user["id"])
+        request.state.user = user
     return render(request, "account.html", user=user, error=error, done=done, min=auth.PASSWORD_MIN,
-                  forgot=request.query_params.get("oubli") == "1" and not done)
+                  forgot=request.query_params.get("forgot") == "1" and not done, guest=auth.is_guest(user),
+                  token=_token_for(request, conn, user), invite=auth.invite_settings(conn))
 
 
 async def logout(request: Request):
@@ -363,86 +626,19 @@ async def logout(request: Request):
     return resp
 
 
-async def home(request: Request):
-    """Fil de l'utilisateur ; pour un visiteur, la page d'arrivée avec l'inscription."""
-    user = current_user(request)
-    if not user:
-        return await join(request)
-    request.state.user = user
-    return await _home(request)
-
-
-async def _home(request: Request):
-    conn = db.get()
-    user = request.state.user
-    notes = conn.execute(
-        """SELECT n.id, n.created_at, n.snippet, n.doc_id, s.label, d.title, d.level, d.org, d.symbol, d.access,
-                  d.doc_type, d.version, d.url
-           FROM notifications n JOIN documents d ON d.id=n.doc_id LEFT JOIN subscriptions s ON s.id=n.subscription_id
-           WHERE n.user_id=? ORDER BY n.id DESC LIMIT 60""",
-        (user["id"],),
-    ).fetchall()
-    level = request.query_params.get("niveau")
-    filters = {"levels": [level]} if level and level != "R" else ({"access": "restreint"} if level == "R" else {})
-    latest = search.latest(conn, user, filters, limit=40)
-    last_id = notes[0]["id"] if notes else 0
-    subs = alerts.list_subscriptions(conn, user["id"])
-    from . import live
-
-    onboarding = not subs and not live.followed(conn, user["id"])
-    return render(request, "home.html", notes=notes, latest=latest, last_id=last_id, subs=subs, level=level,
-                  stats=search.stats(conn), onboarding=onboarding)
-
-
 @login_required
-async def feed(request: Request):
-    """Petit point d'API pour le rafraîchissement automatique."""
-    after = int(request.query_params.get("after", "0") or 0)
-    n = db.get().execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND id>?",
-                         (request.state.user["id"], after)).fetchone()[0]
-    return JSONResponse({"nouvelles": n})
+async def invite_page(request: Request):
+    """Écran à montrer à quelqu'un qu'on croise : QR code + lien court de l'invitation."""
+    inv = auth.invite_settings(db.get())
+    return render(request, "invite.html", invite=inv)
 
 
-@login_required
-async def subjects(request: Request):
-    conn = db.get()
-    user = request.state.user
-    message = None
-    preview = None
-    if request.method == "POST":
-        form = await request.form()
-        query = (form.get("query") or "").strip()
-        levels = form.getlist("levels") or None
-        types = form.getlist("types") or None
-        if form.get("action") == "apercu":
-            preview = alerts.preview(conn, query or "*", levels, types, user, days=int(form.get("jours") or 14))
-            return render(request, "subjects.html", subs=alerts.list_subscriptions(conn, user["id"]), preview=preview,
-                          form=form)
-        if query or types:
-            alerts.add_subscription(conn, user["id"], (form.get("label") or "").strip() or query[:60] or "Nouveaux documents",
-                                    query or "*", levels, types, telegram_on=bool(form.get("telegram")))
-            message = "added"
-    return render(request, "subjects.html", subs=alerts.list_subscriptions(conn, user["id"]), message=message,
-                  preview=preview, form={})
-
-
-@login_required
-async def subject_delete(request: Request):
-    alerts.remove_subscription(db.get(), request.state.user["id"], int(request.path_params["sid"]))
-    return RedirectResponse("/sujets", status_code=303)
-
-
-@login_required
-async def search_page(request: Request):
-    q = request.query_params.get("q", "").strip()
-    levels = request.query_params.getlist("niveau")
-    types = request.query_params.getlist("type")
-    access = request.query_params.get("acces") or None
-    hits = []
-    if q:
-        hits = search.search(db.get(), q, {"levels": [l for l in levels if l], "doc_types": [t for t in types if t],
-                                           "access": access}, request.state.user, limit=25)
-    return render(request, "search.html", q=q, hits=hits, levels=levels, types=types, access=access)
+def _redirect(target: str):
+    async def handler(request: Request):
+        url = target.format(**request.path_params)
+        q = request.url.query
+        return RedirectResponse(url + (("&" if "?" in url else "?") + q if q else ""), status_code=301)
+    return handler
 
 
 @login_required
@@ -513,59 +709,6 @@ async def file_page(request: Request):
                                                          "X-Content-Type-Options": "nosniff"})
 
 
-@contributor_required
-async def upload(request: Request):
-    conn = db.get()
-    user = request.state.user
-    results = []
-    if request.method == "POST":
-        form = await request.form()
-        access = "public" if form.get("access") == "public" else "restreint"
-        meta = {k: v for k, v in {"title": (form.get("title") or "").strip() or None, "level": form.get("level") or None,
-                                  "doc_type": form.get("doc_type") or None, "org": (form.get("org") or "").strip() or None}.items() if v}
-        note = (form.get("note") or "").strip() or None
-        for f in form.getlist("files"):
-            if not getattr(f, "filename", None):
-                continue
-            content = await f.read()
-            if not content:
-                continue
-            m = dict(meta)
-            if len(form.getlist("files")) > 1:
-                m.pop("title", None)
-            doc_id, new, status = ingest.ingest_bytes(conn, content, url=None, mime=f.content_type or "", meta=m,
-                                                      source_id="depot-web", access=access, uploaded_by=user["id"],
-                                                      filename=f.filename, note=note)
-            results.append({"name": f.filename, "doc_id": doc_id, "new": new, "status": status})
-        url = (form.get("url") or "").strip()
-        if url:
-            from . import fetch
-
-            res = fetch.Client().get(url)
-            if res.ok and not fetch.is_antibot(res):
-                doc_id, new, status = ingest.ingest_bytes(conn, res.content, url=res.url, mime=res.mime, meta=meta,
-                                                          source_id="depot-web", access=access, uploaded_by=user["id"],
-                                                          note=note)
-                results.append({"name": url, "doc_id": doc_id, "new": new, "status": status})
-            else:
-                results.append({"name": url, "error": f"inaccessible ({res.status}) ou protégé : déposer le fichier"})
-        alerts.run(conn)
-    mine = conn.execute(
-        "SELECT id, title, access, fetched_at, status FROM documents WHERE uploaded_by=? ORDER BY id DESC LIMIT 30",
-        (user["id"],),
-    ).fetchall()
-    if request.method == "POST" and (await request.form()).get("new_mail_code"):
-        mailin.new_code(conn, user["id"])
-        user = auth.by_id(conn, user["id"])
-    return render(request, "upload.html", results=results, mine=mine,
-                  mail_address=mailin.deposit_address(conn, user))
-
-
-@login_required
-async def telegram_page(request: Request):
-    return render(request, "telegram.html")
-
-
 CLIENTS_DIR = config.ROOT / "clients"
 
 
@@ -581,7 +724,6 @@ def _zip_dir(folder: Path, arc_root: str = "") -> bytes:
     return buf.getvalue()
 
 
-@login_required
 async def download_page(request: Request):
     """Plugin Claude (zip), skills un par un (zip), instructions ChatGPT (texte)."""
     name = request.path_params["name"]
@@ -594,8 +736,8 @@ async def download_page(request: Request):
         if not skill.replace("-", "").isalnum() or not (folder / "SKILL.md").exists():
             return Response("Inconnu", status_code=404)
         data = _zip_dir(folder, skill)
-    elif name == "chatgpt-instructions.txt":
-        return Response((CLIENTS_DIR / "chatgpt-instructions.md").read_text(encoding="utf-8"),
+    elif name in ("chatgpt-instructions.txt", "mistral-instructions.txt"):
+        return Response((CLIENTS_DIR / name.replace(".txt", ".md")).read_text(encoding="utf-8"),
                         media_type="text/plain; charset=utf-8")
     else:
         return Response("Inconnu", status_code=404)
@@ -611,21 +753,49 @@ def _skills() -> list[str]:
 TEMPLATES.globals["SKILLS"] = _skills
 
 
-@login_required
-async def connector_page(request: Request):
+SEORS_ORIGIN = "https://seors.unfccc.int"
+
+
+@admin_required
+async def admin_programme(request: Request):
+    """Programme : état des relevés SEORS, bouton de relevé depuis le navigateur, import d'un relevé collé."""
+    from . import agenda
+
     conn = db.get()
     user = request.state.user
-    token = auth.mcp_token(user)
-    if not token:  # compte ancien jamais revu depuis le chiffrement : le cookie du navigateur peut le fournir
-        cookie = request.cookies.get(TOKEN_COOKIE)
-        token = cookie if cookie and auth.by_token(conn, cookie) else None
+    result = error = None
     if request.method == "POST":
-        token = auth.reset_token(conn, user["id"])
-        resp = render(request, "connector.html", token=token, regenerated=True)
-        resp.set_cookie(TOKEN_COOKIE, token, max_age=30 * 86400, httponly=True,
-                        secure=config.PUBLIC_BASE.startswith("https"), samesite="strict")
-        return resp
-    return render(request, "connector.html", token=token)
+        form = await request.form()
+        text = (form.get("releve") or "").strip()
+        try:
+            result = agenda.import_seors(conn, json.loads(text) if text.startswith("{") else agenda.parse_seors_tsv(text))
+        except (ValueError, KeyError, IndexError) as exc:
+            error = str(exc)
+    token = _token_for(request, conn, user)
+    link = agenda.seors_bookmarklet(f"{config.PUBLIC_BASE}/admin/seors/import", token) if token else None
+    return render(request, "programme_admin.html", user=user, status=agenda.seors_status(conn), bookmarklet=link,
+                  seors_url=agenda.SEORS_LIST, result=result, error=error)
+
+
+async def seors_import(request: Request):
+    """Relevé envoyé par le bouton depuis la page SEORS (autre origine : jeton du compte, réponse CORS limitée à
+    seors.unfccc.int)."""
+    from . import agenda
+
+    cors = {"Access-Control-Allow-Origin": SEORS_ORIGIN, "Access-Control-Allow-Methods": "POST",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type", "Vary": "Origin"}
+    if request.method == "OPTIONS":
+        return Response(status_code=204, headers=cors)
+    user = current_user(request)
+    if not user or not user.get("is_admin"):
+        return JSONResponse({"erreur": "réservé aux administrateurs"}, status_code=403, headers=cors)
+    body = (await request.body())[:5_000_000].decode("utf-8", "replace")
+    try:
+        out = agenda.import_seors(db.get(), agenda.parse_seors_tsv(body))
+    except (ValueError, KeyError, IndexError) as exc:
+        return JSONResponse({"erreur": str(exc)}, status_code=400, headers=cors)
+    return JSONResponse({"importes": out["importes"], "releve": out["releve"],
+                         "salle_ou_horaire_change": len(out["salle_ou_horaire_change"])}, headers=cors)
 
 
 @admin_required
@@ -729,35 +899,47 @@ async def health(request: Request):
 
 routes = [
     Route("/", home, methods=["GET", "POST"]),
+    Route("/connect", connect_page, methods=["GET", "POST"]),
+    Route("/plan", plan_page),
+    Route("/topics", topics_page, methods=["GET", "POST"]),
+    Route("/topics/{sid:int}/delete", topic_delete, methods=["POST"]),
+    Route("/about", about_page),
+    Route("/how-it-works", how_page),
+    Route("/database", database_page),
+    Route("/contact", contact_page, methods=["GET", "POST"]),
+    Route("/account", account_page, methods=["GET", "POST"]),
+    Route("/signin", login_form, methods=["GET", "POST"]),
     Route("/connexion", login_form, methods=["GET", "POST"]),
     Route("/entrer/{value}", login_link),
     Route("/login/{token}", login),
-    Route("/compte", account_page, methods=["GET", "POST"]),
     Route("/lang/{code}", set_lang),
     Route("/join", join, methods=["GET", "POST"]),
     Route("/join/{code}", join, methods=["GET", "POST"]),
     Route("/rejoindre", join, methods=["GET", "POST"]),
     Route("/rejoindre/{code}", join, methods=["GET", "POST"]),
-    Route("/bienvenue", welcome, methods=["GET", "POST"]),
     Route("/inviter", invite_page),
-    Route("/a-propos", about_page),
-    Route("/about", about_page),
     Route("/static/{name}", static_file),
     Route("/logout", logout),
-    Route("/api/feed", feed),
-    Route("/sujets", subjects, methods=["GET", "POST"]),
-    Route("/sujets/{sid:int}/supprimer", subject_delete, methods=["POST"]),
-    Route("/recherche", search_page),
     Route("/doc/{doc_id:int}", doc_page),
     Route("/diff/{doc_id:int}", diff_page),
     Route("/fichier/{doc_id:int}", file_page),
-    Route("/deposer", upload, methods=["GET", "POST"]),
-    Route("/telegram", telegram_page),
-    Route("/connecteur", connector_page, methods=["GET", "POST"]),
     Route("/telechargements/{name}", download_page),
     Route("/admin", admin_page, methods=["GET", "POST"]),
     Route("/admin/utilisateur/{uid:int}/basculer", admin_toggle, methods=["POST"]),
     Route("/admin/utilisateur/{uid:int}/supprimer", admin_delete, methods=["POST"]),
     Route("/admin/courrier", mail_page, methods=["GET", "POST"]),
+    Route("/admin/programme", admin_programme, methods=["GET", "POST"]),
+    Route("/admin/seors/import", seors_import, methods=["POST", "OPTIONS"]),
     Route("/healthz", health),
+    # anciennes adresses (liens dans les alertes, favoris)
+    Route("/compte", account_redirect),
+    Route("/sujets", _redirect("/topics")),
+    Route("/connecteur", _redirect("/connect")),
+    Route("/recherche", _redirect("/database")),
+    Route("/a-propos", _redirect("/about")),
+    Route("/bienvenue", _redirect("/")),
+    Route("/telegram", _redirect("/topics#telegram")),
+    Route("/deposer", _redirect("/")),
+    Route("/dossiers", _redirect("/database?tab=negotiations")),
+    Route("/textes", _redirect("/database?tab=texts")),
 ]

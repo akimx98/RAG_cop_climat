@@ -253,7 +253,7 @@ def test_search_relevance_threshold(env):
                                "announces new funding for climate action. " * 8).encode(),
                         url="https://ec.test/pr", filename="pr.txt", meta={"org": "European Commission", "level": "5"})
     out = mcp_server.rechercher("Action for Climate Empowerment", organisation="European Commission")
-    assert out["nb"] == 0 and out["resultats"] == [] and "rien de pertinent" in out["verdict"]
+    assert out["nb"] == 0 and out["resultats"] == [] and "nothing relevant" in out["verdict"]
     assert out["faible_pertinence"] and out["faible_pertinence"][0]["pertinence"]["lexical"] == "un"
     ingest.ingest_bytes(conn, ("The Glasgow work programme on Action for Climate Empowerment supports climate "
                                "education and public participation. " * 6).encode(),
