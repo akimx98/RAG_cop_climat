@@ -3,6 +3,7 @@
 Toutes les 5 min : index Carbon Brief des textes, rattachement, récupération polie, alertes Telegram.
 Toutes les 10 min : comptes Bluesky suivis, extraction des positions (sources publiques).
 Toutes les 6 h : programme (planner des side events et réunions officielles).
+Toutes les heures : relevé SEORS par requête ordinaire (bloqué tant que la CCNUCC n'autorise pas l'adresse du serveur).
 Toutes les heures : état des dossiers et positions « Who wants what » de Carbon Brief.
 7 h et 19 h (heure d'Antalya) : briefs des dossiers où il s'est passé quelque chose.
 """
@@ -14,7 +15,7 @@ import traceback
 
 from . import agenda, briefs, config, db, fetch, live, llm, positions, telegram
 
-EVERY = {"texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "pavillons": 21600, "soumissions": 600, "groupes": 86400}
+EVERY = {"seors": 3600, "texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "pavillons": 21600, "soumissions": 600, "groupes": 86400}
 
 
 def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
@@ -32,6 +33,8 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         live.log(f"référence Carbon Brief : {n} positions")
     if due("agenda"):
         agenda.log(str(agenda.sync_planner(conn, client)))
+    if due("seors"):
+        agenda.log(str(agenda.sync_seors(conn, client)))
     if due("pavillons"):
         from . import pavillons
 

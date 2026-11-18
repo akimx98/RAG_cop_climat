@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block body %}
+<p class="eyebrow"><a href="/admin">Admin</a></p>
+<h1>Programme (SEORS)</h1>
+{% if error %}<p class="banner">Rien importé : {{ error }}</p>{% endif %}
+{% if result %}<p class="banner">{{ result.importes }} side events importés (relevé du {{ result.releve }}) ;
+{{ result.salle_ou_horaire_change|length }} salles ou horaires changés.</p>{% endif %}
+<div class="grid">
+<div class="card"><h2>État</h2>
+<p>Dernier relevé SEORS : <b>{{ status.releve_le or 'aucun' }}</b>{% if status.age_heures %} (il y a {{ '%.0f'|format(status.age_heures) }} h){% endif %}</p>
+<p class="small">Relevé automatique du serveur : {{ status.auto or 'pas encore essayé' }}</p>
+<p class="small">Planner (non officiel) construit le {{ status.planner_construit_le or '?' }}</p>
+<p class="small muted">SEORS est protégé par un anti-bot (Imperva) que le serveur ne contourne pas. Le relevé automatique
+(toutes les heures, requête ordinaire) fonctionnera dès que la CCNUCC autorisera l'adresse du serveur ; d'ici là, le bouton ci-contre.</p>
+</div>
+<div class="card"><h2>Relever depuis votre navigateur</h2>
+{% if bookmarklet %}
+<ol class="small">
+<li>Glissez ce bouton dans la barre de favoris : <a class="btn" href="{{ bookmarklet }}">Relevé SEORS → COP31</a></li>
+<li>Ouvrez <a href="{{ seors_url }}" target="_blank" rel="noopener">la liste SEORS de la COP31</a> (normalement, dans votre navigateur).</li>
+<li>Cliquez le favori : il lit les journées et thèmes (≈ 30 s), puis les envoie ici. Une fenêtre confirme le nombre importé.</li>
+</ol>
+<p class="small muted">Le favori contient votre jeton personnel : ne le partagez pas. Si le navigateur refuse l'envoi,
+le relevé est copié dans le presse-papiers : collez-le ci-dessous.</p>
+{% else %}<p class="small">Jeton introuvable : ouvrez d'abord la page Connecteur.</p>{% endif %}
+</div></div>
+<form class="card" method="post"><h2>Coller un relevé</h2>
+<textarea name="releve" rows="8" style="width:100%" placeholder="#releve	2026-11-18T09:00:00Z&#10;#cats	…&#10;18|11:30|13:00|6|Titre|0.3"></textarea>
+<p><button>Importer</button></p></form>
+{% endblock %}

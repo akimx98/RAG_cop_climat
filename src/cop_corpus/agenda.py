@@ -6,8 +6,12 @@ Sources :
   prévus par les décisions, salles spéciales), ~1 000 événements hors site et un résumé des négociations par jour.
   Relevée toutes les 6 h. Copie figée à sa date de construction : salles et horaires peuvent avoir changé.
 - SEORS (https://seors.unfccc.int/reports/events_list.html), le programme officiel des side events. Protégé par un
-  anti-bot (Imperva) : jamais relevé par le serveur. Un administrateur peut en importer un relevé fait
-  dans son navigateur (`cop programme-seors releve.json`) ; il remplace alors les side events du planner.
+  anti-bot (Imperva), jamais contourné. Trois voies, la plus récente l'emporte sur le planner :
+  1. relevé automatique toutes les heures par une requête HTTP ordinaire (`sync_seors`) : s'arrête sur la page de
+     défi tant que l'adresse du serveur n'est pas autorisée par la CCNUCC, et importe dès qu'elle l'est ;
+  2. bouton de la page Admin → Programme : un clic sur la page SEORS ouverte dans le navigateur d'un administrateur
+     relève les journées et les envoie au serveur (`/admin/seors/import`) ;
+  3. relevé collé à la main (`cop programme-seors releve.tsv`).
 Les coordonnées personnelles des organisateurs (noms, e-mails, téléphones) ne sont jamais conservées.
 """
 
@@ -233,6 +237,94 @@ copy(['#releve\t'+new Date().toISOString(),'#cats\t'+cats.join(';')]
 """
 
 
+def parse_seors_html(html: str) -> list[list[str]]:
+    """Lignes [jour, début, fin, n° de salle, titre] d'une page de liste SEORS (même lecture que SEORS_SNIPPET)."""
+    from bs4 import BeautifulSoup
+
+    out = []
+    for tr in BeautifulSoup(html, "lxml").find_all("tr"):
+        cells = tr.find_all(["td", "th"], recursive=False)
+        if len(cells) < 4 or "2026" not in cells[0].get_text():
+            continue
+        m = re.search(r"(\d{2}) \w{3} 2026", cells[0].get_text(" "))
+        if not m:
+            continue
+        parts = [re.sub(r"\s+", " ", BeautifulSoup(x, "lxml").get_text(" ")).strip()
+                 for x in re.split(r"<br\s*/?>", cells[1].decode_contents(), flags=re.I)]
+        times = re.split(r"\s*(?:—|–|-)\s*", parts[0] if parts else "")
+        room = re.search(r"Room (\d+)", " ".join(parts[1:]))
+        strong = cells[3].find("strong")
+        title = re.sub(r"\s+", " ", (strong or cells[3]).get_text(" ")).strip()
+        out.append([m.group(1), times[0] if times else "", times[1] if len(times) > 1 else "",
+                    room.group(1) if room else "?", title])
+    return out
+
+
+SEORS_LIST = ("https://seors.unfccc.int/reports/events_list.html?session_id=COP31"
+              "&sort_by=scheduled_date_time,room_name&scheduled_date=")
+
+
+def sync_seors(conn, client: fetch.Client, with_themes: bool = True) -> dict[str, Any]:
+    """Relevé SEORS par requête HTTP ordinaire. Page de défi anti-bot → rien n'est tenté de plus (jamais de
+    contournement) : le relevé reprend tout seul quand la CCNUCC autorise l'adresse du serveur."""
+    res = client.get(SEORS_LIST)
+    if not res.ok:
+        db.meta_set(conn, "agenda_seors_auto", f"{db.now()} erreur {res.status}")
+        return {"seors": f"erreur {res.status}"}
+    if fetch.is_antibot(res):
+        db.meta_set(conn, "agenda_seors_auto", f"{db.now()} bloqué (anti-bot)")
+        return {"seors": "bloqué par l'anti-bot (adresse du serveur non autorisée) : relevé par le navigateur"}
+    html = res.content.decode("utf-8", "replace")
+    rows = parse_seors_html(html)
+    cats: list[str] = []
+    tags: dict[str, list[int]] = {}
+    if with_themes:
+        from bs4 import BeautifulSoup
+
+        sel = BeautifulSoup(html, "lxml").find("select", attrs={"name": "keywords"})
+        for opt in (sel.find_all("option") if sel else []):
+            if not opt.get("value"):
+                continue
+            cats.append(opt.get_text(strip=True))
+            r = client.get(SEORS_LIST + "&keywords=" + opt["value"])
+            if r.ok and not fetch.is_antibot(r):
+                for row in parse_seors_html(r.content.decode("utf-8", "replace")):
+                    tags.setdefault("|".join(row), []).append(len(cats) - 1)
+    tsv = "\n".join([f"#releve\t{db.now()}", "#cats\t" + ";".join(cats)]
+                    + ["|".join(r) + "|" + ".".join(str(i) for i in tags.get("|".join(r), [])) for r in rows])
+    out = import_seors(conn, parse_seors_tsv(tsv))
+    db.meta_set(conn, "agenda_seors_auto", f"{db.now()} importé ({out['importes']} événements)")
+    return {"seors": out["importes"], "salle_ou_horaire_change": len(out["salle_ou_horaire_change"])}
+
+
+def seors_bookmarklet(post_url: str, token: str) -> str:
+    """Bouton de barre de favoris : sur la page SEORS ouverte par l'administrateur, relève les journées (même code
+    que SEORS_SNIPPET) et les envoie au serveur ; si le navigateur refuse l'envoi, copie le relevé à coller sur la
+    page Admin → Programme."""
+    body = SEORS_SNIPPET.replace("copy(", "tsv=(").rstrip().rstrip(";") + ";"
+    js = ("(async()=>{let tsv='';try{" + body.replace("\n", " ")
+          + f"const r=await fetch({json.dumps(post_url)},{{method:'POST',headers:{{'Authorization':'Bearer '+"
+          + f"{json.dumps(token)},'Content-Type':'text/plain'}},body:tsv}});"
+          "const j=await r.json();alert('Relevé SEORS envoyé : '+(j.importes||j.erreur||r.status)+' événements');"
+          "}catch(e){if(tsv){try{await navigator.clipboard.writeText(tsv)}catch(_){}}"
+          "alert('Envoi impossible ('+e+'). Relevé copié : le coller sur la page Admin → Programme.')}})()")
+    from urllib.parse import quote
+
+    return "javascript:" + quote(js, safe="(){}[]=:;,.'+!/?&|<>*$@-_~ ")
+
+
+def seors_status(conn) -> dict[str, Any]:
+    at = db.meta_get(conn, "agenda_seors_at") or ""
+    age = None
+    if at:
+        try:
+            age = round((datetime.now(timezone.utc) - datetime.fromisoformat(at.replace("Z", "+00:00"))).total_seconds() / 3600, 1)
+        except ValueError:
+            age = None
+    return {"releve_le": at or None, "age_heures": age, "auto": db.meta_get(conn, "agenda_seors_auto"),
+            "planner_construit_le": db.meta_get(conn, "agenda_planner_built")}
+
+
 def parse_seors_tsv(text: str) -> dict[str, Any]:
     """Relevé compact produit par SEORS_SNIPPET → format d'import_seors."""
     releve, cats, events = None, [], []
@@ -398,6 +490,12 @@ def query(conn, jour: str | int | None = None, sujet: str | None = None, types: 
         + ". Réunions officielles : écrans du site, Daily Programme ou plateforme COP31 (connexion requise, "
         f"{PLATFORM_URL}). Les consultations informelles par point de l'ordre du jour ne figurent dans aucune de "
         "ces listes : seul le Daily Programme les donne.")
+    st = seors_status(conn)
+    if se_source == "planner" or (st["age_heures"] or 0) > 24:
+        out["avertissement"] = (
+            f"Programme des side events possiblement périmé : relevé SEORS du {st['releve_le'] or 'jamais'}"
+            + (f" ({st['age_heures']:.0f} h)" if st["age_heures"] else "")
+            + f", planner construit le {built or '?'}. Toujours vérifier salle et horaire sur SEORS.")
     out["sources"] = {"seors": seors_link(day), "planner": PLANNER_URL, "plateforme": PLATFORM_URL}
     return out
 
