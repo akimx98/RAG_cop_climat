@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}COP Tracker · {{ {'delegations': L('Délégations', 'Delegations'), 'presse': L('Presse', 'Press'), 'militants': L('Militants et ONG', 'Activists and NGOs')}[who] }}{% endblock %}
+{% block body %}
+{% set P = {
+ 'delegations': {
+   'eyebrow': L('Pour les petites délégations', 'For small delegations'),
+   'h1': L('Suivre vingt dossiers à trois négociateurs', 'Follow twenty negotiation items with three negotiators'),
+   'sub': L('Les grandes délégations ont des équipes entières pour lire chaque nouvelle version de texte. COP Tracker vous donne en quelques secondes l\'état d\'un dossier, ce qui a changé depuis la nuit dernière et qui défend quoi, avec le passage exact pour chaque point.',
+            'Large delegations have whole teams to read every new version of a text. COP Tracker gives you, in seconds, where an item stands, what changed overnight and who stands where, with the exact passage for every point.'),
+   'pains': [
+     (L('Une nouvelle version à 2 h du matin', 'A new version at 2 am'), L('Ce qui a été ajouté, supprimé ou mis entre crochets, paragraphe par paragraphe, sans relire les 30 pages.', 'What was added, deleted or bracketed, paragraph by paragraph, without rereading 30 pages.')),
+     (L('Des salles en parallèle', 'Parallel rooms'), L('Les comptes rendus du jour et les positions exprimées dans les salles où vous n\'étiez pas, attribuées et datées.', 'The day\'s reports and the positions voiced in rooms you could not attend, attributed and dated.')),
+     (L('Préparer une intervention', 'Preparing an intervention'), L('Le précédent exact : quelle décision, quel paragraphe, quel verbe (shall, should, invites). Les positions de votre groupe et de ses partenaires.', 'The exact precedent: which decision, which paragraph, which verb (shall, should, invites). Your group\'s and partners\' positions.')),
+   ],
+   'features': [
+     L('État de chaque dossier : versions successives, crochets et options encore ouverts', 'Status of each item: successive versions, brackets and options still open'),
+     L('Positions des groupes (AOSIS, PMA, AGN, G77…) et lignes de division internes', 'Group positions (AOSIS, LDC, AGN, G77…) and internal dividing lines'),
+     L('Soumissions officielles comparées entre Parties', 'Official submissions compared across Parties'),
+     L('Alertes sur Telegram, utiles quand le réseau est mauvais : nouveau texte, transmis pour adoption, adopté', 'Telegram alerts, handy on poor connections: new text, forwarded for adoption, adopted'),
+   ],
+ },
+ 'presse': {
+   'eyebrow': L('Pour la presse indépendante', 'For the independent press'),
+   'h1': L('Vérifier, citer juste, dater', 'Check it, quote it right, date it'),
+   'sub': L('Une affirmation entendue en conférence de presse, un texte qui a changé dans la nuit, une position à attribuer : COP Tracker vous donne la citation exacte, sa source officielle, sa date et son statut (adopté ou non), avec un lien que vos lecteurs peuvent ouvrir.',
+            'A claim heard at a press conference, a text that changed overnight, a position to attribute: COP Tracker gives you the exact quote, its official source, its date and status (adopted or not), with a link your readers can open.'),
+   'pains': [
+     (L('Fact-checking en temps réel', 'Real-time fact-checking'), L('« L\'accord oblige les pays à… » : le texte dit-il vraiment cela ? Le verbe exact et sa force juridique.', '“The agreement obliges countries to…”: does the text actually say that? The exact verb and its legal force.')),
+     (L('Ce qui a changé', 'What changed'), L('La différence entre deux versions d\'un projet de décision, les formulations disparues et ajoutées.', 'The difference between two versions of a draft decision, wording dropped and added.')),
+     (L('Qui bloque ?', 'Who is blocking?'), L('Les positions attribuées dans les comptes rendus, avec la source à citer, plutôt que des rumeurs de couloir.', 'Positions attributed in the daily reports, with the source to cite, rather than corridor rumours.')),
+   ],
+   'features': [
+     L('Citations vérifiées mot pour mot, copiables avec leur référence', 'Quotes checked word for word, copyable with their reference'),
+     L('Lien permanent vers chaque réponse, avec la date de mise à jour du corpus', 'Permanent link to each answer, with the corpus update date'),
+     L('Niveau de fiabilité de chaque source : adopté, projet, compte rendu, déclaration', 'Reliability level for each source: adopted, draft, report, statement'),
+     L('Données d\'émissions (Our World in Data) pour vérifier un chiffre', 'Emissions data (Our World in Data) to check a figure'),
+   ],
+ },
+ 'militants': {
+   'eyebrow': L('Pour les militants et les ONG', 'For activists and NGOs'),
+   'h1': L('Argumenter avec le texte exact', 'Argue with the exact text'),
+   'sub': L('Savoir qui soutient et qui bloque, sur quel paragraphe, depuis quand ; préparer un plaidoyer appuyé sur les décisions déjà adoptées ; trouver les bons événements dans un programme de milliers de sessions.',
+            'Know who supports and who blocks, on which paragraph, since when; build advocacy on decisions already adopted; find the right events in a programme of thousands of sessions.'),
+   'pains': [
+     (L('Qui défend quoi', 'Who stands where'), L('Les positions des Parties et des groupes, citées et datées, et l\'écart entre leurs déclarations et leurs soumissions.', 'Parties\' and groups\' positions, quoted and dated, and the gap between their statements and their submissions.')),
+     (L('Ce qui est en jeu', 'What is at stake'), L('Droits humains, espace civique, peuples autochtones, fossiles : ce qui reste entre crochets dans le texte en cours.', 'Human rights, civic space, Indigenous Peoples, fossil fuels: what is still bracketed in the current text.')),
+     (L('Être au bon endroit', 'Being in the right place'), L('Side events, pavillons et réunions officielles sur vos sujets, exportables dans votre agenda.', 'Side events, pavilions and official meetings on your topics, exportable to your calendar.')),
+   ],
+   'features': [
+     L('Relevé des crochets par thème (genre, droits, transition juste, fossiles…)', 'Brackets listed by theme (gender, rights, just transition, fossil fuels…)'),
+     L('Positions et lignes de division au sein des groupes', 'Positions and dividing lines within groups'),
+     L('Programme de la COP et des pavillons, export agenda (.ics)', 'COP and pavilion programme, calendar export (.ics)'),
+     L('Outil libre : votre organisation peut héberger sa propre instance', 'Free software: your organisation can host its own instance'),
+   ],
+ },
+} %}
+{% set p = P[who] %}
+<style>
+.aud{max-width:1000px;margin:0 auto}
+.aud h1{font-size:clamp(28px,3.6vw,40px);line-height:1.1;margin:6px 0 12px}
+.aud .sub{font-size:17px;line-height:1.55;color:var(--ink-2);max-width:62ch;margin:0 0 20px}
+.aud h2.big{font:700 22px/1.2 var(--sans);letter-spacing:-.01em;text-transform:none;color:var(--ink);margin:40px 0 12px}
+.pains{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pains div{border-top:2px solid var(--ink);padding:12px 0 0}
+.pains b{display:block;font-size:16px;margin:0 0 6px}
+.pains p{margin:0;font-size:14px;color:var(--ink-2);line-height:1.5}
+@media(max-width:800px){.pains{grid-template-columns:minmax(0,1fr)}}
+.feat{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.feat li{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:14px;display:flex;gap:10px}
+.feat li::before{content:"✓";color:var(--l1);font-weight:800}
+@media(max-width:700px){.feat{grid-template-columns:minmax(0,1fr)}}
+.exq{display:grid;gap:6px}
+.exq a{display:block;padding:11px 14px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--ink-2);text-decoration:none}
+.exq a:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.exq a::before{content:"→ ";color:var(--accent);font-weight:700}
+.steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;counter-reset:s}
+.steps3 div{padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:var(--surface);counter-increment:s}
+.steps3 div::before{content:counter(s);display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);align-items:center;justify-content:center;font:700 12px/1 var(--sans);margin-bottom:8px}
+.steps3 b{display:block}
+.steps3 p{margin:4px 0 0;font-size:13.5px;color:var(--ink-2)}
+@media(max-width:800px){.steps3{grid-template-columns:minmax(0,1fr)}}
+.contact-box{margin:40px 0 0;padding:20px 22px;border-radius:10px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}
+.contact-box p{margin:0 0 12px;color:var(--ink-2)}
+</style>
+<div class="aud">
+<span class="eyebrow">{{ p.eyebrow }}</span>
+<h1>{{ p.h1 }}</h1>
+<p class="sub">{{ p.sub }}</p>
+<div class="row">
+{% if demo_on %}<a class="btn" href="/try?pour={{ who }}">{{ L('Essayer maintenant, sans compte', 'Try it now, no account') }}</a>{% endif %}
+<a class="btn secondary" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
+</div>
+
+<h2 class="big">{{ L('Ce que ça change', 'What it changes') }}</h2>
+<div class="pains">{% for t, d in p.pains %}<div><b>{{ t }}</b><p>{{ d }}</p></div>{% endfor %}</div>
+
+<h2 class="big">{{ L('Des questions à essayer', 'Questions to try') }}</h2>
+<div class="exq">{% for fr, en in examples %}<a href="/try?pour={{ who }}&q={{ L(fr, en)|urlencode }}">{{ L(fr, en) }}</a>{% endfor %}</div>
+<p class="small muted" style="margin:8px 0 0">{{ L('Chaque réponse cite le passage exact, vérifié mot pour mot, et ouvre le document à la bonne page.', 'Every answer quotes the exact passage, checked word for word, and opens the document at the right page.') }}</p>
+
+<h2 class="big">{{ L('Les outils', 'The tools') }}</h2>
+<ul class="feat">{% for f in p.features %}<li>{{ f }}</li>{% endfor %}
+<li>{{ L('Tout le corpus de la COP :', 'The whole COP corpus:') }} {{ '{:,}'.format(counts.documents).replace(',', ' ' if lang == 'fr' else ',') }} {{ L('documents publics, à jour en continu', 'public documents, updated continuously') }}</li>
+<li>{{ L('Gratuit, indépendant, code ouvert (licence MIT)', 'Free, independent, open source (MIT licence)') }}</li></ul>
+
+<h2 class="big">{{ L('Comment commencer', 'How to start') }}</h2>
+<div class="steps3">
+<div><b>{{ L('Essayer', 'Try') }}</b><p>{{ L('Trois questions sans compte, directement sur le site.', 'Three questions without an account, right on the site.') }}{% if demo_on %} <a href="/try?pour={{ who }}">{{ L('Essayer', 'Try') }} →</a>{% endif %}</p></div>
+<div><b>{{ L('Connecter votre LLM', 'Connect your LLM') }}</b><p>{{ L('Compte gratuit, puis Claude, ChatGPT ou Le Chat interrogent le corpus, sans limite.', 'Free account, then Claude, ChatGPT or Le Chat query the corpus, with no limit.') }} <a href="/connect">{{ L('Comment', 'How') }} →</a></p></div>
+<div><b>{{ L('Suivre vos dossiers', 'Follow your items') }}</b><p>{{ L('Alertes par Telegram à chaque nouveau texte, récapitulatif matin et soir.', 'Telegram alerts for each new text, morning and evening digest.') }} <a href="/topics">{{ L('Mes sujets', 'My topics') }} →</a></p></div>
+</div>
+
+<div class="contact-box">
+<p><b>{{ L('Vous préparez la prochaine COP ou une session de Bonn ?', 'Preparing the next COP or a Bonn session?') }}</b>
+{{ L('Nous pouvons faire une démonstration à votre équipe, ajouter les sources qui vous manquent ou vous aider à héberger votre propre instance.', 'We can give your team a demo, add the sources you are missing or help you host your own instance.') }}</p>
+<div class="row"><a class="btn" href="/contact">{{ L('Nous écrire', 'Write to us') }}</a>
+{% if SOURCE_URL %}<a class="btn secondary" href="{{ SOURCE_URL }}" rel="noopener">{{ L('Voir le code', 'See the code') }} ↗</a>{% endif %}
+<a class="btn secondary" href="/how-it-works">{{ L('Comment ça marche', 'How it works') }}</a></div>
+</div>
+</div>
+{% endblock %}

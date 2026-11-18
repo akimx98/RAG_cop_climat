@@ -1,0 +1,374 @@
+{% extends "base.html" %}{% block title %}{{ L('Essayer COP Tracker', 'Try COP Tracker') }}{% endblock %}{% block body %}
+<style>
+main{max-width:1320px}
+.try [hidden]{display:none!important}
+.try{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;align-items:start}
+.try.with-panel{grid-template-columns:minmax(0,1fr) minmax(0,0.95fr)}
+.chat{max-width:760px;width:100%;margin:0 auto}
+.try.with-panel .chat{margin:0}
+.try-head h1{margin:0 0 6px}
+.try-head .sub{color:var(--ink-2);margin:0 0 12px;max-width:62ch}
+.promise{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 18px;padding:0;list-style:none;font-size:13px;color:var(--muted)}
+.promise li::before{content:"✓ ";color:var(--l1);font-weight:700}
+.left{font-size:12.5px;font-weight:650;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:4px;display:inline-block}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:18px 0 10px;overflow-x:auto}
+.tabs button{background:transparent;color:var(--muted);border-radius:0;padding:9px 12px;font-size:13.5px;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button:hover{background:var(--surface-2);color:var(--ink)}
+.examples{display:grid;gap:6px;margin:0 0 18px}
+.examples button{justify-content:flex-start;text-align:left;background:var(--surface);color:var(--ink-2);border:1px solid var(--line-2);font-weight:500;padding:10px 14px;line-height:1.4}
+.examples button:hover{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+.examples button::before{content:"→";color:var(--accent);font-weight:700;margin-right:4px}
+.ask{position:sticky;bottom:12px;z-index:5;display:flex;gap:8px;align-items:flex-end;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:8px;box-shadow:0 8px 28px rgba(0,0,0,.10);margin-top:16px}
+.ask:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft),0 8px 28px rgba(0,0,0,.10)}
+.ask textarea{border:0!important;box-shadow:none!important;resize:none;min-height:46px;max-height:160px;padding:10px!important;font-size:15.5px;background:transparent!important}
+.ask button{flex:none}
+.ask button[disabled]{opacity:.5;cursor:default}
+.followbar{position:sticky;bottom:86px;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;margin:18px 0 -8px;padding:7px 8px 7px 12px;border-radius:8px;background:color-mix(in srgb,var(--accent) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);box-shadow:0 6px 18px rgba(0,0,0,.08);font-size:13px;color:var(--ink-2)}
+.followbar button{background:var(--surface);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);padding:5px 11px;font-size:12.5px;flex:none}
+.newconv{margin:28px 0 0;text-align:center;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px dashed var(--line-2);padding-top:10px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.turn{margin:26px 0 0}
+.qbubble{background:var(--accent);color:var(--accent-ink);padding:10px 15px;border-radius:12px 12px 2px 12px;margin:0 0 12px auto;max-width:85%;width:fit-content;font-weight:550}
+.steps{list-style:none;margin:0 0 10px;padding:0;font-size:13px;color:var(--muted)}
+.steps li{padding:2px 0;display:flex;gap:8px;align-items:baseline}
+.steps li::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--l1);transform:translateY(-1px)}
+.steps li.run::before{background:var(--accent);animation:pulse 1s infinite}
+.steps li span{color:var(--ink-2)}
+@keyframes pulse{50%{opacity:.25}}
+.answer{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;box-shadow:var(--shadow)}
+.answer .body{font-size:15.5px;line-height:1.62}
+.answer .body p{margin:0 0 10px}
+.answer .body ul{margin:0 0 10px;padding-left:20px}
+.answer .body li{margin:0 0 5px}
+.answer q{quotes:"“" "”";font-family:var(--serif);font-size:16px;background:color-mix(in srgb,var(--l1) 9%,transparent);padding:0 2px;border-radius:2px}
+.answer q.unverified{background:color-mix(in srgb,var(--l3) 14%,transparent)}
+.qv{display:inline-block;font:700 11px/1 var(--sans);color:var(--l1);margin:0 1px 0 2px;vertical-align:1px}
+.qv.no{color:var(--l3)}
+.cite{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:19px;padding:0 5px;margin:0 1px;border-radius:4px;font:700 11.5px/1 var(--sans);background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);vertical-align:2px;text-decoration:none;cursor:pointer}
+.cite:hover,.cite.on{background:var(--accent);color:var(--accent-ink)}
+.cite.evc{background:transparent;border-color:var(--line-2);font-size:11px}
+.verif{display:flex;gap:8px;align-items:center;font-size:13px;margin:12px 0 0;padding:9px 12px;border-radius:6px;background:color-mix(in srgb,var(--l1) 8%,transparent);color:var(--ink-2)}
+.verif.warn{background:color-mix(in srgb,var(--l3) 11%,transparent)}
+.verif b{color:var(--l1)}.verif.warn b{color:var(--l3)}
+.block-h{font:650 12px/1.3 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:18px 0 8px}
+.srcs{display:grid;gap:6px}
+.src{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;text-align:left;color:var(--ink);font-weight:400}
+.src:hover,.src.on{border-color:var(--accent);background:var(--accent-soft)}
+.src .n{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 12px/1 var(--sans)}
+.src .t{font:600 14px/1.35 var(--serif);word-break:break-word}
+.src .m{font-size:12px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center}
+.src .lvl{margin-right:0}
+.evs{display:grid;gap:6px}
+.ev{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);scroll-margin-top:90px}
+.ev:target{border-color:var(--accent);background:var(--accent-soft)}
+.ev .when{font:700 12.5px/1.3 var(--mono);color:var(--accent);white-space:nowrap}
+.ev .what b{display:block;font-size:14px;line-height:1.35}
+.ev .what span{font-size:12.5px;color:var(--muted)}
+.tools{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
+.tools button,.tools a{font-size:12.5px;padding:6px 11px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);font-weight:600;border-radius:5px;text-decoration:none}
+.tools button:hover,.tools a:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+details.trace{margin:12px 0 0;font-size:13px;color:var(--muted)}
+details.trace summary{cursor:pointer;font-weight:600}
+details.trace ol{margin:6px 0 0;padding-left:20px}
+.err{background:color-mix(in srgb,var(--lR) 9%,transparent);border:1px solid color-mix(in srgb,var(--lR) 25%,transparent);padding:12px 14px;border-radius:8px}
+.next{margin:26px 0 0;border:1px solid var(--line-2);border-radius:10px;padding:18px 20px;background:var(--surface)}
+.next h3{margin:0 0 6px;font-size:17px}
+.next p{margin:0 0 12px;color:var(--ink-2);font-size:14px}
+.next .row a{font-size:14px}
+.fine{font-size:12px;color:var(--muted);margin:10px 0 0}
+/* Panneau source : PDF à la bonne page */
+.panel{position:sticky;top:76px;height:calc(100vh - 96px);display:none;flex-direction:column;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+.try.with-panel .panel{display:flex}
+.panel-h{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;gap:6px}
+.panel-h .top{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.panel-h .t{font:600 15px/1.35 var(--serif)}
+.panel-h .m{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.panel-h .x{background:transparent;color:var(--muted);padding:2px 8px;font-size:20px;line-height:1}
+.panel-h .x:hover{background:var(--surface-2);color:var(--ink)}
+.panel-h blockquote{margin:2px 0 0;font-size:14px;max-height:120px;overflow:auto}
+.panel-nav{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted)}
+.panel-nav button,.panel-nav a{padding:4px 10px;font-size:12.5px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);font-weight:600;border-radius:5px;text-decoration:none}
+.panel-nav .grow{flex:1}
+.pdfwrap{flex:1;overflow:auto;background:#525659;padding:12px;position:relative}
+.pdfpage{position:relative;margin:0 auto;box-shadow:0 2px 10px rgba(0,0,0,.4);background:#fff}
+.pdfpage canvas{display:block;width:100%;height:auto}
+.hl{position:absolute;background:rgba(255,213,0,.42);mix-blend-mode:multiply;border-radius:2px;outline:1px solid rgba(214,160,0,.7)}
+.pdfmsg{color:#fff;font-size:13.5px;padding:24px;text-align:center}
+.pdfmsg a{color:#fff}
+.textview{flex:1;overflow:auto;padding:16px;font:15px/1.65 var(--serif);white-space:pre-wrap;color:var(--ink-2)}
+@media(max-width:1000px){
+ .try.with-panel{grid-template-columns:minmax(0,1fr)}
+ .panel{position:fixed;inset:auto 0 0 0;top:auto;height:82vh;z-index:40;border-radius:14px 14px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.3)}
+}
+</style>
+
+<div class="try" id="try">
+<div class="chat">
+<div class="try-head">
+<span class="eyebrow">{{ L('Démo · sans compte', 'Demo · no account needed') }}</span>
+<h1>{{ L('Posez votre question sur la COP31', 'Ask your question about COP31') }}</h1>
+<p class="sub">{{ L('Comme un chatbot, à une différence près : chaque affirmation renvoie au passage exact du texte, et chaque citation est vérifiée mot pour mot avant de vous être montrée. Cliquez sur un numéro : le document s\'ouvre à la bonne page.',
+ 'Like a chatbot, with one difference: every claim links to the exact passage, and every quote is checked word for word before you see it. Click a number: the document opens at the right page.') }}</p>
+<ul class="promise">
+<li>{{ L('Textes à jour, avec toutes leurs versions', 'Up-to-date texts, with every version') }}</li>
+<li>{{ L('Positions, soumissions, comptes rendus, programme', 'Positions, submissions, reports, programme') }}</li>
+<li>{{ L('Code ouvert', 'Open source') }}</li>
+</ul>
+<span class="left" id="left" data-fr="questions restantes" data-en="questions left">{{ quota.remaining }} {{ L('questions restantes', 'questions left') }}</span>
+</div>
+
+<div id="intro" {% if shared %}hidden{% endif %}>
+<div class="tabs" role="tablist">
+{% for key, label in [('delegations', L('Délégation', 'Delegation')), ('presse', L('Journaliste', 'Journalist')), ('militants', L('Militant·e, ONG', 'Activist, NGO'))] %}
+<button type="button" role="tab" aria-selected="{{ 'true' if who == key else 'false' }}" data-tab="{{ key }}">{{ label }}</button>
+{% endfor %}
+</div>
+{% for key, items in examples.items() %}
+<div class="examples" data-panel="{{ key }}" {% if key != who %}hidden{% endif %}>
+{% for fr, en in items %}<button type="button" data-q="{{ L(fr, en) }}">{{ L(fr, en) }}</button>{% endfor %}
+</div>
+{% endfor %}
+</div>
+
+<div id="thread"></div>
+
+<div class="next" id="next" {% if quota.remaining > 0 and not shared %}hidden{% endif %}>
+<h3 id="next-h">{% if shared %}{{ L('Essayez à votre tour', 'Try it yourself') }}{% else %}{{ L('Pour aller plus loin', 'To go further') }}{% endif %}</h3>
+<p id="next-p">{% if quota.reason %}{{ L(*refusals[quota.reason]) }}{% else %}{{ L('Gratuit : branchez l\'outil sur votre propre LLM (Claude, ChatGPT, Le Chat) et posez toutes vos questions, sans limite, avec les mêmes sources vérifiables.', 'Free: plug the tool into your own LLM (Claude, ChatGPT, Le Chat) and ask all your questions, with no limit and the same verifiable sources.') }}{% endif %}</p>
+<div class="row">
+{% if shared and quota.remaining > 0 %}<a class="btn" href="/try">{{ L('Poser ma question', 'Ask my question') }}</a>{% endif %}
+<a class="btn {{ 'secondary' if shared and quota.remaining > 0 }}" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
+{% if SOURCE_URL %}<a class="btn secondary" href="{{ SOURCE_URL }}" rel="noopener">{{ L('Voir le code', 'See the code') }}</a>{% endif %}
+</div>
+</div>
+
+<div class="followbar" id="followbar" hidden><span>{{ L('Question de suivi : l\'outil garde le contexte de la réponse précédente.', 'Follow-up question: the tool keeps the context of the previous answer.') }}</span>
+<button type="button" id="fresh">{{ L('Nouvelle question', 'New question') }}</button></div>
+<form class="ask" id="ask" {% if quota.remaining <= 0 or shared %}hidden{% endif %}>
+<label class="hp">Website <input name="website" tabindex="-1" autocomplete="off"></label>
+<textarea id="q" rows="1" maxlength="600" placeholder="{{ L('Ex. : Où en est le texte sur la finance climat ?', 'E.g. Where does the climate finance text stand?') }}" aria-label="{{ L('Votre question', 'Your question') }}">{{ prefill }}</textarea>
+<button type="submit" id="send">{{ L('Envoyer', 'Send') }}</button>
+</form>
+<p class="fine">{{ L('Réponses produites par un modèle d\'IA (OpenAI) à partir des seuls documents publics du corpus ; vérifiez toujours la source citée.', 'Answers written by an AI model (OpenAI) from the public documents of the corpus only; always check the cited source.') }}
+{% if as_of %}{{ L('Corpus à jour au', 'Corpus updated') }} {{ as_of[:16].replace('T', ' ') }} UTC.{% endif %}
+{{ L('Les questions sont conservées pour permettre le lien de partage ; l\'adresse IP n\'est jamais stockée en clair.', 'Questions are stored to provide the share link; IP addresses are never stored in clear.') }}</p>
+</div>
+
+<aside class="panel" id="panel" aria-label="{{ L('Source', 'Source') }}">
+<div class="panel-h">
+<div class="top"><div><div class="t" id="p-title"></div><div class="m" id="p-meta"></div></div>
+<button type="button" class="x" id="p-close" aria-label="{{ L('Fermer', 'Close') }}">×</button></div>
+<blockquote id="p-quote" hidden></blockquote>
+<div class="panel-nav"><button type="button" id="p-prev">‹</button><span id="p-page"></span><button type="button" id="p-next">›</button>
+<span class="grow"></span><a id="p-fiche" href="#" target="_blank" rel="noopener" hidden>{{ L('Fiche', 'Record') }}</a><a id="p-orig" href="#" target="_blank" rel="noopener">{{ L('Original', 'Original') }} ↗</a></div>
+</div>
+<div class="pdfwrap" id="p-pdf"></div>
+<div class="textview" id="p-text" hidden></div>
+</aside>
+</div>
+
+<script type="application/json" id="shared">{{ (shared or {})|tojson }}</script>
+<script>
+(function(){
+const LANG={{ lang|tojson }};
+const T=(fr,en)=>LANG==='fr'?fr:en;
+const LV={{ LEVELS|tojson }};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tryEl=$('#try'),thread=$('#thread'),form=$('#ask'),qEl=$('#q'),send=$('#send');
+const answers={};   // id → payload (sources, events, checks)
+let lastId=null;    // dernière réponse : la question suivante en est la suite, sauf « Nouvelle question »
+const PH_NEW=qEl.placeholder, PH_FOLLOW={{ L('Question de suivi (ex. : et la position de l\'UE ?)', 'Follow-up question (e.g. and the EU position?)')|tojson }};
+function setFollow(id){lastId=id;$('#followbar').hidden=!id||form.hidden;qEl.placeholder=id?PH_FOLLOW:PH_NEW;}
+$('#fresh').addEventListener('click',()=>{setFollow(null);const d=document.createElement('p');d.className='newconv';
+  d.textContent=T('Nouvelle question','New question');thread.appendChild(d);qEl.focus();});
+
+// Onglets d'exemples
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==b.dataset.tab);}));
+document.querySelectorAll('[data-q]').forEach(b=>b.addEventListener('click',()=>{qEl.value=b.dataset.q;autosize();if(!form.hidden)ask(b.dataset.q);}));
+function autosize(){qEl.style.height='auto';qEl.style.height=Math.min(qEl.scrollHeight,160)+'px';}
+qEl.addEventListener('input',autosize);
+qEl.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
+form.addEventListener('submit',e=>{e.preventDefault();const q=qEl.value.trim();if(q)ask(q);});
+
+function setLeft(n){const el=$('#left');el.textContent=n+' '+(LANG==='fr'?el.dataset.fr:el.dataset.en);}
+
+function turnShell(question){
+  const t=document.createElement('section');t.className='turn';
+  t.innerHTML=`<div class="qbubble">${esc(question)}</div><ol class="steps"></ol><div class="slot"></div>`;
+  thread.appendChild(t);return t;}
+
+async function ask(question){
+  $('#intro').hidden=true;send.disabled=true;qEl.value='';autosize();
+  const t=turnShell(question);const steps=t.querySelector('.steps');
+  const step=(label,detail)=>{steps.querySelectorAll('li.run').forEach(li=>li.classList.remove('run'));
+    const li=document.createElement('li');li.className='run';li.innerHTML=`${esc(label)}${detail?` <span>· ${esc(detail)}</span>`:''}`;steps.appendChild(li);};
+  step(T('Lecture de la question','Reading the question'),'');
+  t.scrollIntoView({behavior:'smooth',block:'start'});
+  let res;
+  try{res=await fetch('/try/ask',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({question,lang:LANG,website:form.website.value,follow:lastId})});}
+  catch(e){return fail(t,T('Connexion impossible.','Connection failed.'));}
+  if(!res.ok){let j={};try{j=await res.json();}catch(e){}
+    fail(t,j.error||T('Erreur.','Error.'));if(res.status===429&&!['busy','crowded'].includes(j.reason))exhausted(j.error);return;}
+  const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
+  while(true){const {value,done}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});
+    let i;while((i=buf.indexOf('\n\n'))>=0){const chunk=buf.slice(0,i);buf=buf.slice(i+2);
+      const line=chunk.split('\n').find(l=>l.startsWith('data: '));if(!line)continue;
+      const ev=JSON.parse(line.slice(6));
+      if(ev.type==='step')step(ev.label,ev.detail);
+      else if(ev.type==='error'){fail(t,ev.message);}
+      else if(ev.type==='done'){steps.querySelectorAll('li.run').forEach(li=>li.classList.remove('run'));
+        steps.hidden=true;showAnswer(t,ev,question);setLeft(ev.remaining);
+        if(ev.remaining<=0)exhausted();setFollow(ev.id);}}}
+  send.disabled=false;
+}
+function fail(t,msg){t.querySelector('.steps').hidden=true;t.querySelector('.slot').innerHTML=`<div class="err">${esc(msg)}</div>`;send.disabled=false;}
+function exhausted(msg){form.hidden=true;$('#followbar').hidden=true;$('#next').hidden=false;if(msg)$('#next-p').textContent=msg;}
+
+function label(s){const t=s.title||s.actor||'';return s.symbol&&!t.startsWith(s.symbol)?s.symbol+' — '+t:t;}
+function lvl(l){return l?`<span class="lvl lvl-${esc(l)}">${esc(LV[l]||l)}</span>`:'';}
+function fmtDate(d){if(!d)return '';const s=String(d).slice(0,10);const [y,m,dd]=s.split('-');if(!dd)return s;
+  return new Date(Date.UTC(+y,+m-1,+dd)).toLocaleDateString(LANG==='fr'?'fr-FR':'en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});}
+
+function showAnswer(t,a,question){
+  answers[a.id]={...a,question};
+  const checks=a.checks||[],ok=checks.filter(c=>c.ok).length;
+  const srcs=(a.sources||[]).map(s=>`<button type="button" class="src" data-aid="${esc(a.id)}" data-ref="${esc(s.ref)}">
+     <span class="n">${s.n}</span><span><span class="t">${esc(label(s))}</span>
+     <span class="m">${lvl(s.level)}${s.date?`<span>${esc(fmtDate(s.date))}</span>`:''}${s.page?`<span>p. ${esc(s.page)}</span>`:''}${s.para?`<span>${esc(s.para)}</span>`:''}${s.actor&&s.title?`<span>${esc(s.actor)}</span>`:''}</span></span></button>`).join('');
+  const evs=(a.events||[]).map(e=>`<div class="ev" id="${esc(a.id+'-'+e.ref)}"><span class="when">${esc(e.day?e.day.slice(8,10)+'/'+e.day.slice(5,7):'')}<br>${esc(e.start||'')}${e.end?'–'+esc(e.end):''}</span>
+     <span class="what"><b>${esc(e.title)}</b><span>${esc([e.place,e.zone,e.organiser].filter(Boolean).join(' · '))}</span>${e.url?` · <a href="${esc(safe(e.url))}" target="_blank" rel="noopener">${T('vérifier','check')} ↗</a>`:''}</span></div>`).join('');
+  const nb=checks.filter(c=>c.status==='brackets').length,nu=checks.filter(c=>c.status==='unsourced').length;
+  const verif=checks.length?`<div class="verif ${ok<checks.length?'warn':''}"><b>${ok===checks.length?'✓':'!'}</b><span>
+     ${ok===checks.length?T(`${ok} citation${ok>1?'s':''} vérifiée${ok>1?'s':''} mot pour mot dans la source`,`${ok} quote${ok>1?'s':''} checked word for word in the source`)
+       :T(`${ok} citation(s) sur ${checks.length} retrouvée(s) mot pour mot`,`${ok} of ${checks.length} quotes found word for word`)
+        +(nb?T(` ; ${nb} omet ou ajoute des crochets (texte non convenu) [?]`,`; ${nb} drop or add brackets (text not agreed) [?]`):'')
+        +(nu?T(` ; ${nu} sans source`,`; ${nu} without a source`):'')
+        +(ok<checks.length?T(' : vérifiez les passages marqués ?',': check the passages marked ?'):'')}</span></div>`:'';
+  const trace=(a.trace||[]).length?`<details class="trace"><summary>${T('Comment l\'outil a cherché','How the tool searched')} (${a.trace.length})</summary><ol>${a.trace.map(s=>`<li>${esc(s.label)}${s.detail?' · <i>'+esc(s.detail)+'</i>':''}</li>`).join('')}</ol></details>`:'';
+  t.querySelector('.slot').innerHTML=`<div class="answer"><div class="body">${a.html||esc(T('Pas de réponse.','No answer.'))}</div>${verif}
+    ${srcs?`<div class="block-h">${T('Sources','Sources')}</div><div class="srcs">${srcs}</div>`:''}
+    ${evs?`<div class="block-h">${T('Événements','Events')}</div><div class="evs">${evs}</div>`:''}
+    <div class="tools">${evs?`<button type="button" data-ics="${esc(a.id)}">📅 ${T('Ajouter à mon agenda (.ics)','Add to my calendar (.ics)')}</button>`:''}
+    ${a.sources&&a.sources.length?`<button type="button" data-quotes="${esc(a.id)}">${T('Copier les citations','Copy the quotes')}</button>`:''}
+    ${a.id?`<button type="button" data-share="${esc(a.id)}">${T('Copier le lien de la réponse','Copy link to this answer')}</button>`:''}</div>
+    ${trace}</div>`;
+  t.querySelectorAll('.cite[data-ref^="S"]').forEach(b=>b.dataset.aid=a.id);
+  t.querySelectorAll('.cite.evc').forEach(x=>x.setAttribute('href','#'+a.id+'-'+x.dataset.ref));
+}
+function safe(u){return /^(https?:)?\/\//.test(u)||u.startsWith('/')?u:'#';}
+
+// Clics : appels de source, cartes source, export agenda, citations, partage
+document.addEventListener('click',e=>{
+  const c=e.target.closest('.cite[data-ref^="S"],.src');
+  if(c){e.preventDefault();openSource(c.dataset.aid,c.dataset.ref);return;}
+  const ics=e.target.closest('[data-ics]');if(ics){downloadIcs(answers[ics.dataset.ics]);return;}
+  const qb=e.target.closest('[data-quotes]');if(qb){copyQuotes(answers[qb.dataset.quotes],qb);return;}
+  const sh=e.target.closest('[data-share]');if(sh){navigator.clipboard.writeText(location.origin+'/try/r/'+sh.dataset.share).then(()=>flash(sh));}
+});
+function flash(b){const t=b.textContent;b.textContent='✓ '+T('copié','copied');setTimeout(()=>b.textContent=t,1600);}
+
+function copyQuotes(a,btn){
+  const by={};(a.sources||[]).forEach(s=>by[s.ref]=s);
+  const lines=[];(a.checks||[]).filter(c=>c.ok).forEach(c=>{const s=by[c.ref];if(!s)return;
+    lines.push(`“${c.quote}” — ${[s.symbol,s.title,s.page?'p. '+s.page:'',LV[s.level]||'',fmtDate(s.date)].filter(Boolean).join(', ')}. ${s.url||''}`);});
+  if(!lines.length)(a.sources||[]).forEach(s=>lines.push(`[${s.n}] ${[s.symbol,s.title,s.page?'p. '+s.page:'',fmtDate(s.date)].filter(Boolean).join(', ')}. ${s.url||''}`));
+  navigator.clipboard.writeText(lines.join('\n\n')).then(()=>flash(btn));}
+
+// Export agenda (.ics) — heures d'Antalya (UTC+3, sans heure d'été)
+function downloadIcs(a){
+  const pad=n=>String(n).padStart(2,'0');
+  const utc=(day,hm)=>{const [y,m,d]=day.split('-').map(Number);const [h,mi]=(hm||'00:00').split(':').map(Number);
+    const t=new Date(Date.UTC(y,m-1,d,h-3,mi||0));return t.getUTCFullYear()+pad(t.getUTCMonth()+1)+pad(t.getUTCDate())+'T'+pad(t.getUTCHours())+pad(t.getUTCMinutes())+'00Z';};
+  const tx=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/([,;])/g,'\\$1');
+  const enc=new TextEncoder();const fold=l=>{const out=[];let cur='';for(const ch of l){if(enc.encode(cur+ch).length>(out.length?73:75)){out.push(cur);cur='';}cur+=ch;}out.push(cur);return out.join('\r\n ');};
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//COP Tracker//COP31//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  const tm=x=>/^\d{1,2}:\d{2}$/.test(x||'');
+  (a.events||[]).forEach((e,i)=>{const days=(e.days&&e.days.length?e.days:[e.day]).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d||''));
+   days.forEach((day,j)=>{
+    L.push('BEGIN:VEVENT','UID:'+a.id+'-'+i+'-'+j+'@cop-tracker','DTSTAMP:'+stamp);
+    if(tm(e.start)){const [h,m]=e.start.split(':').map(Number);
+      const end=tm(e.end)&&e.end>e.start.padStart(5,'0')?e.end:pad(Math.min(h+1,23))+':'+pad(m);
+      L.push('DTSTART:'+utc(day,e.start),'DTEND:'+utc(day,end));}
+    else{L.push('DTSTART;VALUE=DATE:'+day.replace(/-/g,''));}
+    L.push(fold('SUMMARY:'+tx(e.title)));if(e.place)L.push(fold('LOCATION:'+tx([e.place,e.zone].filter(Boolean).join(', '))));
+    L.push(fold('DESCRIPTION:'+tx([e.organiser,T('Salles et horaires peuvent changer','Rooms and times may change')+(e.url?' : '+e.url:''),'COP Tracker'].filter(Boolean).join('\n'))));
+    if(e.url&&/^https?:/.test(e.url))L.push(fold('URL:'+e.url));L.push('END:VEVENT');});});
+  L.push('END:VCALENDAR');
+  const blob=new Blob([L.join('\r\n')+'\r\n'],{type:'text/calendar;charset=utf-8'});
+  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='cop31-'+(a.id||'programme')+'.ics';
+  document.body.appendChild(link);link.click();setTimeout(()=>{URL.revokeObjectURL(link.href);link.remove();},500);}
+
+// Panneau source : PDF rendu avec pdf.js (chargé à la demande), passage surligné
+const panel={doc:null,url:null,page:1,src:null,quote:''};
+let pdfjsReady=null;
+function loadPdfjs(){if(pdfjsReady)return pdfjsReady;pdfjsReady=new Promise((ok,ko)=>{const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.integrity='sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';
+  s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';ok(window.pdfjsLib);};
+  s.onerror=ko;document.head.appendChild(s);});return pdfjsReady;}
+
+async function openSource(aid,ref){
+  const a=answers[aid];if(!a)return;const s=(a.sources||[]).find(x=>x.ref===ref);if(!s)return;
+  document.querySelectorAll('.cite.on,.src.on').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll(`[data-aid="${CSS.escape(aid)}"][data-ref="${CSS.escape(ref)}"]`).forEach(x=>x.classList.add('on'));
+  const check=(a.checks||[]).find(c=>c.ref===ref&&c.ok)||(a.checks||[]).find(c=>c.ref===ref);
+  panel.src=s;panel.quote=check?check.quote:'';
+  tryEl.classList.add('with-panel');
+  $('#p-title').textContent=label(s);
+  $('#p-meta').innerHTML=lvl(s.level)+(s.date?`<span>${esc(fmtDate(s.date))}</span>`:'')+(s.para?`<span>${esc(s.para)}</span>`:'');
+  const qb=$('#p-quote');qb.hidden=false;qb.textContent=panel.quote?'“'+panel.quote+'”':(s.text||'');
+  const fiche=$('#p-fiche'),orig=$('#p-orig');
+  fiche.hidden=true;orig.hidden=!s.url||safe(s.url)==='#';if(s.url)orig.href=safe(s.url);
+  const pdf=$('#p-pdf'),txt=$('#p-text');
+  if(!s.pdf){pdf.hidden=true;txt.hidden=false;txt.textContent=s.withdrawn?T('Document retiré du corpus public.','Document withdrawn from the public corpus.'):(s.text||'');navState(false);return;}
+  pdf.hidden=false;txt.hidden=true;pdf.innerHTML=`<div class="pdfmsg">${T('Ouverture du document…','Opening the document…')}</div>`;
+  try{const lib=await loadPdfjs();
+    if(panel.url!==s.pdf){panel.doc=await lib.getDocument({url:s.pdf,withCredentials:true,isEvalSupported:false}).promise;panel.url=s.pdf;}
+    panel.page=Math.min(Math.max(+s.page||1,1),panel.doc.numPages);await renderPage(true);}
+  catch(e){pdf.innerHTML=`<div class="pdfmsg">${T('Aperçu indisponible.','Preview unavailable.')} <a href="${esc(safe(s.url||s.pdf))}" target="_blank" rel="noopener">${T('Ouvrir le PDF','Open the PDF')} ↗</a></div>`;navState(false);}
+}
+function navState(on){['#p-prev','#p-next','#p-page'].forEach(s=>$(s).hidden=!on);}
+const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[“”«»„"]/g,'"').replace(/[’‘]/g,"'").replace(/[\[\]]/g,'').replace(/\s+/g,' ').trim();
+async function renderPage(scroll){
+  const wrap=$('#p-pdf');const page=await panel.doc.getPage(panel.page);
+  const width=Math.max(wrap.clientWidth-24,280);const base=page.getViewport({scale:1});
+  const vp=page.getViewport({scale:width/base.width*(window.devicePixelRatio||1)});const css=width/base.width;
+  const box=document.createElement('div');box.className='pdfpage';box.style.width=width+'px';
+  const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;box.appendChild(cv);
+  await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  wrap.innerHTML='';wrap.appendChild(box);navState(true);
+  $('#p-page').textContent=`p. ${panel.page} / ${panel.doc.numPages}`;
+  // Surlignage : on cherche la citation (sinon le début du passage) dans la couche texte
+  const target=norm(panel.quote||(panel.src.text||'').replace(/^…/,'').slice(0,160));
+  if(!target)return;
+  const tc=await page.getTextContent();let flat='';const spans=[];
+  tc.items.forEach(it=>{const s=norm(it.str);if(!s)return;if(flat&&!flat.endsWith(' '))flat+=' ';spans.push([flat.length,flat.length+s.length,it]);flat+=s;});
+  const parts=target.split(/\s*(?:…|\.\.\.)\s*/).filter(p=>p.length>3);let first=null;
+  parts.forEach(p=>{let probe=p,at=flat.indexOf(probe);
+    while(at<0&&probe.length>24){probe=probe.slice(0,Math.floor(probe.length*0.6));at=flat.indexOf(probe);}
+    if(at<0)return;const end=at+p.length;
+    const v1=page.getViewport({scale:css});
+    spans.filter(([a,b])=>b>at&&a<end).forEach(([,,it])=>{const tr=window.pdfjsLib.Util.transform(v1.transform,it.transform);
+      const h=Math.hypot(tr[2],tr[3]);const d=document.createElement('div');d.className='hl';
+      d.style.left=tr[4]+'px';d.style.top=(tr[5]-h)+'px';d.style.width=(it.width*css)+'px';d.style.height=(h*1.15)+'px';box.appendChild(d);
+      if(!first)first=d;});});
+  if(scroll&&first)wrap.scrollTop=Math.max(0,first.offsetTop-80);
+}
+$('#p-prev').addEventListener('click',()=>{if(panel.doc&&panel.page>1){panel.page--;renderPage(false);}});
+$('#p-next').addEventListener('click',()=>{if(panel.doc&&panel.page<panel.doc.numPages){panel.page++;renderPage(false);}});
+$('#p-close').addEventListener('click',()=>{tryEl.classList.remove('with-panel');document.querySelectorAll('.cite.on,.src.on').forEach(x=>x.classList.remove('on'));});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tryEl.classList.contains('with-panel'))$('#p-close').click();});
+
+// Réponse partagée (lien permanent)
+const shared=JSON.parse($('#shared').textContent||'{}');
+if(shared&&shared.id){const t=turnShell(shared.question);t.querySelector('.steps').hidden=true;showAnswer(t,shared,shared.question);
+  const d=document.createElement('p');d.className='fine';d.textContent=T('Réponse produite le ','Answer produced on ')+String(shared.created_at||'').slice(0,16).replace('T',' ')+' UTC';t.appendChild(d);}
+else if(qEl.value.trim())autosize();
+})();
+</script>
+{% endblock %}

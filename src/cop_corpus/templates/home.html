@@ -60,15 +60,19 @@
 {% else %}<a class="btn" href="/plan">{{ L('Planifier ma journée', 'Plan my day') }}</a><a class="btn secondary" href="/topics">{{ L('Mes sujets', 'My topics') }}</a>{% endif %}
 </div>
 {% else %}
-<h1>{{ L('Comprendre la COP31 à partir des textes eux-mêmes', 'Make sense of COP31 from the texts themselves') }}</h1>
-<p class="sub">{{ L('Les projets de texte, ce qui change d\'une version à l\'autre et qui défend quoi, avec à chaque fois le passage exact. Dans votre LLM, sur votre agenda, et en alerte sur vos dossiers.',
- 'Draft texts, what changes from one version to the next and who stands where, always with the exact passage. In your LLM, in your schedule, and as alerts on your negotiations.') }}</p>
+<h1>{{ L('Les négociations climat, sourcées à la ligne près', 'Climate negotiations, sourced line by line') }}</h1>
+<p class="sub">{{ L('Posez vos questions comme à ChatGPT, mais chaque réponse cite le passage exact du dernier texte en date, avec le lien pour le vérifier en un clic. Projets de texte et toutes leurs versions, positions des Parties, soumissions, comptes rendus, programme : tout le corpus de la COP, mis à jour en continu pendant les négociations.',
+ 'Ask your questions as you would ask ChatGPT, but every answer quotes the exact passage of the latest text, with a link to check it in one click. Draft texts and all their versions, Parties\' positions, submissions, daily reports, programme: the whole COP corpus, updated continuously during the negotiations.') }}</p>
 <div class="cta">
-<button type="button" class="btn" data-auth="signup">{{ L('Créer un compte gratuit', 'Create a free account') }}</button>
-<button type="button" class="btn secondary" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</button>
+{% if demo_on %}<a class="btn" href="/try">{{ L('Essayer maintenant', 'Try it now') }}</a>
+<a class="btn secondary" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
+{% else %}<a class="btn" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
+<button type="button" class="btn secondary" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</button>{% endif %}
 </div>
+{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('3 questions sans compte, réponse en moins d\'une minute.', '3 questions, no account, answers in under a minute.') }} <a href="#" data-auth="signin">{{ L('Déjà inscrit ? Se connecter', 'Already registered? Sign in') }}</a></p>{% endif %}
 {% endif %}
 <p class="fine">{{ L('Gratuit, indépendant et open source. Sans lien avec la CCNUCC ni avec une délégation.', 'Free, independent and open source. Not affiliated with the UNFCCC or any delegation.') }}
+{% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ L('Code source', 'Source code') }}</a> ·{% endif %}
 {% if stats and stats.documents %}{{ '{:,}'.format(stats.documents).replace(',', ' ') }} {{ L('documents suivis', 'documents tracked') }}.{% endif %}
 <a href="/about">{{ L("Qu'est-ce que COP Tracker ?", 'What is COP Tracker?') }}</a></p>
 </div>
@@ -112,5 +116,6 @@
 <p>{{ L('Une alerte à chaque nouveau projet de texte, quand il part en adoption et quand il est adopté ; un récapitulatif matin et soir des textes et des lettres d\'information.', 'An alert for each new draft, when it is forwarded for adoption and when it is adopted; a morning and evening digest of texts and newsletters.') }}</p>
 <span class="go">{{ L('Mes sujets', 'My topics') }} →</span></a>
 </div>
+{% if not user %}{% include "_pitch.html" %}{% endif %}
 </div>
 {% endblock %}

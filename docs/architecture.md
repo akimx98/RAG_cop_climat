@@ -245,6 +245,10 @@ tableau couvre toutes les variables lues.
 | `COP_EMBED_PROVIDER`, `COP_EMBED_MODEL`, `COP_EMBED_DIM` | `openai` si clé, `text-embedding-3-small`, 512 | embeddings |
 | `COP_EMBED_RESTRICTED` | 0 | 1 = envoyer aussi les documents internes à l'API d'embeddings |
 | `COP_LLM` | 1 | 0 = aucun appel au modèle de langage |
+| `COP_DEMO` | 1 | 0 = démo publique « Essayer » (/try) désactivée ; active seulement si une clé OpenAI est posée |
+| `COP_DEMO_MODEL`, `COP_DEMO_EFFORT` | `gpt-5.6-terra`, `low` | modèle de la démo (API Responses, outils MCP en lecture seule, documents publics seulement) |
+| `COP_DEMO_PER_SESSION`, `COP_DEMO_PER_IP_DAY`, `COP_DEMO_PER_ACCOUNT_DAY` | 3, 20, 3 | questions de la démo par visiteur, par adresse IP et par jour, par compte et par jour |
+| `COP_DEMO_DAILY_USD`, `COP_DEMO_BUDGET_USD` | 8, 40 | plafonds de dépense de la démo (par jour, au total ; table `llm_usage`, `purpose='demo'`), distincts de `COP_LLM_BUDGET_USD` que la démo n'entame pas |
 | `COP_LLM_EXTRACT_MODEL`, `COP_LLM_WRITE_MODEL` | `gpt-5.4-mini`, `gpt-5.6-luna` | extraction et analyses ; briefs |
 | `COP_LLM_BUDGET_USD` | 30 | plafond de dépense cumulée |
 | `COP_LIVE` | 1 | 0 = pas de veille en direct (textes, positions, briefs, programme, pavillons, groupes, analyses) |
