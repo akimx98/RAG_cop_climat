@@ -123,3 +123,25 @@ def test_official_schedule_replaces_planner_meetings(env):
     assert q["total"] == 90 and q["evenements"][0]["source"].startswith("calendrier officiel")
     assert not any(e["titre"] == "Old planner meeting" for e in agenda.query(env, jour="18", types=["reunion"], limit=500)["evenements"])
     assert agenda._norm("Side Event Room 4 - Aşık Veysel") == agenda._norm("Side Event Room 4 - AŞIK VEYSEL")
+
+
+def test_platform_overlays_real_times(env):
+    from cop_corpus import agenda
+
+    agenda.ensure_schema(env)
+    agenda._upsert(env, [dict(key="unfccc:1", kind="reunion", days=[18], start="10:00", end="11:00", room="Meeting Room 19",
+                              title="COP 3(b) / CMA 3(b) Matters relating to Action for Climate Empowerment - Informal consultation",
+                              organisers=[], summary=None, speakers=None, topics=[], type="Negotiations", access=None,
+                              link=None, note=None)], "unfccc", "2026-11-18T07:41:03Z")
+    out = agenda.import_platform(env, {"releve": "2026-11-18T07:44:47Z", "sessions": [
+        {"id": "a", "title": "COP 3(b) / CMA 3(b) Matters relating to Action for Climate Empowerment - Informal consultation",
+         "dateTimeRange": {"start": "2026-11-18T07:00:00Z", "end": "2026-11-18T09:00:00Z"},
+         "actualDateTimeRange": {"start": "2026-11-18T07:00:00Z", "end": "2026-11-18T08:00:00Z"}, "roomName": "Meeting Room 19"},
+        {"id": "b", "title": "Heads of Delegation consultations on CMA 11(f)", "sessionType": "Heads of delegation",
+         "dateTimeRange": {"start": "2026-11-18T12:30:00Z", "end": "2026-11-18T14:00:00Z"},
+         "actualDateTimeRange": {"start": "2026-11-18T12:30:00Z", "end": "2026-11-18T14:00:00Z"}, "roomName": "Meeting Room 25"}]})
+    assert out["horaires_mis_a_jour"] == 1 and out["ajoutees"] == 1
+    ace = env.execute("SELECT start, end, note FROM agenda_events WHERE key='unfccc:1'").fetchone()
+    assert (ace["start"], ace["end"]) == ("10:00", "12:00") and "fin prévue 11:00" in ace["note"]
+    hod = env.execute("SELECT start, end, source FROM agenda_events WHERE key='plateforme:b'").fetchone()
+    assert (hod["start"], hod["end"], hod["source"]) == ("15:30", "17:00", "unfccc")

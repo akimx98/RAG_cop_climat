@@ -190,7 +190,9 @@ def cmd_programme_seors(args) -> None:
 def cmd_programme_unfccc(args) -> None:
     from . import agenda
 
-    _print(agenda.import_unfccc_schedule(db.get(), json.loads(Path(args.path).read_text(encoding="utf-8"))))
+    data = json.loads(Path(args.path).read_text(encoding="utf-8"))
+    conn = db.get()
+    _print(agenda.import_platform(conn, data) if "sessions" in data else agenda.import_unfccc_schedule(conn, data))
 
 
 def cmd_programme(args) -> None:
@@ -438,7 +440,7 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("programme-seors", help="importer un relevé SEORS fait dans un navigateur (JSON)")
     s.add_argument("path")
     s.set_defaults(func=cmd_programme_seors)
-    s = sub.add_parser("programme-unfccc", help="importer le calendrier officiel (JSON de unfccc.int/cop31/schedule)")
+    s = sub.add_parser("programme-unfccc", help="importer le calendrier officiel (JSON de unfccc.int/cop31/schedule) ou les séances de la plateforme COP31")
     s.add_argument("path")
     s.set_defaults(func=cmd_programme_unfccc)
     s = sub.add_parser("programme", help="programme d'un jour / d'un sujet")

@@ -432,12 +432,13 @@ def import_unfccc_schedule(conn, payload: dict[str, Any]) -> dict[str, Any]:
     rows = payload.get("events") or []
     if len(rows) < 100:
         raise ValueError(f"calendrier trop court ({len(rows)} événements) : rien importé")
+    offset = _schedule_offset(conn, rows)
     events, by_type = [], {}
     for r in rows:
         types = r.get("typeofevent") or []
         if "Side events" in types or not r.get("date"):
             continue
-        start, end = r["date"][0].get("value") or "", r["date"][0].get("end_value") or ""
+        start, end = _shift(r["date"][0].get("value") or "", offset), _shift(r["date"][0].get("end_value") or "", offset)
         m = re.match(r"(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})", start)
         if not m or (int(m.group(1)), int(m.group(2))) != (YEAR, MONTH):
             continue
@@ -459,7 +460,90 @@ def import_unfccc_schedule(conn, payload: dict[str, Any]) -> dict[str, Any]:
         _upsert(conn, events, "unfccc", at)
     db.meta_set(conn, "agenda_unfccc_at", at)
     informal = sum(1 for e in events if "informal" in e["title"].lower())
-    return {"importes": len(events), "par_type": by_type, "consultations_informelles": informal, "releve": at}
+    return {"importes": len(events), "par_type": by_type, "consultations_informelles": informal, "releve": at,
+            "decalage_heures": offset}
+
+
+def import_platform(conn, payload: dict[str, Any]) -> dict[str, Any]:
+    """Séances de la plateforme COP31 (cop31platform.unfccc.int, relevé dans le navigateur d'un délégué connecté) :
+    horaires réels du jour (séances prolongées), consultations de la présidence et des chefs de délégation qui ne
+    sont pas encore au calendrier. Complète le calendrier officiel relevé (même source affichée) : une séance de
+    même titre et même jour prend l'horaire réel ; une séance absente est ajoutée."""
+    ensure_schema(conn)
+    rows = payload.get("sessions") or []
+    at = payload.get("releve") or db.now()
+    updated = added = 0
+    for r in rows:
+        # Relevé du 18/11 : `dateTimeRange` porte l'horaire en vigueur (prolongations comprises) et
+        # `actualDateTimeRange` l'horaire initialement prévu (la plateforme affiche « Meeting Extended … New time »).
+        rng = r.get("dateTimeRange") or r.get("actualDateTimeRange") or {}
+        planned = r.get("actualDateTimeRange") or {}
+        try:
+            start = datetime.fromisoformat(rng["start"].replace("Z", "+00:00")).astimezone(ANTALYA)
+            end = datetime.fromisoformat(rng["end"].replace("Z", "+00:00")).astimezone(ANTALYA)
+        except (KeyError, ValueError, AttributeError):
+            continue
+        if (start.year, start.month) != (YEAR, MONTH):
+            continue
+        title = re.sub(r"\s+", " ", r.get("title") or "").strip()
+        note = None
+        if planned and planned.get("end") != rng.get("end"):
+            try:
+                was = datetime.fromisoformat(planned["end"].replace("Z", "+00:00")).astimezone(ANTALYA).strftime("%H:%M")
+            except (KeyError, ValueError, AttributeError):
+                was = "?"
+            note = f"horaire modifié (fin prévue {was}) — plateforme COP31, relevé du {at[:16].replace('T', ' ')} UTC"
+        days = _days_field([start.day])
+        match = None
+        for row in conn.execute("SELECT key, title FROM agenda_events WHERE kind='reunion' AND source='unfccc' AND days=?", (days,)):
+            if _norm(row["title"])[:80] == _norm(title)[:80]:
+                match = row["key"]
+                break
+        if match:
+            conn.execute("UPDATE agenda_events SET start=?, end=?, room=COALESCE(?, room), note=COALESCE(?, note), "
+                         "fetched_at=? WHERE key=?", (start.strftime("%H:%M"), end.strftime("%H:%M"), r.get("roomName"),
+                                                       note, at, match))
+            updated += 1
+        else:
+            _upsert(conn, [dict(key=f"plateforme:{r.get('id')}", kind="reunion", days=[start.day],
+                                start=start.strftime("%H:%M"), end=end.strftime("%H:%M"), room=r.get("roomName"),
+                                title=title, organisers=[], summary=(r.get("description") or None), speakers=None,
+                                topics=[], type=r.get("sessionType"), access=r.get("access"),
+                                link="https://cop31platform.unfccc.int/events/cop31/agenda", note=note)], "unfccc", at)
+            added += 1
+    conn.commit()
+    db.meta_set(conn, "agenda_platform_at", at)
+    return {"seances": len(rows), "horaires_mis_a_jour": updated, "ajoutees": added, "releve": at}
+
+
+def _shift(value: str, hours: int) -> str:
+    try:
+        return (datetime.fromisoformat(value) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%S") if value else ""
+    except ValueError:
+        return value
+
+
+def _schedule_offset(conn, rows: list[dict]) -> int:
+    """Heures à ajouter aux dates du JSON du calendrier pour obtenir l'heure d'Antalya. Le JSON n'est pas à l'heure
+    de la conférence (relevé du 18/11 : une heure de moins que SEORS et que la page affichée) : on compare ses side
+    events à ceux de SEORS (même titre, même jour) ; à défaut, +1 h."""
+    seors = {(_norm(r["title"])[:60], r["days"]): r["start"] for r in conn.execute(
+        "SELECT title, days, start FROM agenda_events WHERE source='seors' AND kind='side_event'")}
+    diffs = []
+    for r in rows:
+        if "Side events" not in (r.get("typeofevent") or []) or not r.get("date"):
+            continue
+        v = r["date"][0].get("value") or ""
+        m = re.match(r"\d{4}-\d{2}-(\d{2})T(\d{2}):(\d{2})", v)
+        if not m:
+            continue
+        s = seors.get((_norm(r.get("title") or "")[:60], _days_field([int(m.group(1))])))
+        if s and re.match(r"\d{1,2}:\d{2}", s):
+            diffs.append(round((_minutes(s) - (int(m.group(2)) * 60 + int(m.group(3)))) / 60))
+    if len(diffs) >= 10:
+        diffs.sort()
+        return diffs[len(diffs) // 2]
+    return 1
 
 
 def _reunion_source(conn) -> str:
