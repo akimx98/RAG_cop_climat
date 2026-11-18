@@ -1,9 +1,10 @@
 """Utilisateurs (collègues accrédités), jetons personnels, cookies signés.
 
 Un utilisateur reçoit UN jeton secret, qui sert à la fois :
-- de lien de connexion au tableau de bord (`/login/<jeton>`) ;
 - d'adresse personnelle du connecteur MCP (`/u/<jeton>/mcp`) ;
 - de jeton Bearer pour l'API.
+Il n'ouvre PAS de session sur le site (l'ancien lien `/login/<jeton>` est retiré) : on se connecte avec
+l'e-mail, puis un mot de passe ou un code envoyé par e-mail.
 Seule l'empreinte SHA-256 du jeton sert à l'authentification ; une copie chiffrée
 (clé dérivée de COP_SECRET) permet de réafficher l'adresse MCP sur la page Connecteur.
 Révoquer = régénérer.

@@ -193,12 +193,13 @@ def _client(request: Request) -> str:
 
 
 async def login(request: Request):
-    """Ancien lien personnel /login/<jeton> (toujours valable)."""
-    token = request.path_params["token"]
-    user = auth.by_token(db.get(), token)
-    if not user:
-        return render(request, "login.html", user=None, error=i18n.pick(lang_of(request), "Lien invalide ou révoqué.", "Invalid or revoked link."))
-    return _session(RedirectResponse("/" if user.get("password_hash") else "/account", status_code=303), user, token)
+    """Ancien lien /login/<jeton>, retiré : il ouvrait une session du site à partir de l'adresse du connecteur MCP
+    (enregistrée chez les fournisseurs de LLM), ce qui permettait, si elle fuyait, de prendre le compte. Le jeton
+    n'est même pas lu : la page de connexion s'affiche, avec une explication."""
+    return render(request, "login.html", user=None, step="email", next="/",
+                  error=i18n.pick(lang_of(request),
+                                  "Ce lien n'est plus utilisé. Connectez-vous avec votre e-mail : mot de passe, ou code reçu par e-mail.",
+                                  "This link is no longer used. Sign in with your e-mail: password, or a code sent by e-mail."))
 
 
 def _send_login_code(user: dict, code: str) -> tuple[bool, bool]:

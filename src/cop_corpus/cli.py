@@ -107,7 +107,8 @@ def cmd_user_reset(args) -> None:
     if not user:
         sys.exit("utilisateur inconnu")
     token = auth.reset_token(conn, user["id"])
-    _print({"lien_connexion": f"{config.PUBLIC_BASE}/login/{token}", "connecteur_mcp": f"{config.PUBLIC_BASE}/u/{token}/mcp"})
+    _print({"connecteur_mcp": f"{config.PUBLIC_BASE}/u/{token}/mcp",
+            "lien_connexion": auth.login_link(auth.by_id(conn, user["id"]))})
 
 
 def cmd_user_link(args) -> None:

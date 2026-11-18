@@ -434,3 +434,16 @@ def test_backfill_is_idempotent(env):
     conn.commit()
     db._migrate(conn)                                                   # drapeau posé : les nouveaux restent à prouver
     assert conn.execute("SELECT email_verified_at FROM users WHERE email='new@x.org'").fetchone()[0] is None
+
+
+def test_legacy_token_link_no_longer_signs_in(env):
+    """/login/<jeton> (adresse du connecteur MCP) n'ouvre plus de session : une adresse MCP qui fuit ne donne pas
+    le compte web."""
+    from cop_corpus import auth
+
+    conn, _ = env
+    uid, token = auth.create_user(conn, "l@deleg.org", "L", verified=True)
+    c = _client()
+    r = c.get(f"/login/{token}", follow_redirects=False)
+    assert r.status_code == 200 and "no longer used" in r.text and "cop_session" not in r.headers.get("set-cookie", "")
+    assert c.get("/account", follow_redirects=False).status_code == 303
