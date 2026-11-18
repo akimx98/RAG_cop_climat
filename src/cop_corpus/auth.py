@@ -27,7 +27,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from . import config, db
 
-PASSWORD_MIN = 10
+PASSWORD_MIN = 8   # inscription libre : longueur seule, sans règle de composition
 
 
 def _hash(token: str) -> str:
@@ -68,7 +68,9 @@ def is_guest(user: dict | None) -> bool:
 
 
 def create_user(conn: sqlite3.Connection, email: str, name: str = "", admin: bool = False,
-                restricted: bool = True) -> tuple[int, str]:
+                restricted: bool = True, verified: bool = False) -> tuple[int, str]:
+    """`verified` : adresse dont quelqu'un se porte garant (compte créé par un administrateur ou en ligne de
+    commande) ; les inscriptions en libre-service restent à prouver par un code e-mail."""
     token = secrets.token_urlsafe(24)
     code = secrets.token_hex(4)
     cur = conn.execute(
@@ -76,6 +78,8 @@ def create_user(conn: sqlite3.Connection, email: str, name: str = "", admin: boo
            VALUES(?,?,?,?,?,?,?,?)""",
         (email.lower().strip(), name, _hash(token), _enc(token), int(admin), int(restricted), code, db.now()),
     )
+    if verified:
+        conn.execute("UPDATE users SET email_verified_at=? WHERE id=?", (db.now(), cur.lastrowid))
     conn.commit()
     return cur.lastrowid, token
 
@@ -106,6 +110,11 @@ def by_id(conn: sqlite3.Connection, user_id: int) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def disabled_email(conn: sqlite3.Connection, email: str) -> bool:
+    """Adresse d'un compte désactivé par un administrateur (et non supprimé)."""
+    return bool(conn.execute("SELECT 1 FROM users WHERE email=? AND active=0", (email.lower().strip(),)).fetchone())
+
+
 def by_email(conn: sqlite3.Connection, email: str) -> dict[str, Any] | None:
     row = conn.execute("SELECT * FROM users WHERE email=? AND active=1", (email.lower().strip(),)).fetchone()
     return dict(row) if row else None
@@ -129,11 +138,31 @@ _failures: dict[str, list[float]] = {}
 MAX_FAILURES, WINDOW = 8, 900
 
 
-def throttled(key: str) -> bool:
+def throttled(key: str, limit: int = MAX_FAILURES, window: float = WINDOW) -> bool:
     now = time.time()
-    recent = [t for t in _failures.get(key, []) if now - t < WINDOW]
-    _failures[key] = recent
-    return len(recent) >= MAX_FAILURES
+    recent = [t for t in _failures.get(key, []) if now - t < window]
+    if recent:
+        _failures[key] = recent
+    else:
+        _failures.pop(key, None)   # pas d'accumulation de clés mortes
+    return len(recent) >= limit
+
+
+def hit(key: str) -> None:
+    _failures.setdefault(key, []).append(time.time())
+
+
+def ip_key(ip: str) -> str:
+    """Clé de limitation pour une adresse : IPv6 regroupée par /64 (un abonné en change à volonté)."""
+    import ipaddress
+
+    try:
+        addr = ipaddress.ip_address((ip or "").strip())
+    except ValueError:
+        return ip or "-"
+    if addr.version == 6:
+        return str(ipaddress.ip_network(f"{addr}/64", strict=False).network_address) + "/64"
+    return str(addr)
 
 
 def check_password(conn: sqlite3.Connection, email: str, password: str, client: str = "") -> dict[str, Any] | None:
@@ -163,22 +192,87 @@ def _sign(payload: str) -> str:
     return hmac.new(config.SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:32]
 
 
-def make_cookie(user_id: int, days: int = 30) -> str:
+def make_cookie(user_id: int, days: int = 30, epoch: int = 0) -> str:
+    """Cookie de session signé : identifiant, expiration et « époque » des sessions du compte. Changer d'époque
+    (mot de passe réinitialisé, « se déconnecter partout ») invalide toutes les sessions existantes."""
     exp = int(time.time()) + days * 86400
-    payload = f"{user_id}.{exp}"
+    payload = f"{user_id}.{exp}.{int(epoch or 0)}"
     return base64.urlsafe_b64encode(f"{payload}.{_sign(payload)}".encode()).decode()
 
 
-def read_cookie(value: str | None) -> int | None:
+def read_session(value: str | None) -> tuple[int, int] | None:
+    """(identifiant, époque) d'un cookie valide ; les cookies d'avant l'époque (3 champs) valent époque 0."""
     if not value:
         return None
     try:
-        uid, exp, sig = base64.urlsafe_b64decode(value.encode()).decode().split(".")
+        parts = base64.urlsafe_b64decode(value.encode()).decode().split(".")
+        if len(parts) == 3:
+            uid, exp, sig = parts
+            payload, epoch = f"{uid}.{exp}", 0
+        else:
+            uid, exp, ep, sig = parts
+            payload, epoch = f"{uid}.{exp}.{ep}", int(ep)
+        if not hmac.compare_digest(_sign(payload), sig) or int(exp) < time.time():
+            return None
+        return int(uid), epoch
     except Exception:
         return None
-    if not hmac.compare_digest(_sign(f"{uid}.{exp}"), sig) or int(exp) < time.time():
+
+
+def read_cookie(value: str | None) -> int | None:
+    got = read_session(value)
+    return got[0] if got else None
+
+
+def user_from_cookie(conn: sqlite3.Connection, value: str | None) -> dict[str, Any] | None:
+    got = read_session(value)
+    if not got:
         return None
-    return int(uid)
+    user = by_id(conn, got[0])
+    if not user or int(user.get("session_epoch") or 0) != got[1]:
+        return None
+    return user
+
+
+def end_sessions(conn: sqlite3.Connection, user_id: int) -> None:
+    """Déconnecte tous les appareils (les cookies existants ne valent plus rien)."""
+    conn.execute("UPDATE users SET session_epoch=COALESCE(session_epoch,0)+1 WHERE id=?", (user_id,))
+    conn.commit()
+
+
+def mark_verified(conn: sqlite3.Connection, user: dict) -> None:
+    """L'adresse est prouvée (code reçu par e-mail, lien de connexion envoyé par un administrateur)."""
+    if not user.get("email_verified_at"):
+        conn.execute("UPDATE users SET email_verified_at=? WHERE id=?", (db.now(), user["id"]))
+        conn.commit()
+
+
+def secure_after_reset(conn: sqlite3.Connection, user: dict, was_verified: bool) -> dict[str, bool]:
+    """Mot de passe réinitialisé par code e-mail : toutes les autres sessions sont fermées. Si l'adresse n'avait
+    jamais été prouvée, quelqu'un d'autre a pu créer le compte avec : on retire aussi le Telegram relié et on
+    renouvelle l'adresse du connecteur MCP."""
+    out = {"telegram": False, "mcp": False}
+    end_sessions(conn, user["id"])
+    if not was_verified:
+        if user.get("telegram_chat_id"):
+            conn.execute("UPDATE users SET telegram_chat_id=NULL, telegram_trusted=NULL, telegram_code=? WHERE id=?",
+                         (secrets.token_hex(4), user["id"]))
+            out["telegram"] = True
+        reset_token(conn, user["id"])
+        out["mcp"] = True
+    mark_verified(conn, user)
+    conn.commit()
+    return out
+
+
+def secure_all(conn: sqlite3.Connection, user: dict) -> None:
+    """« Ce n'est pas moi qui ai créé ce compte » : tous les appareils déconnectés, Telegram délié, adresse du
+    connecteur MCP renouvelée."""
+    end_sessions(conn, user["id"])
+    conn.execute("UPDATE users SET telegram_chat_id=NULL, telegram_trusted=NULL, telegram_code=? WHERE id=?",
+                 (secrets.token_hex(4), user["id"]))
+    reset_token(conn, user["id"])
+    conn.commit()
 
 
 def import_token(user: dict) -> str:
@@ -204,6 +298,18 @@ def login_link(user: dict, hours: int = 24) -> str:
     return f"{config.PUBLIC_BASE}/entrer/{user['id']}.{exp}.{_login_sig(user, exp)}"
 
 
+def login_link_valid(conn: sqlite3.Connection, value: str) -> bool:
+    """Lien encore utilisable (sans le consommer)."""
+    try:
+        uid, exp, sig = value.split(".")
+        e = int(exp)
+        user = by_id(conn, int(uid))
+    except ValueError:
+        return False
+    return bool(user) and e >= time.time() and hmac.compare_digest(_login_sig(user, e), sig) \
+        and not db.meta_get(conn, f"login_link_used:{sig}")
+
+
 def by_login_link(conn: sqlite3.Connection, value: str) -> dict[str, Any] | None:
     try:
         uid, exp, sig = value.split(".")
@@ -213,6 +319,11 @@ def by_login_link(conn: sqlite3.Connection, value: str) -> dict[str, Any] | None
         return None
     if not user or e < time.time() or not hmac.compare_digest(_login_sig(user, e), sig):
         return None
+    used = f"login_link_used:{sig}"
+    if db.meta_get(conn, used):   # usage unique : un e-mail transféré ou une capture d'écran ne rouvrent rien
+        return None
+    db.meta_set(conn, used, str(int(time.time())))
+    mark_verified(conn, user)
     return user
 
 
@@ -282,10 +393,13 @@ SIGNUP_ERRORS = {  # code → (français, anglais)
              "All places for this invitation are taken: ask the person who invited you."),
     "closed": ("Les inscriptions sont fermées pour le moment.", "Sign-ups are closed for now."),
     "bad_email": ("Adresse e-mail invalide.", "Invalid e-mail address."),
+    "robot": ("L'inscription n'a pas pu aboutir : rechargez la page et réessayez.",
+              "Sign-up could not be completed: reload the page and try again."),
     "short_password": (f"Mot de passe : au moins {PASSWORD_MIN} caractères.", f"Password: at least {PASSWORD_MIN} characters."),
     "exists": ("Un compte existe déjà avec cette adresse : connectez-vous.", "An account already exists for this address: sign in."),
     "mismatch": ("Les deux mots de passe diffèrent.", "The two passwords do not match."),
 }
+OPEN_PER_IP = 60   # inscriptions libres par adresse et par quart d'heure (seuil large : Wi-Fi partagé)
 GUEST_SOURCES = ("invitation", "inscription")   # invitation : lien ou QR ; inscription : libre, avec mot de passe
 OPEN_MAX_DEFAULT = 200
 
@@ -310,13 +424,15 @@ def signup(conn: sqlite3.Connection, code: str, email: str, organisation: str = 
     - avec un code d'invitation valable : e-mail (+ organisation), rien d'autre, connexion immédiate ;
     - sans code : inscription libre, mot de passe obligatoire (personne ne s'est porté garant de l'adresse).
     Mauvais codes et inscriptions libres sont limités par adresse IP, avec un seuil large (Wi-Fi partagé à la COP)."""
-    key = f"signup|{client}"
-    if throttled(key):
-        return None, None, "throttled"
     invited = bool(code)
+    # Clés séparées : une salle entière derrière la même adresse (Wi-Fi de la COP) doit pouvoir scanner le QR code.
+    # Invitation : seuls les mauvais codes comptent ; inscription libre : 60 comptes par adresse et par quart d'heure.
+    key = f"invite|{ip_key(client)}" if invited else f"open|{ip_key(client)}"
+    if throttled(key, limit=MAX_FAILURES if invited else OPEN_PER_IP):
+        return None, None, "throttled"
     if invited:
         if not invite_valid(conn, code):
-            _failures.setdefault(key, []).append(time.time())
+            hit(key)
             return None, None, "bad_code"
         s = invite_settings(conn)
         if s["used"] >= s["max"]:
@@ -333,8 +449,8 @@ def signup(conn: sqlite3.Connection, code: str, email: str, organisation: str = 
         return None, None, "short_password"
     if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
         return None, None, "exists"
-    if not invited:  # au plus ~ MAX_FAILURES inscriptions libres par IP et par quart d'heure
-        _failures.setdefault(key, []).append(time.time())
+    if not invited:
+        hit(key)
     uid, token = create_user(conn, email, "", admin=False, restricted=False)
     from .usage import PROFILE_KEYS
 
@@ -376,44 +492,98 @@ def delete_guest(conn: sqlite3.Connection, user_id: int) -> bool:
 # --- connexion par code envoyé par e-mail (comptes sans mot de passe) ---------------
 
 CODE_MINUTES, CODE_TRIES, CODES_PER_HOUR = 15, 5, 5
+CODES_PER_DAY = 12                # codes par compte et par réseau en 24 h
+CODES_PER_DAY_ACCOUNT = 50        # tous réseaux confondus : pas d'avalanche d'e-mails sur la boîte de quelqu'un
+CODE_FAILS_PER_DAY = 30           # codes faux par compte et par réseau en 24 h
+CODE_FAILS_PER_DAY_ACCOUNT = 200  # tous réseaux confondus
 
 
 def _code_hash(user_id: int, code: str) -> str:
     return _sign(f"login-code:{user_id}:{code}")
 
 
-def issue_login_code(conn: sqlite3.Connection, user: dict) -> tuple[str | None, str | None]:
-    """Nouveau code à 6 chiffres → (code, None), ou (None, 'wait') si trop d'envois récents
-    (une minute entre deux codes, cinq par heure)."""
+def _log(raw: str | None, window: float) -> list[tuple[float, str]]:
+    """Journal JSON d'horodatages, anciens (nombres) ou récents ([t, réseau]), limité à la fenêtre."""
+    import json
+
+    now, out = time.time(), []
+    for e in json.loads(raw or "[]"):
+        t, net = (e, "") if isinstance(e, (int, float)) else (float(e[0]), str(e[1]))
+        if now - t < window:
+            out.append((t, net))
+    return out
+
+
+def issue_login_code(conn: sqlite3.Connection, user: dict, ip: str = "") -> tuple[str | None, str | None]:
+    """Nouveau code à 6 chiffres → (code, None), sinon (None, raison) : 'wait' (une minute entre deux codes, cinq
+    par heure, depuis un même réseau), 'day' (trop de codes aujourd'hui), 'locked' (trop de codes faux).
+    Les limites comptent par compte ET par réseau : quelqu'un d'autre ne peut pas bloquer votre connexion."""
     import json
 
     now = time.time()
     row = conn.execute("SELECT sent_at FROM login_codes WHERE user_id=?", (user["id"],)).fetchone()
-    sent = [t for t in json.loads(row["sent_at"] or "[]") if now - t < 3600] if row else []
-    if sent and (now - sent[-1] < 60 or len(sent) >= CODES_PER_HOUR):
+    day = _log(row["sent_at"] if row else None, 86400)
+    mine = [t for t, net in day if net == ip]
+    hour = [t for t in mine if now - t < 3600]
+    if code_locked(conn, user, ip):
+        return None, "locked"
+    if len(mine) >= CODES_PER_DAY or len(day) >= CODES_PER_DAY_ACCOUNT:
+        return None, "day"
+    if hour and (now - hour[-1] < 60 or len(hour) >= CODES_PER_HOUR):
         return None, "wait"
     code = f"{secrets.randbelow(10**6):06d}"
     conn.execute(
         """INSERT INTO login_codes(user_id, code_hash, expires, tries, sent_at) VALUES(?,?,?,0,?)
            ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash, expires=excluded.expires, tries=0,
            sent_at=excluded.sent_at""",
-        (user["id"], _code_hash(user["id"], code), now + CODE_MINUTES * 60, json.dumps([*sent, now])))
+        (user["id"], _code_hash(user["id"], code), now + CODE_MINUTES * 60,
+         json.dumps([[t, net] for t, net in day] + [[now, ip]])))
     conn.commit()
     return code, None
 
 
-def check_login_code(conn: sqlite3.Connection, user: dict | None, code: str) -> bool:
+def cancel_login_code(conn: sqlite3.Connection, user: dict) -> None:
+    """L'envoi a échoué : le code n'existe pas pour l'utilisateur, il ne doit ni compter ni faire attendre."""
+    import json
+
+    row = conn.execute("SELECT sent_at FROM login_codes WHERE user_id=?", (user["id"],)).fetchone()
+    if row:
+        sent = _log(row["sent_at"], 86400)[:-1]
+        conn.execute("UPDATE login_codes SET code_hash=NULL, sent_at=? WHERE user_id=?",
+                     (json.dumps([[t, n] for t, n in sent]), user["id"]))
+        conn.commit()
+
+
+def _fails(conn: sqlite3.Connection, user_id: int) -> list[tuple[float, str]]:
+    row = conn.execute("SELECT fail_log FROM login_codes WHERE user_id=?", (user_id,)).fetchone()
+    return _log(row["fail_log"] if row else None, 86400)
+
+
+def code_locked(conn: sqlite3.Connection, user: dict, ip: str = "") -> bool:
+    """Trop de codes faux en 24 h depuis ce réseau (30), ou tous réseaux confondus (200 : freine une attaque
+    répartie sans bloquer la personne, qui peut toujours se connecter depuis un autre réseau)."""
+    fails = _fails(conn, user["id"])
+    return sum(1 for _, n in fails if n == ip) >= CODE_FAILS_PER_DAY or len(fails) >= CODE_FAILS_PER_DAY_ACCOUNT
+
+
+def check_login_code(conn: sqlite3.Connection, user: dict | None, code: str, ip: str = "") -> bool:
     """Vrai si le code est le bon, pas expiré, et moins de 5 essais (le code est alors consommé)."""
     if not user:
         return False
     row = conn.execute("SELECT * FROM login_codes WHERE user_id=?", (user["id"],)).fetchone()
     if not row or not row["code_hash"] or row["expires"] < time.time() or row["tries"] >= CODE_TRIES:
         return False
+    if code_locked(conn, user, ip):
+        return False
     code = "".join(ch for ch in (code or "") if ch.isdigit())
     if hmac.compare_digest(_code_hash(user["id"], code), row["code_hash"]):
         conn.execute("UPDATE login_codes SET code_hash=NULL WHERE user_id=?", (user["id"],))
         conn.commit()
+        mark_verified(conn, user)
         return True
-    conn.execute("UPDATE login_codes SET tries=tries+1 WHERE user_id=?", (user["id"],))
+    import json
+
+    conn.execute("UPDATE login_codes SET tries=tries+1, fail_log=? WHERE user_id=?",
+                 (json.dumps([[t, n] for t, n in _fails(conn, user["id"])] + [[time.time(), ip]]), user["id"]))
     conn.commit()
     return False

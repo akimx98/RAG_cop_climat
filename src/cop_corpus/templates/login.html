@@ -1,5 +1,12 @@
 {% extends "base.html" %}{% block title %}COP31 · {{ L('Connexion', 'Sign in') }}{% endblock %}{% block body %}
 <div class="center">
+{% if step == 'link' %}
+<form class="card" method="post" action="{{ link_path }}" style="padding:32px 28px;text-align:left">
+<h1 style="margin-bottom:10px">{{ L('Se connecter', 'Sign in') }}</h1>
+<p>{{ L('Ce lien de connexion vous a été envoyé par un administrateur. Il ne sert qu\'une fois et ouvre la page de votre compte, où vous choisirez un mot de passe.', 'This sign-in link was sent to you by an administrator. It works once and opens your account page, where you will choose a password.') }}</p>
+<p style="margin-top:18px"><button>{{ L('Continuer', 'Continue') }}</button></p>
+</form>
+{% else %}
 <form class="card" method="post" action="/signin" style="padding:32px 28px;text-align:left">
 <h1 style="margin-bottom:10px">{{ L('Se connecter', 'Sign in') }}</h1>
 <p class="muted" style="margin-top:0">COP Tracker · COP31 · Antalya, 9–20 {{ L('novembre', 'November') }} 2026</p>
@@ -27,5 +34,7 @@
 {% endif %}
 {% endif %}
 <p class="muted small" style="margin:16px 0 0">{{ L('Pas encore de compte ?', 'No account yet?') }} <a href="/?signup=1">{{ L('Créer un compte gratuit', 'Create a free account') }}</a>.</p>
-</form></div>
+</form>
+{% endif %}
+</div>
 {% endblock %}
