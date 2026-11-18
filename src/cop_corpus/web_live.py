@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
-from . import db, ingest, live, positions, search
+from . import db, ingest, live, positions, search, usage
 from .web import admin_required, login_required, render
 
 
@@ -41,6 +41,7 @@ async def dossier_page(request: Request):
     d = live.dossier(slug)
     if not d:
         return Response("Dossier inconnu", status_code=404)
+    usage.record("web", "page", "dossier", user, args={"dossier": slug})
     ts = live.texts(conn, slug)
     for t in ts:
         t["stage"] = live.text_stage(t)

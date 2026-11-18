@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block body %}
 <h1>Administration</h1>
-<p><a class="btn secondary" href="/admin/courrier">Courrier (lettres reçues sur veille@)</a> <a class="btn secondary" href="/admin/programme">Programme (relevé SEORS)</a></p>
+<p><a class="btn secondary" href="/admin/courrier">Courrier (lettres reçues sur veille@)</a> <a class="btn secondary" href="/admin/programme">Programme (relevé SEORS)</a> <a class="btn secondary" href="/admin/usage">Usage (statistiques)</a></p>
 {% if created %}<div class="banner">Accès pour <b>{{ created.email }}</b> (à transmettre par un canal sûr)<br>
 Lien de première connexion, valable 24 h, pour choisir un mot de passe : <code>{{ created.login }}</code><br>Connecteur MCP : <code>{{ created.mcp }}</code></div>{% endif %}
 {% if link %}<div class="banner">Lien de connexion pour <b>{{ link.email }}</b>, valable 24 h, caduc dès que le mot de passe change :<br><code>{{ link.url }}</code></div>{% endif %}

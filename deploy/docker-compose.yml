@@ -13,6 +13,12 @@ x-common: &common
     - ../data:/app/data
     - ../catalog:/app/catalog:ro
   restart: unless-stopped
+  # Journaux Docker bornés (sinon conservés sans limite) : 3 × 10 Mo par conteneur.
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
 
 services:
   app:

@@ -9,6 +9,10 @@
 <p class="muted" style="margin-top:0">{{ user.email }}</p>
 <p><label class="small" for="name">{{ L('Nom', 'Name') }}</label><input type="text" id="name" name="name" value="{{ user.name or '' }}" autocomplete="name"></p>
 <p><label class="small" for="org">{{ L('Organisation', 'Organisation') }}</label><input type="text" id="org" name="organisation" value="{{ user.organisation or '' }}" autocomplete="organization"></p>
+<p><label class="small" for="profil">{{ L('Vous êtes (facultatif)', 'You are (optional)') }}</label>
+<select id="profil" name="profil"><option value="">—</option>{% for k, fr, en in PROFILES %}<option value="{{ k }}"{% if user.profil == k %} selected{% endif %}>{{ L(fr, en) }}</option>{% endfor %}</select>
+<span class="small muted">{{ L('Sert seulement à savoir quels publics utilisent l\'outil (statistiques agrégées).', 'Only used to know which audiences use the tool (aggregate statistics).') }}</span></p>
+<p class="small"><label><input type="checkbox" name="usage_optout" value="1"{% if user.usage_optout %} checked{% endif %}> {{ L('Exclure mon activité des statistiques d\'usage', 'Exclude my activity from usage statistics') }}</label> · <a href="/confidentialite">{{ L('ce qui est mesuré', 'what is measured') }}</a></p>
 <p class="small">{{ L('Langue', 'Language') }} : <a href="/lang/en?next=/account" class="{{ 'muted' if lang != 'en' }}">English</a> · <a href="/lang/fr?next=/account" class="{{ 'muted' if lang != 'fr' }}">Français</a></p>
 <button>{{ L('Enregistrer', 'Save') }}</button>
 </form>

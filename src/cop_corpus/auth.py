@@ -304,7 +304,7 @@ def set_open_signup(conn: sqlite3.Connection, open_: bool | None = None, maximum
 
 
 def signup(conn: sqlite3.Connection, code: str, email: str, organisation: str = "", password: str = "",
-           client: str = "", lang: str | None = None) -> tuple[dict[str, Any] | None, str | None, str | None]:
+           client: str = "", lang: str | None = None, profil: str = "") -> tuple[dict[str, Any] | None, str | None, str | None]:
     """Compte invité → (utilisateur, jeton MCP, code d'erreur de SIGNUP_ERRORS).
 
     - avec un code d'invitation valable : e-mail (+ organisation), rien d'autre, connexion immédiate ;
@@ -336,9 +336,11 @@ def signup(conn: sqlite3.Connection, code: str, email: str, organisation: str = 
     if not invited:  # au plus ~ MAX_FAILURES inscriptions libres par IP et par quart d'heure
         _failures.setdefault(key, []).append(time.time())
     uid, token = create_user(conn, email, "", admin=False, restricted=False)
-    conn.execute("UPDATE users SET organisation=?, source=?, lang=? WHERE id=?",
+    from .usage import PROFILE_KEYS
+
+    conn.execute("UPDATE users SET organisation=?, source=?, lang=?, profil=? WHERE id=?",
                  (organisation or None, "invitation" if invited else "inscription",
-                  lang if lang in ("en", "fr") else None, uid))
+                  lang if lang in ("en", "fr") else None, profil if profil in PROFILE_KEYS else None, uid))
     conn.commit()
     if not invited:
         set_password(conn, uid, password)
@@ -360,11 +362,14 @@ def delete_guest(conn: sqlite3.Connection, user_id: int) -> bool:
         conn.execute("UPDATE documents SET uploaded_by=NULL WHERE uploaded_by=?", (user_id,))
         conn.execute("UPDATE mail_inbox SET user_id=NULL WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM login_codes WHERE user_id=?", (user_id,))
+        from . import usage
+
+        usage.forget_user(conn, user_id)
         # La ligne est vidée et désactivée, jamais supprimée : SQLite réattribuerait son identifiant au prochain
         # inscrit, et un ancien cookie de session (signé sur l'identifiant) ouvrirait alors le compte de quelqu'un d'autre.
         conn.execute("""UPDATE users SET email=NULL, name=NULL, organisation=NULL, token_hash=NULL, token_enc=NULL,
                         password_hash=NULL, telegram_chat_id=NULL, telegram_code=NULL, mail_code=NULL, active=0,
-                        source='supprime', lang=NULL, mcp_seen_at=NULL WHERE id=?""", (user_id,))
+                        source='supprime', lang=NULL, mcp_seen_at=NULL, profil=NULL WHERE id=?""", (user_id,))
     return True
 
 

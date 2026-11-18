@@ -50,6 +50,9 @@
 <input type="email" id="su-email" name="email" value="{{ (form or {}).get('email') or '' }}" autocomplete="username" required></p>
 <p><label class="small" for="su-org">{{ L('Organisation (facultatif)', 'Organisation (optional)') }}</label>
 <input type="text" id="su-org" name="organisation" value="{{ (form or {}).get('organisation') or '' }}" autocomplete="organization" placeholder="{{ L('ONG, délégation, média, université…', 'NGO, delegation, media, university…') }}"></p>
+<p><label class="small" for="su-profil">{{ L('Vous êtes (facultatif)', 'You are (optional)') }}</label>
+<select id="su-profil" name="profil"><option value="">—</option>{% for k, fr, en in PROFILES %}<option value="{{ k }}"{% if (form or {}).get('profil') == k %} selected{% endif %}>{{ L(fr, en) }}</option>{% endfor %}</select>
+<span class="small muted">{{ L('Sert seulement à savoir quels publics utilisent l\'outil (statistiques agrégées).', 'Only used to know which audiences use the tool (aggregate statistics).') }}</span></p>
 {% if not invite_code %}
 <p><label class="small" for="su-pw">{{ L('Mot de passe (10 caractères minimum)', 'Password (at least 10 characters)') }}</label>
 <input type="password" id="su-pw" name="password" autocomplete="new-password" minlength="10" required></p>
@@ -57,7 +60,7 @@
 <input type="password" id="su-pw2" name="password2" autocomplete="new-password" minlength="10" required></p>
 {% endif %}
 <p style="margin-top:16px"><button>{{ L('Créer mon compte', 'Create my account') }}</button></p>
-<p class="small muted" style="margin:0">{{ L('Gratuit. Votre e-mail sert uniquement à vous connecter et à vous envoyer ce que vous demandez ; il n\'est jamais partagé.', 'Free. Your e-mail is only used to sign you in and send what you ask for; it is never shared.') }}</p>
+<p class="small muted" style="margin:0">{{ L('Gratuit. Votre e-mail sert uniquement à vous connecter et à vous envoyer ce que vous demandez ; il n\'est jamais partagé.', 'Free. Your e-mail is only used to sign you in and send what you ask for; it is never shared.') }} <a href="/confidentialite">{{ L('Confidentialité', 'Privacy') }}</a></p>
 </form>
 {% else %}
 <p class="banner warn msg" data-error role="alert">{{ signup_error or '' }}</p>

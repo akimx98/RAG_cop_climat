@@ -149,8 +149,10 @@ def handle(conn, update: dict) -> None:
         else:
             send(chat_id, "/lang en · /lang fr")
         return
-    from . import live_bot
+    from . import live_bot, usage
 
+    usage.record("telegram", "command", cmd if cmd.startswith("/") else "(texte)", user,
+                 args={"texte": arg if cmd.startswith("/") else text}, lang=lang, conn=conn)
     if live_bot.handle(conn, chat_id, user, cmd, arg, send):
         return
     if cmd in ("/aide", "/help"):

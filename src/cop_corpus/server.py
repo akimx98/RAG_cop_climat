@@ -18,7 +18,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Mount
 
-from . import auth, db, web, web_live
+from . import auth, db, usage, web, web_live
 from .mcp_server import mcp
 
 USER_PATH = re.compile(r"^/u/([A-Za-z0-9_\-]{16,})(/mcp/?.*)$")
@@ -74,6 +74,8 @@ class TokenPathMiddleware:
                 scope["path"] = m.group(2).rstrip("/") or "/mcp"
                 scope["raw_path"] = scope["path"].encode()
                 scope["cop_user"] = user
+                await usage.track_mcp(self.app, scope, receive, send)
+                return
             elif path.rstrip("/") == "/mcp":
                 await JSONResponse(
                     {"error": "use your personal address /u/<token>/mcp (Connect an LLM page of the website)"},
@@ -103,4 +105,7 @@ def run(host: str = "127.0.0.1", port: int = 8000, with_worker: bool = False) ->
         from . import worker
 
         threading.Thread(target=worker.run_forever, kwargs={"bot": True, "watch": True}, daemon=True).start()
-    uvicorn.run(build_app(), host=host, port=port, proxy_headers=True, forwarded_allow_ips="*")
+    from .logs import uvicorn_log_config
+
+    uvicorn.run(build_app(), host=host, port=port, proxy_headers=True, forwarded_allow_ips="*",
+                log_config=uvicorn_log_config())

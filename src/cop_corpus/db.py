@@ -189,6 +189,8 @@ _COLUMNS = {
         "source": "TEXT",          # comptes invités : 'invitation' (lien/QR) ou 'inscription' (libre) ; NULL = créé par un admin
         "lang": "TEXT",            # 'en' | 'fr' choisi par l'utilisateur ; NULL = anglais
         "mcp_seen_at": "TEXT",     # dernier appel MCP (prise en main : « LLM connecté »), mis à jour au plus 1×/h
+        "usage_optout": "INTEGER",  # 1 = activité exclue des statistiques d'usage (droit d'opposition)
+        "profil": "TEXT",          # profil déclaré, facultatif (usage.PROFILES) : statistiques d'usage par public
     },
 }
 
