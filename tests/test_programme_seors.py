@@ -100,3 +100,26 @@ def test_bookmarklet_import_endpoint(env):
     client.cookies.set(web.COOKIE, auth.make_cookie(uid, days=1))
     page = client.get("/admin/programme")
     assert page.status_code == 200 and "Relevé SEORS → COP31" in page.text and "javascript:" in page.text
+
+
+def test_official_schedule_replaces_planner_meetings(env):
+    from cop_corpus import agenda, db
+
+    agenda.ensure_schema(env)
+    db.meta_set(env, "agenda_planner_built", "2026-11-09")
+    agenda._upsert(env, [dict(key="planner:cal:1", kind="reunion", days=[18], start="10:00", end="11:00", room="X",
+                              title="Old planner meeting", organisers=[], summary=None, speakers=None, topics=[],
+                              type=None, access=None, link=None, note=None)], "planner", "2026-11-09")
+    ev = lambda i, title, typ="Negotiations", day=18: {
+        "id": str(i), "title": title, "date": [{"value": f"2026-11-{day}T09:00:00", "end_value": f"2026-11-{day}T10:00:00"}],
+        "room": [{"value": "Meeting Room 19"}], "typeofevent": [typ], "access": [{"value": "0"}],
+        "body": ["Conference of the Parties (COP)"], "keywords": [], "topic": [], "maintextbody": [],
+        "haswebcast": [{"value": "0"}], "url": f"https://unfccc.int/event/{i}"}
+    events = [ev(i, f"CMA 4 Global stocktake - Informal consultation {i}") for i in range(90)] + \
+        [ev(100 + i, f"Side event {i}", "Side events") for i in range(30)] + [ev(200 + i, f"G77 coordination {i}", "Coordination meetings") for i in range(20)]
+    out = agenda.import_unfccc_schedule(env, {"releve": "2026-11-18T07:41:03Z", "events": events})
+    assert out["importes"] == 110 and out["consultations_informelles"] == 90           # side events laissés à SEORS
+    q = agenda.query(env, jour="18", sujet="informal", types=["reunion"])
+    assert q["total"] == 90 and q["evenements"][0]["source"].startswith("calendrier officiel")
+    assert not any(e["titre"] == "Old planner meeting" for e in agenda.query(env, jour="18", types=["reunion"], limit=500)["evenements"])
+    assert agenda._norm("Side Event Room 4 - Aşık Veysel") == agenda._norm("Side Event Room 4 - AŞIK VEYSEL")

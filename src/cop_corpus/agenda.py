@@ -71,7 +71,8 @@ def _days_field(days: list[int]) -> str:
 
 
 def _norm(s: str) -> str:
-    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower()
+    s = (s or "").replace("ı", "i").replace("İ", "I")  # turc : « Aşık » et « AŞIK » doivent se confondre
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
     return re.sub(r"\s+", " ", re.sub(r"\([^)]*\)|[^a-z0-9 ]", " ", s)).strip()
 
 
@@ -406,6 +407,68 @@ def import_seors(conn, payload: dict[str, Any]) -> dict[str, Any]:
             "salle_ou_horaire_change": changes, "absents_de_seors": gone}
 
 
+# --- calendrier officiel (unfccc.int/cop31/schedule, relevé dans un navigateur) ----------------------------
+
+UNFCCC_SCHEDULE_URL = "https://unfccc.int/cop31/schedule"
+
+
+def _html_text(html: str, limit: int = 600) -> str | None:
+    if not html:
+        return None
+    from bs4 import BeautifulSoup
+
+    text = re.sub(r"\s+", " ", BeautifulSoup(html, "lxml").get_text(" ")).strip()
+    return text[:limit] or None
+
+
+def import_unfccc_schedule(conn, payload: dict[str, Any]) -> dict[str, Any]:
+    """Calendrier officiel de la conférence (JSON du calendrier de unfccc.int/cop31/schedule, relevé dans le
+    navigateur d'un administrateur : la page est derrière un anti-bot). Réunions de négociation (dont les
+    consultations informelles par point de l'ordre du jour), coordinations de groupes, événements prévus par les
+    décisions, de la présidence, spéciaux, de l'Action climatique mondiale, conférences de presse. Les side events
+    viennent de SEORS (même liste). Remplace le relevé précédent ; tant qu'il existe, il remplace aussi les réunions
+    du planner (copie figée)."""
+    ensure_schema(conn)
+    rows = payload.get("events") or []
+    if len(rows) < 100:
+        raise ValueError(f"calendrier trop court ({len(rows)} événements) : rien importé")
+    events, by_type = [], {}
+    for r in rows:
+        types = r.get("typeofevent") or []
+        if "Side events" in types or not r.get("date"):
+            continue
+        start, end = r["date"][0].get("value") or "", r["date"][0].get("end_value") or ""
+        m = re.match(r"(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})", start)
+        if not m or (int(m.group(1)), int(m.group(2))) != (YEAR, MONTH):
+            continue
+        kind_type = types[0] if types else "autre"
+        by_type[kind_type] = by_type.get(kind_type, 0) + 1
+        access = (r.get("access") or [{}])[0].get("value")
+        topics = [t for t in (r.get("keywords") or []) + (r.get("topic") or []) if isinstance(t, str)]
+        events.append(dict(
+            key=f"unfccc:{r.get('id')}", kind="reunion", days=[int(m.group(3))], start=m.group(4),
+            end=end[11:16] or None, room=((r.get("room") or [{}])[0].get("value")), title=re.sub(r"\s+", " ", r.get("title") or "").strip(),
+            organisers=[b for b in (r.get("body") or []) if isinstance(b, str)], summary=_html_text(
+                ((r.get("maintextbody") or [{}])[0] or {}).get("value", "") if r.get("maintextbody") else ""),
+            speakers=None, topics=topics, type=kind_type,
+            access="accès restreint" if access == "1" else "réunion ouverte" if access == "0" else None,
+            link=r.get("url"), note=("retransmise" if (r.get("haswebcast") or [{}])[0].get("value") == "1" else None)))
+    at = payload.get("releve") or db.now()
+    with conn:
+        conn.execute("DELETE FROM agenda_events WHERE source='unfccc'")
+        _upsert(conn, events, "unfccc", at)
+    db.meta_set(conn, "agenda_unfccc_at", at)
+    informal = sum(1 for e in events if "informal" in e["title"].lower())
+    return {"importes": len(events), "par_type": by_type, "consultations_informelles": informal, "releve": at}
+
+
+def _reunion_source(conn) -> str:
+    """Le calendrier officiel relevé l'emporte sur la copie du planner s'il est postérieur à sa construction."""
+    official = db.meta_get(conn, "agenda_unfccc_at") or ""
+    built = db.meta_get(conn, "agenda_planner_built") or ""
+    return "unfccc" if official and official[:10] >= built[:10] else "planner"
+
+
 # --- interrogation -------------------------------------------------------------------------------------
 
 def resolve_day(jour: str | int | None, today: date | None = None) -> int | None:
@@ -447,8 +510,9 @@ def query(conn, jour: str | int | None = None, sujet: str | None = None, types: 
     day = resolve_day(jour, today)
     kinds = [k for k in (types or ["side_event", "reunion"]) if k in KINDS] or list(KINDS)
     se_source = _side_event_source(conn)
-    where = [f"kind IN ({','.join('?' * len(kinds))})", "(kind!='side_event' OR source=?)"]
-    params: list[Any] = [*kinds, se_source]
+    re_source = _reunion_source(conn)
+    where = [f"kind IN ({','.join('?' * len(kinds))})", "(kind!='side_event' OR source=?)", "(kind!='reunion' OR source=?)"]
+    params: list[Any] = [*kinds, se_source, re_source]
     if day:
         where.append("days LIKE ?")
         params.append(f"%,{day},%")
@@ -471,7 +535,8 @@ def query(conn, jour: str | int | None = None, sujet: str | None = None, types: 
             "organisateurs": json.loads(r["organisers"] or "[]") or None,
             "themes": json.loads(r["topics"] or "[]") or None,
             "resume": (r["summary"] or "")[:400] or None, "acces": r["access"], "remarque": r["note"],
-            "lien": r["link"], "source": {"seors": "SEORS (CCNUCC)", "planner": "COP31 Schedule Planner"}[r["source"]],
+            "lien": r["link"], "source": {"seors": "SEORS (CCNUCC)", "planner": "COP31 Schedule Planner",
+                                          "unfccc": "calendrier officiel CCNUCC (unfccc.int/cop31/schedule)"}[r["source"]],
             "releve_le": r["fetched_at"],
         }.items() if v not in (None, "", [])})
     out: dict[str, Any] = {"jour": iso_day(day) if day else None, "evenements": out_rows, "total": total}
@@ -488,8 +553,12 @@ def query(conn, jour: str | int | None = None, sujet: str | None = None, types: 
         f"({seors_link(day)})"
         + (f", relevé importé le {seors_at}" if se_source == "seors" else f" ; ici copie du planner du {built or '?'}")
         + ". Réunions officielles : écrans du site, Daily Programme ou plateforme COP31 (connexion requise, "
-        f"{PLATFORM_URL}). Les consultations informelles par point de l'ordre du jour ne figurent dans aucune de "
-        "ces listes : seul le Daily Programme les donne.")
+        f"{PLATFORM_URL})."
+        + (f" Réunions : calendrier officiel relevé le {db.meta_get(conn, 'agenda_unfccc_at')} (dont consultations "
+           "informelles ; horaires ajoutés en continu, à vérifier sur " + UNFCCC_SCHEDULE_URL + ")."
+           if re_source == "unfccc" else
+           " Les consultations informelles par point de l'ordre du jour ne figurent pas dans le planner : "
+           "calendrier officiel " + UNFCCC_SCHEDULE_URL + " ou Daily Programme."))
     st = seors_status(conn)
     if se_source == "planner" or (st["age_heures"] or 0) > 24:
         out["avertissement"] = (
