@@ -1,6 +1,11 @@
 {% extends "base.html" %}{% block title %}{{ L('Mon profil', 'My profile') }} · COP Tracker{% endblock %}{% block body %}
 <h1>{{ L('Mon profil', 'My profile') }}</h1>
-{% if done %}<p class="banner">✓ {{ {'profile': L('Profil enregistré.', 'Profile saved.'), 'password': L('Mot de passe enregistré.', 'Password saved.'), 'telegram': L('Telegram n\'est plus relié.', 'Telegram is no longer linked.')}[done] }}</p>{% endif %}
+{% if done %}<p class="banner">✓ {{ {'profile': L('Profil enregistré.', 'Profile saved.'), 'password': L('Mot de passe enregistré.', 'Password saved.'), 'telegram': L('Telegram n\'est plus relié.', 'Telegram is no longer linked.'), 'logout_all': L('Tous vos autres appareils sont déconnectés.', 'All your other devices are signed out.'), 'secure_all': L('Compte sécurisé : autres appareils déconnectés, Telegram délié, nouvelle adresse de connecteur LLM (à mettre à jour dans votre LLM).', 'Account secured: other devices signed out, Telegram unlinked, new LLM connector address (update it in your LLM).')}[done] }}</p>{% endif %}
+{% if first %}<form class="banner" method="post" style="margin-bottom:18px">
+<input type="hidden" name="action" value="secure_all">
+<p style="margin:0 0 8px">✓ {{ L('Adresse e-mail confirmée.', 'E-mail address confirmed.') }} {{ L('Vous n\'avez pas créé ce compte vous-même, ou vous ne reconnaissez pas un appareil ou un Telegram relié ? Reprenez la main en un clic.', 'Did you not create this account yourself, or do you not recognise a device or a linked Telegram? Take it back in one click.') }}</p>
+<button class="secondary">{{ L('Ce n\'est pas moi : tout sécuriser', 'Not me: secure everything') }}</button>
+</form>{% endif %}
 <div class="grid">
 <div>
 <form class="card" method="post">
@@ -20,7 +25,7 @@
 <form class="card" method="post">
 <h2>{{ L('Changer de mot de passe', 'Change password') if user.password_hash else L('Choisir un mot de passe', 'Choose a password') }}</h2>
 <input type="hidden" name="action" value="password">
-{% if forgot %}<p class="banner">{{ L('Vous êtes connecté avec le code. Choisissez un nouveau mot de passe ci-dessous.', 'You are signed in with the code. Choose a new password below.') }}</p>{% endif %}
+{% if forgot %}<p class="banner">{{ L('Vous êtes connecté avec le code, et vos autres appareils ont été déconnectés. Choisissez un nouveau mot de passe ci-dessous.', 'You are signed in with the code, and your other devices were signed out. Choose a new password below.') }}{% if renewed %} {{ L('Par sécurité, l\'adresse de votre connecteur LLM a aussi été renouvelée : mettez-la à jour dans votre LLM.', 'For safety, your LLM connector address was also renewed: update it in your LLM.') }}{% endif %}</p>{% endif %}
 {% if not user.password_hash %}<p class="small muted" style="margin-top:0">{{ L("Facultatif. Sans mot de passe, vous vous connectez sur un autre appareil avec un code reçu par e-mail.", 'Optional. Without a password, you sign in on another device with a code sent by e-mail.') }}</p>{% endif %}
 {% if error in ['short', 'mismatch'] %}<p class="banner warn">{% if error == 'short' %}{{ L('Au moins {min} caractères.', 'At least {min} characters.').replace('{min}', min|string) }}{% else %}{{ L('Les deux saisies ne correspondent pas.', 'The two entries do not match.') }}{% endif %}</p>{% endif %}
 <input type="email" name="email" value="{{ user.email }}" autocomplete="username" hidden>
@@ -53,6 +58,13 @@
 <p style="margin:0">{{ L('Quelqu\'un pourrait s\'en servir ? Montrez-lui', 'Someone could use it? Show them') }} <a href="/inviter">{{ L('ce QR code', 'this QR code') }}</a>.</p>
 </div>
 {% endif %}
+
+<form class="card" method="post">
+<h2>{{ L('Sécurité', 'Security') }}</h2>
+<input type="hidden" name="action" value="logout_all">
+<p style="margin-top:0" class="small">{{ L('Un téléphone perdu, un ordinateur partagé ? Déconnectez tous les autres appareils (votre connecteur LLM n\'est pas touché).', 'Lost phone, shared computer? Sign out every other device (your LLM connector is not affected).') }}</p>
+<button class="secondary">{{ L('Déconnecter mes autres appareils', 'Sign out my other devices') }}</button>
+</form>
 
 <form class="card" method="post">
 <h2>{{ L('Supprimer mon compte', 'Delete my account') }}</h2>

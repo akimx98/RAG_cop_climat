@@ -189,8 +189,14 @@ _COLUMNS = {
         "source": "TEXT",          # comptes invités : 'invitation' (lien/QR) ou 'inscription' (libre) ; NULL = créé par un admin
         "lang": "TEXT",            # 'en' | 'fr' choisi par l'utilisateur ; NULL = anglais
         "mcp_seen_at": "TEXT",     # dernier appel MCP (prise en main : « LLM connecté »), mis à jour au plus 1×/h
+        "session_epoch": "INTEGER DEFAULT 0",  # +1 = toutes les sessions du compte sont fermées
+        "email_verified_at": "TEXT",           # adresse prouvée (code e-mail, lien admin) ; NULL = pas encore
+        "telegram_trusted": "INTEGER",         # 1 = Telegram relié après preuve de l'adresse : peut recevoir les codes
         "usage_optout": "INTEGER",  # 1 = activité exclue des statistiques d'usage (droit d'opposition)
         "profil": "TEXT",          # profil déclaré, facultatif (usage.PROFILES) : statistiques d'usage par public
+    },
+    "login_codes": {
+        "fail_log": "TEXT",        # JSON : horodatages des codes faux (plafond par compte et par 24 h)
     },
 }
 
@@ -205,6 +211,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     conn.commit()
+    # Une fois (rejouable tant que le drapeau n'est pas posé) : les comptes d'avant la vérification d'adresse sont
+    # considérés comme prouvés, et leur Telegram déjà relié reste digne de recevoir les codes (rien ne change pour eux).
+    flag = conn.execute("SELECT value FROM meta WHERE key='auth_backfill_v1'").fetchone()
+    if not flag:
+        with conn:
+            conn.execute("UPDATE users SET email_verified_at=COALESCE(created_at, 'avant') "
+                         "WHERE email IS NOT NULL AND email_verified_at IS NULL")
+            conn.execute("UPDATE users SET telegram_trusted=1 WHERE telegram_chat_id IS NOT NULL")
+            conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('auth_backfill_v1', ?)", (now(),))
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:

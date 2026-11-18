@@ -107,7 +107,9 @@ def handle(conn, update: dict) -> None:
         if code:
             row = conn.execute("SELECT * FROM users WHERE telegram_code=? AND active=1", (code,)).fetchone()
             if row:
-                conn.execute("UPDATE users SET telegram_chat_id=? WHERE id=?", (str(chat_id), row["id"]))
+                # Relié avant que l'adresse ne soit prouvée : alertes oui, codes de connexion non (telegram_trusted).
+                conn.execute("UPDATE users SET telegram_chat_id=?, telegram_trusted=? WHERE id=?",
+                             (str(chat_id), 1 if row["email_verified_at"] else 0, row["id"]))
                 conn.commit()
                 send(chat_id, f"✅ {html.escape(row['name'] or row['email'])}\n\n{help_for(dict(row))}")
                 return

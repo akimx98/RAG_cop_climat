@@ -92,6 +92,7 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx["here"] = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     ctx["SOURCE_URL"] = config.SOURCE_URL
     ctx["PROFILES"] = usage.PROFILES
+    ctx["PASSWORD_MIN"] = auth.PASSWORD_MIN
     if not ctx["user"] and "open_signup" not in ctx:
         try:
             o = auth.open_signup_settings(db.get())
@@ -119,10 +120,30 @@ async def set_lang(request: Request):
 
 
 def current_user(request: Request) -> dict | None:
-    uid = auth.read_cookie(request.cookies.get(COOKIE))
-    if uid:
-        return auth.by_id(db.get(), uid)
-    return None
+    return auth.user_from_cookie(db.get(), request.cookies.get(COOKIE))
+
+
+SIGNIN_PER_IP = 500   # échecs et envois de code par réseau et par quart d'heure (seuil large : Wi-Fi de la COP) ;
+                      # les connexions réussies ne comptent pas, les vraies limites sont par compte
+
+
+def _same_origin(request: Request) -> bool:
+    """Formulaires de connexion, d'inscription et de compte : refusés s'ils sont envoyés depuis un autre site
+    (connexion forcée au compte de quelqu'un d'autre). Sans en-tête Origin (anciens navigateurs, tests) : accepté."""
+    fetch_site = request.headers.get("sec-fetch-site")
+    if fetch_site:   # navigateurs récents : leur verdict suffit (« none » = adresse tapée, favori)
+        return fetch_site in ("same-origin", "none")
+    origin = (request.headers.get("origin") or "").rstrip("/")
+    if not origin or origin == "null":   # Referrer-Policy: no-referrer → Origin « null » sur nos propres formulaires
+        return True
+    return origin in (config.PUBLIC_BASE, f"{request.url.scheme}://{request.url.netloc}")
+
+
+def _forbidden(request: Request) -> Response:
+    if _wants_json(request):
+        return JSONResponse({"error": i18n.pick(lang_of(request), "Requête refusée : rechargez la page.",
+                                                "Request refused: reload the page.")}, status_code=403)
+    return Response("Forbidden", status_code=403)
 
 
 def _next_url(request: Request) -> str:
@@ -158,7 +179,8 @@ def _session(resp: Response, user: dict, token: str | None = None) -> Response:
     """Session : un an pour un invité (documents publics seulement, sur son téléphone), 30 jours sinon."""
     secure = config.PUBLIC_BASE.startswith("https")
     days = 365 if auth.is_guest(user) else 30
-    resp.set_cookie(COOKIE, auth.make_cookie(user["id"], days=days), max_age=days * 86400, httponly=True, secure=secure,
+    resp.set_cookie(COOKIE, auth.make_cookie(user["id"], days=days, epoch=user.get("session_epoch") or 0),
+                    max_age=days * 86400, httponly=True, secure=secure,
                     samesite="lax")
     if token:
         resp.set_cookie(TOKEN_COOKIE, token, max_age=days * 86400, httponly=True, secure=secure, samesite="strict")
@@ -189,7 +211,9 @@ def _send_login_code(user: dict, code: str) -> tuple[bool, bool]:
             if en else
             f"Votre code de connexion : {code}\n\nValable {auth.CODE_MINUTES} minutes. Si vous ne l'avez pas demandé, ignorez cet e-mail.\n\n{config.PUBLIC_BASE}/")
     mailed = mailout.send(user["email"], subject, text, idempotency_key=f"login-code/{user['id']}/{auth._code_hash(user['id'], code)[:16]}")
-    tg = bool(user.get("telegram_chat_id")) and telegram.send(
+    # Telegram seulement si l'adresse est prouvée : sinon, qui a créé le compte avec l'adresse de quelqu'un d'autre
+    # recevrait les codes de connexion sur son propre Telegram.
+    tg = bool(user.get("telegram_chat_id")) and bool(user.get("telegram_trusted")) and telegram.send(
         user["telegram_chat_id"], (f"🔑 Sign-in code: <b>{code}</b> (valid {auth.CODE_MINUTES} min)" if en
                                    else f"🔑 Code de connexion : <b>{code}</b> (valable {auth.CODE_MINUTES} min)"))
     return mailed, tg
@@ -216,18 +240,26 @@ def _go(request: Request, url: str, user: dict | None = None, token: str | None 
 
 
 async def login_form(request: Request):
-    """Connexion en deux temps : l'e-mail, puis le mot de passe si le compte en a un, sinon un code à 6 chiffres
-    envoyé par e-mail (et par Telegram si le compte est relié). Mot de passe oublié : le même code, puis la page
-    Compte pour en choisir un nouveau. Utilisée par la fenêtre de connexion (JSON) et par la page /signin."""
+    """Connexion en deux temps, pour tous les comptes :
+    1. l'e-mail ;
+    2. le mot de passe si le compte en a un (inscription libre, ou choisi ensuite), sinon un code à 6 chiffres envoyé
+       par e-mail (comptes invités par lien ou QR code, sans mot de passe) — et par Telegram si l'adresse est prouvée.
+    Mot de passe oublié : le même code ; toutes les autres sessions sont alors fermées, puis la page Compte propose
+    un nouveau mot de passe. La fenêtre de connexion (JSON) et la page /signin (sans JavaScript) passent ici."""
     if request.method == "GET":
         if current_user(request):
             return RedirectResponse("/", status_code=303)
         return render(request, "login.html", user=None, step="email", email=request.query_params.get("email", ""),
                       next=_safe_next(request.query_params.get("next")))
+    if not _same_origin(request):
+        return _forbidden(request)
     conn = db.get()
     form = await request.form()
-    email = (form.get("email") or "").strip()
+    email = (form.get("email") or "").strip().lower()
     nxt = _safe_next(form.get("next"))
+    action = form.get("action") or ""
+    code_in = (form.get("code") or "").strip()
+    ip = auth.ip_key(_client(request))
     T = lambda fr, en: i18n.pick(lang_of(request), fr, en)  # noqa: E731
 
     def page(step, **kw):
@@ -235,29 +267,75 @@ async def login_form(request: Request):
             return JSONResponse({"step": step, "email": email, **{k: v for k, v in kw.items() if v}})
         return render(request, "login.html", user=None, step=step, email=email, next=nxt, **kw)
 
-    if form.get("password"):
-        user = auth.check_password(conn, email, form.get("password") or "", _client(request))
-        if not user:
-            return page("password", error=T("E-mail ou mot de passe incorrect (ou trop d'essais : réessayez dans 15 minutes).",
-                                            "Incorrect e-mail or password (or too many attempts: try again in 15 minutes)."))
-        return _go(request, nxt, user)
-
+    # Garde-fou par adresse IP sur toute la connexion (énumération, rafales de codes) ; seuil large : Wi-Fi partagé.
+    net = f"signin|{ip}"
+    if auth.throttled(net, limit=SIGNIN_PER_IP):
+        return page("email", error=T("Trop de tentatives depuis ce réseau : réessayez dans quelques minutes.",
+                                     "Too many attempts from this network: try again in a few minutes."))
+    if not email:
+        return page("email", error=T("Indiquez votre e-mail.", "Enter your e-mail.") if (form.get("password") or action
+                                                                                        or "code" in form) else None)
     user = auth.by_email(conn, email)
-    if form.get("code") is not None and form.get("action") != "resend":
-        key = f"code|{email.lower()}|{_client(request)}"
-        if auth.throttled(key) or not auth.check_login_code(conn, user, form.get("code") or ""):
-            auth._failures.setdefault(key, []).append(__import__("time").time())
-            return page("code", error=T("Code incorrect ou expiré.", "Wrong or expired code."))
-        if user.get("password_hash"):  # mot de passe oublié : on propose d'en choisir un nouveau
-            return _go(request, "/account?forgot=1", user)
-        return _go(request, nxt, user)
-
     if not user:
+        auth.hit(net)
+        if auth.disabled_email(conn, email):
+            return page("email", error=T("Ce compte est désactivé : écrivez-nous (page Contact).",
+                                         "This account is disabled: write to us (Contact page)."))
         return page("email", error=T("Aucun compte avec cet e-mail : créez-en un (onglet « Créer un compte »).",
                                      "No account with this e-mail: create one (Create account tab)."))
-    if user.get("password_hash") and form.get("action") not in ("forgot", "resend"):
+
+    # Étape mot de passe
+    if form.get("password") and action not in ("forgot", "resend"):
+        if not user.get("password_hash"):
+            action = "code"   # compte sans mot de passe (invitation) : on envoie un code au lieu d'un refus
+        else:
+            if auth.throttled(f"{email}|{ip}"):
+                return page("password", error=T("Trop d'essais : réessayez dans 15 minutes, ou « Mot de passe oublié ? ».",
+                                                "Too many attempts: try again in 15 minutes, or use “Forgot password?”."))
+            ok = auth.check_password(conn, email, form.get("password") or "", ip)
+            if not ok:
+                auth.hit(net)
+                return page("password", error=T("Mot de passe incorrect. Oublié ? Recevez un code par e-mail.",
+                                                "Wrong password. Forgotten it? Get a code by e-mail."))
+            return _go(request, nxt, ok)
+
+    # Étape code (un code vide n'est pas un essai : « Renvoyer » sans e.submitter, ou Entrée par erreur)
+    if code_in and action not in ("resend", "forgot"):
+        was_verified = bool(user.get("email_verified_at"))   # avant que le bon code ne la prouve
+        if auth.throttled(f"code|{email}|{ip}") or not auth.check_login_code(conn, user, code_in, ip):
+            auth.hit(f"code|{email}|{ip}")
+            auth.hit(net)
+            if auth.code_locked(conn, user, ip):
+                return page("code", error=T("Trop de codes faux aujourd'hui depuis ce réseau : réessayez demain, "
+                                            "depuis un autre réseau, ou écrivez-nous.",
+                                            "Too many wrong codes today from this network: try again tomorrow, "
+                                            "from another network, or write to us."))
+            return page("code", error=T("Code incorrect ou expiré.", "Wrong or expired code."))
+        user = auth.by_id(conn, user["id"])
+        if user.get("password_hash"):   # mot de passe oublié : les autres appareils sont déconnectés
+            info = auth.secure_after_reset(conn, user, was_verified)
+            user = auth.by_id(conn, user["id"])
+            return _go(request, "/account?forgot=1" + ("&renewed=1" if info["mcp"] else ""), user)
+        if not was_verified:   # première preuve de l'adresse : le profil propose « ce n'est pas moi : tout sécuriser »
+            return _go(request, "/account?first=1", user)
+        return _go(request, nxt, user)
+    if "code" in form and not code_in and action not in ("resend", "forgot"):
+        return page("code", error=T("Saisissez le code à 6 chiffres reçu par e-mail.", "Enter the 6-digit code sent by e-mail."))
+
+    if user.get("password_hash") and action not in ("forgot", "resend", "code"):
         return page("password")
-    code, why = auth.issue_login_code(conn, user)
+
+    # Envoi d'un code : compte sans mot de passe, « Mot de passe oublié ? » ou « Renvoyer le code »
+    code, why = auth.issue_login_code(conn, user, ip)
+    auth.hit(net)
+    if why == "locked":
+        return page("code", error=T("Trop de codes faux aujourd'hui depuis ce réseau : réessayez demain, depuis un "
+                                    "autre réseau, ou écrivez-nous.",
+                                    "Too many wrong codes today from this network: try again tomorrow, from another "
+                                    "network, or write to us."))
+    if why == "day":
+        return page("code", error=T("Trop de codes envoyés aujourd'hui : utilisez le dernier reçu, ou écrivez-nous.",
+                                    "Too many codes sent today: use the last one you received, or write to us."))
     if why:
         return page("code", error=T("Un code vient d'être envoyé : patientez une minute avant d'en demander un autre.",
                                     "A code was just sent: wait a minute before asking for another one."))
@@ -265,19 +343,29 @@ async def login_form(request: Request):
 
     mailed, tg = await run_in_threadpool(_send_login_code, user, code)
     if not (mailed or tg):
-        return page("email", error=T("L'envoi de code n'est pas encore disponible : écrivez-nous (page Contact).",
-                                     "Sign-in codes can't be sent yet: write to us (Contact page)."))
+        auth.cancel_login_code(conn, user)
+        return page("email", error=T("Le code n'a pas pu être envoyé : réessayez dans un instant, ou écrivez-nous (page Contact).",
+                                     "The code could not be sent: try again in a moment, or write to us (Contact page)."))
     where = " + ".join(x for x in (T("par e-mail", "by e-mail") if mailed else "", "Telegram" if tg else "") if x)
     return page("code", sent=where)
 
 
 async def login_link(request: Request):
-    """Lien de connexion signé, 24 h, généré par un administrateur (mot de passe oublié)."""
-    user = auth.by_login_link(db.get(), request.path_params["value"])
+    """Lien de connexion signé, 24 h, à usage unique, généré par un administrateur. GET affiche un bouton ; seul le
+    POST consomme le lien (les antivirus de messagerie ouvrent les liens avant la personne)."""
+    value = request.path_params["value"]
+    lang = lang_of(request)
+    expired = i18n.pick(lang, "Lien expiré ou déjà utilisé. Demandez-en un nouveau, ou connectez-vous avec un code reçu par e-mail.",
+                        "Link expired or already used. Ask for a new one, or sign in with a code sent by e-mail.")
+    if request.method == "GET":
+        if not auth.login_link_valid(db.get(), value):
+            return render(request, "login.html", user=None, error=expired)
+        return render(request, "login.html", user=None, step="link", link_path=request.url.path)
+    if not _same_origin(request):
+        return _forbidden(request)
+    user = auth.by_login_link(db.get(), value)
     if not user:
-        return render(request, "login.html", user=None,
-                      error=i18n.pick(lang_of(request), "Lien expiré ou déjà utilisé (le mot de passe a changé depuis). Demandez-en un nouveau.",
-                                     "Link expired or already used (the password has changed since). Ask for a new one."))
+        return render(request, "login.html", user=None, error=expired)
     return _session(RedirectResponse("/account", status_code=303), user)
 
 
@@ -296,8 +384,11 @@ async def join(request: Request):
         if code and not auth.invite_valid(conn, code):
             return await _landing(request, None, signup_error=i18n.pick(lang, *auth.SIGNUP_ERRORS["bad_code"]))
         return await _landing(request, None, invite_code=code if code else "", open_modal="signup")
+    if not _same_origin(request):
+        return _forbidden(request)
     form = await request.form()
     code = (form.get("code") or code).strip().lower()
+    invite_key = f"invite|{auth.ip_key(_client(request))}"
 
     async def fail(err: str):
         msg = i18n.pick(lang, *auth.SIGNUP_ERRORS[err])
@@ -308,12 +399,15 @@ async def join(request: Request):
                               signup_error=msg, form=form)
 
     if form.get("check_code"):  # saisie manuelle d'un code d'invitation
+        if auth.throttled(invite_key):
+            return await fail("throttled")
         if not auth.invite_valid(conn, code):
+            auth.hit(invite_key)
             return await fail("bad_code")
         return _go(request, f"/join/{code}")
-    if form.get("website"):  # champ piège invisible : rempli seulement par les robots
-        return await fail("bad_email")
-    if not code and form.get("password") != form.get("password2"):
+    if form.get("hp_x7"):  # champ piège invisible (nom que les navigateurs ne remplissent pas d'eux-mêmes)
+        return await fail("robot")
+    if not code and form.get("password2") is not None and form.get("password") != form.get("password2"):
         return await fail("mismatch")
     user, token, error = auth.signup(conn, code, form.get("email") or "", form.get("organisation") or "",
                                      "" if code else (form.get("password") or ""), _client(request), lang=lang,
@@ -613,6 +707,8 @@ async def account_page(request: Request):
     if request.method == "POST":
         form = await request.form()
         action = form.get("action") or "password"
+        if not _same_origin(request):
+            return _forbidden(request)
         if action == "profile":
             profil = form.get("profil") if form.get("profil") in usage.PROFILE_KEYS else None
             conn.execute("UPDATE users SET name=?, organisation=?, profil=?, usage_optout=? WHERE id=?",
@@ -626,7 +722,7 @@ async def account_page(request: Request):
             import secrets
 
             # nouveau code : l'ancien (affiché dans le lien t.me) ne doit plus pouvoir relier un autre téléphone
-            conn.execute("UPDATE users SET telegram_chat_id=NULL, telegram_code=? WHERE id=?",
+            conn.execute("UPDATE users SET telegram_chat_id=NULL, telegram_trusted=NULL, telegram_code=? WHERE id=?",
                          (secrets.token_hex(4), user["id"]))
             conn.commit()
             done = "telegram"
@@ -634,7 +730,7 @@ async def account_page(request: Request):
             if (form.get("confirm") or "").strip().lower() in ("delete", "supprimer") and auth.delete_guest(conn, user["id"]):
                 return await logout(request)
             error = "delete"
-        else:
+        elif action == "password":
             pw, pw2 = form.get("password") or "", form.get("password2") or ""
             if len(pw) < auth.PASSWORD_MIN:
                 error = "short"
@@ -642,11 +738,25 @@ async def account_page(request: Request):
                 error = "mismatch"
             else:
                 auth.set_password(conn, user["id"], pw)
+                auth.end_sessions(conn, user["id"])   # les autres appareils sont déconnectés, pas celui-ci
                 done = "password"
+        if action == "logout_all":
+            auth.end_sessions(conn, user["id"])
+            done = "logout_all"
+        elif action == "secure_all":
+            auth.secure_all(conn, user)
+            done = "secure_all"
         user = auth.by_id(conn, user["id"])
         request.state.user = user
+        if done in ("password", "logout_all", "secure_all"):
+            resp = render(request, "account.html", user=user, error=error, done=done, min=auth.PASSWORD_MIN, forgot=False,
+                          guest=auth.is_guest(user), token=_token_for(request, conn, user),
+                          invite=auth.invite_settings(conn))
+            return _session(resp, user)
     return render(request, "account.html", user=user, error=error, done=done, min=auth.PASSWORD_MIN,
-                  forgot=request.query_params.get("forgot") == "1" and not done, guest=auth.is_guest(user),
+                  forgot=request.query_params.get("forgot") == "1" and not done,
+                  renewed=request.query_params.get("renewed") == "1" and not done,
+                  first=request.query_params.get("first") == "1" and not done, guest=auth.is_guest(user),
                   token=_token_for(request, conn, user), invite=auth.invite_settings(conn))
 
 
@@ -868,7 +978,7 @@ async def admin_page(request: Request):
                 uid, token = existing["id"], auth.mcp_token(existing)
             else:
                 uid, token = auth.create_user(conn, email, (form.get("name") or "").strip(),
-                                              admin=bool(form.get("admin")), restricted=not form.get("public_only"))
+                                              admin=bool(form.get("admin")), restricted=not form.get("public_only"), verified=True)
             created = {"email": email, "login": auth.login_link(auth.by_id(conn, uid)),
                        "mcp": f"{config.PUBLIC_BASE}/u/{token}/mcp" if token else "inchangée (visible sur sa page Connecteur)"}
     users = conn.execute("SELECT id,email,name,organisation,source,is_admin,can_restricted,"
@@ -1188,7 +1298,7 @@ routes = [
     Route("/account", account_page, methods=["GET", "POST"]),
     Route("/signin", login_form, methods=["GET", "POST"]),
     Route("/connexion", login_form, methods=["GET", "POST"]),
-    Route("/entrer/{value}", login_link),
+    Route("/entrer/{value}", login_link, methods=["GET", "POST"]),
     Route("/login/{token}", login),
     Route("/lang/{code}", set_lang),
     Route("/join", join, methods=["GET", "POST"]),

@@ -89,7 +89,8 @@ def cmd_sources(args) -> None:
 
 def cmd_user_add(args) -> None:
     conn = db.get()
-    uid, token = auth.create_user(conn, args.email, args.name or "", admin=args.admin, restricted=not args.public_only)
+    uid, token = auth.create_user(conn, args.email, args.name or "", admin=args.admin, restricted=not args.public_only,
+                                 verified=True)
     user = auth.by_id(conn, uid)
     _print({
         "id": uid,

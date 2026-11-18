@@ -21,7 +21,8 @@
 <div data-step="password" hidden>
 <p class="small muted"><span data-who></span> · <a href="#" data-restart>{{ L('changer', 'change') }}</a></p>
 <p><label class="small" for="si-password">{{ L('Mot de passe', 'Password') }}</label>
-<input type="password" id="si-password" name="password" autocomplete="current-password" disabled></p>
+<span class="row" style="flex-wrap:nowrap"><input type="password" id="si-password" name="password" autocomplete="current-password" disabled>
+<button type="button" class="secondary" data-reveal="#si-password">{{ L('Afficher', 'Show') }}</button></span></p>
 </div>
 <div data-step="code" hidden>
 <p class="small muted"><span data-who></span> · <a href="#" data-restart>{{ L('changer', 'change') }}</a></p>
@@ -44,7 +45,7 @@
 <input type="hidden" name="code" value="{{ invite_code }}">
 <input type="hidden" name="next" value="{{ next or '/' }}">
 <p class="banner warn msg" data-error role="alert">{{ signup_error or '' }}</p>
-<div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+<div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="hp_x7" tabindex="-1" autocomplete="off"></div>
 {% if invite_code %}<p class="banner">{{ L('Invitation reçue : pas de mot de passe, vous êtes connecté tout de suite.', 'You were invited: no password needed, you are signed in straight away.') }}</p>{% endif %}
 <p><label class="small" for="su-email">E-mail</label>
 <input type="email" id="su-email" name="email" value="{{ (form or {}).get('email') or '' }}" autocomplete="username" required></p>
@@ -54,10 +55,9 @@
 <select id="su-profil" name="profil"><option value="">—</option>{% for k, fr, en in PROFILES %}<option value="{{ k }}"{% if (form or {}).get('profil') == k %} selected{% endif %}>{{ L(fr, en) }}</option>{% endfor %}</select>
 <span class="small muted">{{ L('Sert seulement à savoir quels publics utilisent l\'outil (statistiques agrégées).', 'Only used to know which audiences use the tool (aggregate statistics).') }}</span></p>
 {% if not invite_code %}
-<p><label class="small" for="su-pw">{{ L('Mot de passe (10 caractères minimum)', 'Password (at least 10 characters)') }}</label>
-<input type="password" id="su-pw" name="password" autocomplete="new-password" minlength="10" required></p>
-<p><label class="small" for="su-pw2">{{ L('Confirmer', 'Confirm') }}</label>
-<input type="password" id="su-pw2" name="password2" autocomplete="new-password" minlength="10" required></p>
+<p><label class="small" for="su-pw">{{ L('Mot de passe (%d caractères minimum)' % PASSWORD_MIN, 'Password (at least %d characters)' % PASSWORD_MIN) }}</label>
+<span class="row" style="flex-wrap:nowrap"><input type="password" id="su-pw" name="password" autocomplete="new-password" minlength="{{ PASSWORD_MIN }}" required>
+<button type="button" class="secondary" data-reveal="#su-pw">{{ L('Afficher', 'Show') }}</button></span></p>
 {% endif %}
 <p style="margin-top:16px"><button>{{ L('Créer mon compte', 'Create my account') }}</button></p>
 <p class="small muted" style="margin:0">{{ L('Gratuit. Votre e-mail sert uniquement à vous connecter et à vous envoyer ce que vous demandez ; il n\'est jamais partagé.', 'Free. Your e-mail is only used to sign you in and send what you ask for; it is never shared.') }} <a href="/confidentialite">{{ L('Confidentialité', 'Privacy') }}</a></p>
@@ -90,9 +90,11 @@ dlg.querySelector('[data-close]').addEventListener('click',()=>dlg.close());
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
 // Étapes de la connexion : e-mail → mot de passe ou code.
 const si=dlg.querySelector('form[data-ajax=signin]');
-function step(name,data){si.querySelectorAll('[data-step]').forEach(d=>{const on=d.dataset.step===name;d.hidden=!on;d.querySelectorAll('input').forEach(i=>{i.disabled=!on;i.required=on;});});
+// L'e-mail n'est jamais désactivé (un champ désactivé ne part pas avec le formulaire) : seulement masqué et en
+// lecture seule aux étapes mot de passe et code, où le serveur en a besoin.
+function step(name,data){si.querySelectorAll('[data-step]').forEach(d=>{const on=d.dataset.step===name;d.hidden=!on;d.querySelectorAll('input:not([name=email])').forEach(i=>{i.disabled=!on;i.required=on;});});
  si.querySelectorAll('[data-only]').forEach(b=>b.hidden=b.dataset.only!==name);
- si.querySelectorAll('[data-who]').forEach(p=>p.textContent=data&&data.email||'');
+ const who=data&&data.email||si.querySelector('[name=email]').value;si.querySelectorAll('[data-who]').forEach(p=>p.textContent=who);
  const email=si.querySelector('[name=email]');email.readOnly=name!=='email';
  const f=si.querySelector('[data-step='+name+'] input');if(f&&name!=='email')setTimeout(()=>f.focus(),30);}
 async function send(form,submitter){
@@ -108,8 +110,18 @@ async function send(form,submitter){
   if(j.sent&&sent)sent.textContent={{ L('"Code envoyé "', '"Code sent "')|safe }}+j.sent+'.';
  }catch(x){if(err)err.textContent={{ L('"Connexion impossible : réessayez."', '"Could not reach the server: try again."')|safe }};}
  finally{btns.forEach(b=>b.disabled=false);}}
-dlg.querySelectorAll('form[data-ajax]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();send(f,e.submitter);}));
-si.querySelectorAll('[data-restart]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();step('email');si.querySelector('[name=email]').focus();}));
+dlg.querySelectorAll('[data-reveal]').forEach(b=>b.addEventListener('click',()=>{const i=dlg.querySelector(b.dataset.reveal);
+ const show=i.type==='password';i.type=show?'text':'password';b.textContent=show?{{ L('"Masquer"', '"Hide"')|safe }}:{{ L('"Afficher"', '"Show"')|safe }};}));
+// Bouton cliqué, retenu pour les navigateurs sans e.submitter (anciens Safari) : sinon « Mot de passe oublié » et
+// « Renvoyer le code » partaient comme un simple « Continuer ».
+let lastBtn=null;dlg.querySelectorAll('form[data-ajax] button[type=submit],form[data-ajax] button:not([type])').forEach(b=>b.addEventListener('click',()=>{lastBtn=b;}));
+dlg.querySelectorAll('form[data-ajax]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();
+ const sub=e.submitter||(lastBtn&&lastBtn.form===f?lastBtn:null);lastBtn=null;send(f,sub);}));
+si.querySelectorAll('[data-restart]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();
+ si.querySelectorAll('[data-error],[data-sent]').forEach(x=>x.textContent='');
+ si.querySelectorAll('input[type=text][id=si-password]').forEach(i=>i.type='password');
+ si.querySelectorAll('[data-reveal]').forEach(b=>b.textContent={{ L('"Afficher"', '"Show"')|safe }});
+ step('email');si.querySelector('[name=email]').focus();}));
 step('email');
 const want=dlg.dataset.open;if(want)open(want);
 })();

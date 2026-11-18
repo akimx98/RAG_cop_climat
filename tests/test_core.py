@@ -157,7 +157,8 @@ def test_password_login_and_links(env):
 
     # première connexion par lien 24 h -> page Compte -> mot de passe
     link = auth.login_link(user).split("/entrer/")[1]
-    r = client.get(f"/entrer/{link}", follow_redirects=False)
+    assert 'method="post"' in client.get(f"/entrer/{link}").text        # GET : un bouton, rien n'est consommé
+    r = client.post(f"/entrer/{link}", follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/account"
     assert "At least" in client.post("/account", data={"password": "court", "password2": "court"}).text
     r = client.post("/account", data={"password": "un-bon-mot-de-passe", "password2": "un-bon-mot-de-passe"})
@@ -167,10 +168,10 @@ def test_password_login_and_links(env):
 
     # connexion par mot de passe depuis un autre navigateur (page /signin, puis fenêtre en JSON)
     other = TestClient(Starlette(routes=web.routes), base_url="https://testserver")
-    assert "incorrect" in other.post("/signin", data={"email": "alix@example.org", "password": "faux"}).text.lower()
+    assert "wrong password" in other.post("/signin", data={"email": "alix@example.org", "password": "faux"}).text.lower()
     j = other.post("/signin", data={"email": "alix@example.org", "password": "faux"},
                    headers={"X-Requested-With": "fetch"}).json()
-    assert j["step"] == "password" and "incorrect" in j["error"].lower()
+    assert j["step"] == "password" and "wrong password" in j["error"].lower()
     assert other.post("/signin", data={"email": "alix@example.org"}, headers={"X-Requested-With": "fetch"}).json()["step"] == "password"
     r = other.post("/signin", data={"email": "ALIX@example.org", "password": "un-bon-mot-de-passe",
                                     "next": "/connect"}, follow_redirects=False)
@@ -573,7 +574,7 @@ def test_passwordless_signup_and_email_code_login(env, monkeypatch):
     assert "No account" in TestClient(app, base_url="https://testserver").post("/connexion", data={"email": "x@y.org"}).text
     monkeypatch.setattr(mailout, "send", lambda *a, **kw: False)
     auth.create_user(conn, "z@ngo.org", "Z", restricted=False)
-    assert "be sent yet" in TestClient(app, base_url="https://testserver").post("/connexion", data={"email": "z@ngo.org"}).text
+    assert "could not be sent" in TestClient(app, base_url="https://testserver").post("/connexion", data={"email": "z@ngo.org"}).text
 
 
 def test_open_signup_with_password(env):
@@ -590,8 +591,8 @@ def test_open_signup_with_password(env):
     assert 'id="pane-signup"' in home and 'name="password"' in home and 'data-auth="signin"' in home   # fenêtre sur l'accueil
     form = {"email": "Lea@media.org", "organisation": "Media", "password": "mot-de-passe-long", "password2": "mot-de-passe-long"}
     assert "do not match" in visitor.post("/join", data={**form, "password2": "autre-chose-long"}).text
-    assert "at least 10" in visitor.post("/join", data={**form, "password": "court", "password2": "court"}).text
-    assert "invalid" in visitor.post("/join", data={**form, "website": "http://spam"}).text.lower()   # champ piège
+    assert "at least 8" in visitor.post("/join", data={**form, "password": "court", "password2": "court"}).text
+    assert "could not be completed" in visitor.post("/join", data={**form, "hp_x7": "http://spam"}).text   # champ piège
     j = visitor.post("/join", data={**form, "password2": "autre-chose-long"}, headers={"X-Requested-With": "fetch"}).json()
     assert "do not match" in j["error"]                                       # l'erreur reste dans la fenêtre
     r = visitor.post("/join", data=form, follow_redirects=False)
@@ -637,7 +638,7 @@ def test_forgot_password_code(env, monkeypatch):
     assert 'name="code"' in page and len(outbox) == 1
     code = "".join(ch for ch in outbox[-1] if ch.isdigit())[-6:]
     r = c.post("/connexion", data={"email": "p@ngo.org", "code": code}, follow_redirects=False)
-    assert r.headers["location"] == "/account?forgot=1"
+    assert r.headers["location"].startswith("/account?forgot=1")
     assert "new password" in c.get("/account?forgot=1").text
     c.post("/account", data={"password": "nouveau-mot-de-passe", "password2": "nouveau-mot-de-passe"})
     assert auth.check_password(conn, "p@ngo.org", "nouveau-mot-de-passe") and not auth.check_password(conn, "p@ngo.org", "ancien-mot-de-passe")
