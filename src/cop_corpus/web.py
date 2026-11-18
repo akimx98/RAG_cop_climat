@@ -50,6 +50,15 @@ def _reflow(text: str) -> str:
 
 
 TEMPLATES.filters["reflow"] = _reflow
+
+
+def _safe_url(url: str | None) -> str:
+    """Lien venu d'une source tierce (programmes, index) : http(s) seulement, jamais javascript: ni data:."""
+    url = (url or "").strip()
+    return url if re.match(r"https?://", url, re.I) else ""
+
+
+TEMPLATES.filters["safe_url"] = _safe_url
 TEMPLATES.globals["BOT"] = config.TELEGRAM_BOT_NAME
 DOC_TYPES = ["traite", "decision", "conclusions_sb", "ordre_du_jour", "projet_texte", "ndc", "btr", "soumission", "declaration", "rapport_synthese",
              "loi_ue", "proposition_ue", "conclusions_conseil", "strategie_nationale", "rapport_scientifique",
@@ -80,6 +89,7 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx["LEVELS"] = i18n.LEVELS_EN if lang == "en" else search.LEVEL_LABELS
     ctx["base"] = config.PUBLIC_BASE
     ctx["path"] = request.url.path
+    ctx["here"] = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     ctx["SOURCE_URL"] = config.SOURCE_URL
     if not ctx["user"] and "open_signup" not in ctx:
         try:
@@ -96,9 +106,7 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
 async def set_lang(request: Request):
     """Lien EN · FR : mémorisé dans un cookie et, si connecté, dans le compte."""
     code = request.path_params["code"]
-    nxt = request.query_params.get("next") or "/"
-    if not nxt.startswith("/") or nxt.startswith("//"):
-        nxt = "/"
+    nxt = _safe_next(request.query_params.get("next"))
     resp = RedirectResponse(nxt, status_code=303)
     if code in i18n.LANGS:
         user = current_user(request)
@@ -113,9 +121,6 @@ def current_user(request: Request) -> dict | None:
     uid = auth.read_cookie(request.cookies.get(COOKIE))
     if uid:
         return auth.by_id(db.get(), uid)
-    bearer = request.headers.get("authorization", "")
-    if bearer.lower().startswith("bearer "):
-        return auth.by_token(db.get(), bearer[7:].strip())
     return None
 
 
@@ -131,7 +136,8 @@ def login_required(handler):
         if not user:
             from urllib.parse import quote
 
-            return RedirectResponse(f"/?signin=1&next={quote(_next_url(request))}", status_code=303)
+            back = _next_url(request) if request.method == "GET" else "/"
+            return RedirectResponse(f"/?signin=1&next={quote(back)}", status_code=303)
         request.state.user = user
         return await handler(request)
     return wrapper
@@ -169,7 +175,7 @@ async def login(request: Request):
     user = auth.by_token(db.get(), token)
     if not user:
         return render(request, "login.html", user=None, error=i18n.pick(lang_of(request), "Lien invalide ou révoqué.", "Invalid or revoked link."))
-    return _session(RedirectResponse("/" if user.get("password_hash") else "/compte", status_code=303), user, token)
+    return _session(RedirectResponse("/" if user.get("password_hash") else "/account", status_code=303), user, token)
 
 
 def _send_login_code(user: dict, code: str) -> tuple[bool, bool]:
@@ -193,9 +199,14 @@ def _wants_json(request: Request) -> bool:
     return request.headers.get("x-requested-with") == "fetch"
 
 
+_LOCAL_PATH = re.compile(r"/(?![/\\])[^\s\\\x00-\x1f]*")
+
+
 def _safe_next(value: str | None) -> str:
+    """Adresse de retour : un chemin du site seulement (ni « //hôte », ni « /\\hôte », ni caractère de contrôle,
+    que les navigateurs traitent comme une autre origine)."""
     value = value or "/"
-    return value if value.startswith("/") and not value.startswith("//") else "/"
+    return value if _LOCAL_PATH.fullmatch(value) else "/"
 
 
 def _go(request: Request, url: str, user: dict | None = None, token: str | None = None) -> Response:
@@ -249,7 +260,9 @@ async def login_form(request: Request):
     if why:
         return page("code", error=T("Un code vient d'être envoyé : patientez une minute avant d'en demander un autre.",
                                     "A code was just sent: wait a minute before asking for another one."))
-    mailed, tg = _send_login_code(user, code)
+    from starlette.concurrency import run_in_threadpool
+
+    mailed, tg = await run_in_threadpool(_send_login_code, user, code)
     if not (mailed or tg):
         return page("email", error=T("L'envoi de code n'est pas encore disponible : écrivez-nous (page Contact).",
                                      "Sign-in codes can't be sent yet: write to us (Contact page)."))
@@ -305,7 +318,8 @@ async def join(request: Request):
                                      "" if code else (form.get("password") or ""), _client(request), lang=lang)
     if error:
         return await fail(error)
-    return _go(request, "/?welcome=1", user, token)
+    nxt = _safe_next(form.get("next"))
+    return _go(request, nxt if nxt != "/" else "/?welcome=1", user, token)
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -405,10 +419,13 @@ async def contact_page(request: Request):
         elif not config.CONTACT_EMAIL or not mailout.enabled():
             error = T("Le formulaire n'est pas encore configuré.", "The contact form is not configured yet.")
         else:
-            name = (form.get("name") or "").strip()[:80]
+            name = re.sub(r"[\x00-\x1f\x7f]+", " ", form.get("name") or "").strip()[:80]
             body = (f"From: {name} <{reply}>\nAccount: {(user or {}).get('email') or '—'}\n"
                     f"Organisation: {(form.get('organisation') or '').strip()[:120] or '—'}\n\n{message[:5000]}")
-            ok = mailout.send(config.CONTACT_EMAIL, f"[COP Tracker] {name or reply}"[:120], body, reply_to=reply)
+            from starlette.concurrency import run_in_threadpool
+
+            ok = await run_in_threadpool(lambda: mailout.send(config.CONTACT_EMAIL, f"[COP Tracker] {name or reply}"[:120],
+                                                              body, reply_to=reply))
             _contact_hits[ip] = recent + [now]
             sent = ok or None
             if not ok:
@@ -596,7 +613,11 @@ async def account_page(request: Request):
             conn.commit()
             done = "profile"
         elif action == "telegram_unlink":
-            conn.execute("UPDATE users SET telegram_chat_id=NULL WHERE id=?", (user["id"],))
+            import secrets
+
+            # nouveau code : l'ancien (affiché dans le lien t.me) ne doit plus pouvoir relier un autre téléphone
+            conn.execute("UPDATE users SET telegram_chat_id=NULL, telegram_code=? WHERE id=?",
+                         (secrets.token_hex(4), user["id"]))
             conn.commit()
             done = "telegram"
         elif action == "delete":
@@ -635,9 +656,10 @@ async def invite_page(request: Request):
 
 def _redirect(target: str):
     async def handler(request: Request):
-        url = target.format(**request.path_params)
+        url, _, frag = target.format(**request.path_params).partition("#")
         q = request.url.query
-        return RedirectResponse(url + (("&" if "?" in url else "?") + q if q else ""), status_code=301)
+        url += (("&" if "?" in url else "?") + q) if q else ""
+        return RedirectResponse(url + ("#" + frag if frag else ""), status_code=301)
     return handler
 
 
@@ -771,8 +793,7 @@ async def admin_programme(request: Request):
             result = agenda.import_seors(conn, json.loads(text) if text.startswith("{") else agenda.parse_seors_tsv(text))
         except (ValueError, KeyError, IndexError) as exc:
             error = str(exc)
-    token = _token_for(request, conn, user)
-    link = agenda.seors_bookmarklet(f"{config.PUBLIC_BASE}/admin/seors/import", token) if token else None
+    link = agenda.seors_bookmarklet(f"{config.PUBLIC_BASE}/admin/seors/import", auth.import_token(user))
     return render(request, "programme_admin.html", user=user, status=agenda.seors_status(conn), bookmarklet=link,
                   seors_url=agenda.SEORS_LIST, result=result, error=error)
 
@@ -786,7 +807,10 @@ async def seors_import(request: Request):
             "Access-Control-Allow-Headers": "Authorization, Content-Type", "Vary": "Origin"}
     if request.method == "OPTIONS":
         return Response(status_code=204, headers=cors)
-    user = current_user(request)
+    # Jeton dédié à cet import (signé, propre à l'administrateur), jamais l'adresse MCP : le bouton s'exécute sur la
+    # page SEORS, d'où un script tiers pourrait le lire.
+    bearer = request.headers.get("authorization", "")
+    user = auth.check_import_token(db.get(), bearer[7:].strip()) if bearer.lower().startswith("bearer ") else None
     if not user or not user.get("is_admin"):
         return JSONResponse({"erreur": "réservé aux administrateurs"}, status_code=403, headers=cors)
     body = (await request.body())[:5_000_000].decode("utf-8", "replace")
@@ -837,7 +861,7 @@ async def admin_page(request: Request):
                          "telegram_chat_id IS NOT NULL AS tg,active,"
                          "password_hash IS NOT NULL AS has_pw,"
                          "(SELECT COUNT(*) FROM subscriptions s WHERE s.user_id=users.id AND s.active=1) AS nsubs "
-                         "FROM users ORDER BY id").fetchall()
+                         "FROM users WHERE COALESCE(source,'')<>'supprime' ORDER BY id").fetchall()
     sources = conn.execute("SELECT * FROM source_state ORDER BY last_run DESC LIMIT 80").fetchall()
     errors = conn.execute("SELECT * FROM fetch_log WHERE outcome IN ('error','antibot','crash') ORDER BY id DESC LIMIT 30").fetchall()
     return render(request, "admin.html", users=users, created=created, link=link, sources=sources, errors=errors,
@@ -880,7 +904,8 @@ async def mail_page(request: Request):
 async def admin_toggle(request: Request):
     conn = db.get()
     uid = int(request.path_params["uid"])
-    conn.execute("UPDATE users SET active=1-active WHERE id=? AND id<>?", (uid, request.state.user["id"]))
+    conn.execute("UPDATE users SET active=1-active WHERE id=? AND id<>? AND COALESCE(source,'')<>'supprime'",
+                 (uid, request.state.user["id"]))
     conn.commit()
     return RedirectResponse("/admin", status_code=303)
 

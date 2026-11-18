@@ -181,6 +181,19 @@ def read_cookie(value: str | None) -> int | None:
     return int(uid)
 
 
+def import_token(user: dict) -> str:
+    """Jeton du bouton d'import SEORS : ne vaut que pour /admin/seors/import (pas l'adresse MCP, qui ouvre tout)."""
+    uid = user["id"]
+    return f"{uid}.{_sign(f'seors-import:{uid}')}"
+
+
+def check_import_token(conn: sqlite3.Connection, value: str) -> dict[str, Any] | None:
+    uid, _, sig = (value or "").partition(".")
+    if not uid.isdigit() or not hmac.compare_digest(_sign(f"seors-import:{uid}"), sig):
+        return None
+    return by_id(conn, int(uid))
+
+
 def _login_sig(user: dict, exp: int) -> str:
     # le mot de passe actuel entre dans la signature : le lien devient caduc dès qu'il change
     return _sign(f"login:{user['id']}:{exp}:{user.get('password_hash') or ''}")
@@ -346,7 +359,12 @@ def delete_guest(conn: sqlite3.Connection, user_id: int) -> bool:
                 conn.execute(f"DELETE FROM {table} WHERE user_id=?", (user_id,))
         conn.execute("UPDATE documents SET uploaded_by=NULL WHERE uploaded_by=?", (user_id,))
         conn.execute("UPDATE mail_inbox SET user_id=NULL WHERE user_id=?", (user_id,))
-        conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+        conn.execute("DELETE FROM login_codes WHERE user_id=?", (user_id,))
+        # La ligne est vidée et désactivée, jamais supprimée : SQLite réattribuerait son identifiant au prochain
+        # inscrit, et un ancien cookie de session (signé sur l'identifiant) ouvrirait alors le compte de quelqu'un d'autre.
+        conn.execute("""UPDATE users SET email=NULL, name=NULL, organisation=NULL, token_hash=NULL, token_enc=NULL,
+                        password_hash=NULL, telegram_chat_id=NULL, telegram_code=NULL, mail_code=NULL, active=0,
+                        source='supprime', lang=NULL, mcp_seen_at=NULL WHERE id=?""", (user_id,))
     return True
 
 

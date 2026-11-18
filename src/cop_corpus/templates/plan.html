@@ -92,7 +92,7 @@
 {% if e.summary or e.speakers or e.link %}<details><summary>{{ L('Détails', 'Details') }}</summary>
 {% if e.summary %}<p>{{ e.summary[:600] }}{% if e.summary|length > 600 %}…{% endif %}</p>{% endif %}
 {% if e.speakers %}<p><b>{{ L('Intervenants', 'Speakers') }}</b> : {{ e.speakers|join(', ') }}</p>{% endif %}
-{% if e.link %}<p><a href="{{ e.link }}" target="_blank" rel="noopener">{{ L('Source et vérification', 'Source and check') }} ↗</a></p>{% endif %}
+{% if e.link|safe_url %}<p><a href="{{ e.link|safe_url }}" target="_blank" rel="noopener">{{ L('Source et vérification', 'Source and check') }} ↗</a></p>{% endif %}
 </details>{% endif %}
 </article>
 {% endfor %}

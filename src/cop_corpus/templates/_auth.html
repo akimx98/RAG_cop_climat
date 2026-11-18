@@ -19,12 +19,12 @@
 <input type="email" id="si-email" name="email" autocomplete="username" required></p>
 </div>
 <div data-step="password" hidden>
-<p class="small muted" data-who></p>
+<p class="small muted"><span data-who></span> · <a href="#" data-restart>{{ L('changer', 'change') }}</a></p>
 <p><label class="small" for="si-password">{{ L('Mot de passe', 'Password') }}</label>
 <input type="password" id="si-password" name="password" autocomplete="current-password" disabled></p>
 </div>
 <div data-step="code" hidden>
-<p class="small muted" data-who></p>
+<p class="small muted"><span data-who></span> · <a href="#" data-restart>{{ L('changer', 'change') }}</a></p>
 <p><label class="small" for="si-code">{{ L('Code à 6 chiffres reçu par e-mail', '6-digit code sent by e-mail') }}</label>
 <input type="text" id="si-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" disabled
  style="font:600 22px/1.2 var(--mono);letter-spacing:.3em"></p>
@@ -42,6 +42,7 @@
 {% if invite_code or open_signup %}
 <form method="post" action="{{ '/join/' ~ invite_code if invite_code else '/join' }}" data-ajax="signup">
 <input type="hidden" name="code" value="{{ invite_code }}">
+<input type="hidden" name="next" value="{{ next or '/' }}">
 <p class="banner warn msg" data-error role="alert">{{ signup_error or '' }}</p>
 <div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
 {% if invite_code %}<p class="banner">{{ L('Invitation reçue : pas de mot de passe, vous êtes connecté tout de suite.', 'You were invited: no password needed, you are signed in straight away.') }}</p>{% endif %}
@@ -104,6 +105,7 @@ async function send(form,submitter){
  }catch(x){if(err)err.textContent={{ L('"Connexion impossible : réessayez."', '"Could not reach the server: try again."')|safe }};}
  finally{btns.forEach(b=>b.disabled=false);}}
 dlg.querySelectorAll('form[data-ajax]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();send(f,e.submitter);}));
+si.querySelectorAll('[data-restart]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();step('email');si.querySelector('[name=email]').focus();}));
 step('email');
 const want=dlg.dataset.open;if(want)open(want);
 })();

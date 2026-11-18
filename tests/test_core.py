@@ -320,7 +320,13 @@ def test_text_stage():
     assert live.text_stage({"title": "Draft text on GGA", "cb_type": "draft text"}) == "draft"
     assert live.text_stage({"title": "Informal note by the co-facilitators", "cb_type": "informal note"}) == "draft"
     assert live.text_stage({"title": "CMA 8 Agenda as adopted", "cb_type": "Agenda"}) == "adopted"
-    assert live.text_stage({"title": "Decision -/CMA.8 Global goal on adaptation", "cb_type": ""}) == "adopted"
+    # projets : le « -/CMA.8 » d'un projet de décision et les renvois à des décisions passées ne sont pas des adoptions
+    assert live.text_stage({"title": "Draft decision -/CMA.8 Mitigation work programme", "symbol": "FCCC/PA/CMA/2026/L.4"}) == "for_adoption"
+    assert live.text_stage({"title": "Draft decision -/CMA.8 Mitigation work programme", "cb_type": "draft text"}) == "draft"
+    assert live.text_stage({"title": "UAE dialogue referred to in decision 1/CMA.5", "symbol": "FCCC/SB/2026/L.2"}) == "for_adoption"
+    assert live.text_stage({"title": "Report on the dialogue referred to in decision 1/CMA.5", "cb_type": "Summary reports"}) == "other"
+    assert live.text_stage({"title": "Decision 3/CMA.8 Global goal on adaptation", "cb_type": ""}) == "adopted"
+    assert live.text_stage({"title": "Global goal on adaptation. Advance unedited version", "cb_type": ""}) == "adopted"
     assert live.text_stage({"title": "Synthesis report", "cb_type": "Synthesis reports"}) == "other"
     assert live.stage_label("for_adoption", "en").startswith("🔨 forwarded")
 
@@ -1527,3 +1533,57 @@ def test_plan_calendar_and_contact(env, monkeypatch):
     assert not outbox
     assert "Message sent" in client.post("/contact", data={"email": "a@b.org", "message": "A source to add, please."}).text
     assert outbox == [("owner@example.org", "a@b.org")]
+
+
+
+def test_review_fixes(env, monkeypatch):
+    """Revue de la refonte : redirections sûres, suppression de compte sans réemploi d'identifiant, rapports internes
+    jamais dans le récapitulatif Telegram, code Telegram renouvelé, liens tiers filtrés."""
+    from starlette.applications import Starlette
+    from starlette.testclient import TestClient
+    from cop_corpus import auth, db, digest, ingest, live, web, web_live
+    importlib.reload(web)
+    importlib.reload(web_live)
+    conn = db.get()
+    for bad in ("//evil.example", "/\\evil.example", "/\tevil", "https://evil.example", "/x\ny"):
+        assert web._safe_next(bad) == "/", bad
+    assert web._safe_next("/topics?x=1") == "/topics?x=1"
+    assert web._safe_url("javascript:alert(1)") == "" and web._safe_url("https://a.b/c") == "https://a.b/c"
+
+    # compte supprimé : l'identifiant n'est jamais réattribué, l'ancien cookie n'ouvre rien
+    code = auth.invite_settings(conn)["code"]
+    g, tok, _ = auth.signup(conn, code, "old@x.org")
+    phone = TestClient(Starlette(routes=[*web.routes, *web_live.routes]), base_url="https://testserver")
+    phone.cookies.set(web.COOKIE, auth.make_cookie(g["id"], days=1))
+    assert phone.get("/account").status_code == 200
+    phone.post("/account", data={"action": "delete", "confirm": "delete"})
+    n, _, _ = auth.signup(conn, code, "new@x.org")
+    assert n["id"] != g["id"] and auth.by_token(conn, tok) is None
+    stale = TestClient(Starlette(routes=[*web.routes, *web_live.routes]), base_url="https://testserver")
+    stale.cookies.set(web.COOKIE, auth.make_cookie(g["id"], days=1))
+    assert stale.get("/account", follow_redirects=False).status_code == 303
+    assert auth.invite_settings(conn)["used"] == 1                        # la place du compte supprimé est libérée
+
+    # rapport interne : jamais dans le récapitulatif, même pour un compte autorisé
+    live._ready.clear()
+    live.ensure_schema(conn)
+    uid, _ = auth.create_user(conn, "c@x.org", "C")                       # contributeur (accès restreint)
+    live.follow(conn, uid, "attenuation", True)
+    ingest.ingest_bytes(conn, ("SECRET delegation debrief on the mitigation work programme MWP. " * 20).encode(),
+                        url=None, access="restreint", filename="d.txt",
+                        meta={"title": "SECRET debrief", "doc_type": "compte_rendu"})
+    text = digest.render(conn, auth.by_id(conn, uid), "2000-01-01T00:00:00Z") or ""
+    assert "SECRET" not in text
+
+    # délier Telegram renouvelle le code
+    c = TestClient(Starlette(routes=[*web.routes, *web_live.routes]), base_url="https://testserver")
+    c.cookies.set(web.COOKIE, auth.make_cookie(uid, days=1))
+    before = auth.by_id(conn, uid)["telegram_code"]
+    c.post("/account", data={"action": "telegram_unlink"})
+    assert auth.by_id(conn, uid)["telegram_code"] != before
+
+    # pages réservées : retour après connexion, jamais vers une route POST
+    anon = TestClient(Starlette(routes=[*web.routes, *web_live.routes]), base_url="https://testserver")
+    assert anon.get("/topics?x=1", follow_redirects=False).headers["location"] == "/?signin=1&next=/topics%3Fx%3D1"
+    assert anon.post("/topics/1/delete", follow_redirects=False).headers["location"] == "/?signin=1&next=/"
+    assert anon.get("/telegram?a=1", follow_redirects=False).headers["location"] == "/topics?a=1#telegram"

@@ -144,8 +144,8 @@ def render_telegram(b: dict, d: dict, with_notes: list[dict] | None = None, lang
     if body.get("a_surveiller"):
         lines.append("👀 " + html.escape(" · ".join(clean(x) for x in body["a_surveiller"][:4])))
     if with_notes:
-        lines.append(f"🔒 {len(with_notes)} note(s) de terrain : {config.PUBLIC_BASE}/dossiers/{d['slug']}")
-    lines.append(f"{config.PUBLIC_BASE}/dossiers/{d['slug']}")
+        lines.append(f"🔒 {len(with_notes)} note(s) de terrain : {config.PUBLIC_BASE}/database/negotiations/{d['slug']}")
+    lines.append(f"{config.PUBLIC_BASE}/database/negotiations/{d['slug']}")
     return "\n".join(lines)
 
 

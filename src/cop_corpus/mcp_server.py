@@ -808,7 +808,7 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
         "credit": f"Index and reference positions: {live.CB_CREDIT} (cite). COP positions: extracted from public "
                   "sources, quote checked word for word. Written positions: points from recent official Party "
                   "submissions (level 2, quote checked), dated by filing. Brief: AI-written, check against the sources.",
-        "page": f"{config.PUBLIC_BASE}/dossiers/{slug}",
+        "page": f"{config.PUBLIC_BASE}/database/negotiations/{slug}",
     }
     return out
 

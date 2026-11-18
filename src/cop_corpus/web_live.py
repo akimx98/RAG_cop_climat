@@ -96,7 +96,8 @@ async def texte_upload(request: Request):
 routes = [
     Route("/database/negotiations/{slug}", dossier_page),
     Route("/database/negotiations/{slug}/follow", dossier_follow, methods=["POST"]),
-    Route("/dossiers/{slug}", lambda r: RedirectResponse(f"/database/negotiations/{r.path_params['slug']}", status_code=301)),
+    Route("/dossiers/{slug}", lambda r: RedirectResponse(
+        f"/database/negotiations/{r.path_params['slug']}" + (f"?{r.url.query}" if r.url.query else ""), status_code=301)),
     Route("/textes/{tid:int}/deposer", texte_upload, methods=["POST"]),
 ]
 

@@ -256,7 +256,7 @@ def _deposit(conn, msg: EmailMessage, user: dict, rel: str) -> int:
     if user.get("telegram_chat_id"):
         what = f"{len(ids)} document(s) ajouté(s) au corpus ({'public' if public else 'interne'})" if ids \
             else "aucun contenu exploitable (ni pièce jointe ni texte)"
-        telegram.send(user["telegram_chat_id"], f"📥 Dépôt par mail reçu : {what}.\n{config.PUBLIC_BASE}/deposer")
+        telegram.send(user["telegram_chat_id"], f"📥 Dépôt par mail reçu : {what}.")
     return len(ids)
 
 

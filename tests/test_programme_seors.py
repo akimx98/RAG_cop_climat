@@ -80,16 +80,23 @@ def test_bookmarklet_import_endpoint(env):
 
     uid, token = auth.create_user(env, "admin@x.org", "A", admin=True)
     gid, gtoken = auth.create_user(env, "g@x.org", "G", restricted=False)
-    link = agenda.seors_bookmarklet("https://cop31.example/admin/seors/import", token)
+    itok = auth.import_token(auth.by_id(env, uid))
+    link = agenda.seors_bookmarklet("https://cop31.example/admin/seors/import", itok)
+    assert token not in link                                   # jamais l'adresse MCP dans le bouton
     assert link.startswith("javascript:") and "Bearer" in link and "keywords" in link
     client = TestClient(Starlette(routes=web.routes), base_url="https://testserver")
     pre = client.options("/admin/seors/import", headers={"Origin": "https://seors.unfccc.int"})
     assert pre.status_code == 204 and pre.headers["access-control-allow-origin"] == "https://seors.unfccc.int"
     tsv = "#releve\t2026-11-18T09:00:00Z\n#cats\tWater\n" + "\n".join(
         f"18|11:30|13:00|{i % 9 + 1}|Event {i}|0" for i in range(60))
-    assert client.post("/admin/seors/import", content=tsv, headers={"Authorization": f"Bearer {gtoken}"}).status_code == 403
-    r = client.post("/admin/seors/import", content=tsv, headers={"Authorization": f"Bearer {token}"})
+    gtok = auth.import_token(auth.by_id(env, gid))
+    assert client.post("/admin/seors/import", content=tsv, headers={"Authorization": f"Bearer {gtok}"}).status_code == 403
+    assert client.post("/admin/seors/import", content=tsv, headers={"Authorization": f"Bearer {token}"}).status_code == 403
+    assert client.post("/admin/seors/import", content=tsv, headers={"Authorization": f"Bearer {uid}.forged"}).status_code == 403
+    r = client.post("/admin/seors/import", content=tsv, headers={"Authorization": f"Bearer {itok}"})
     assert r.status_code == 200 and r.json()["importes"] == 60
     assert agenda.seors_status(env)["releve_le"] == "2026-11-18T09:00:00Z"
-    page = client.get("/admin/programme", headers={"Authorization": f"Bearer {token}"})
+    assert client.get("/admin/programme", headers={"Authorization": f"Bearer {token}"}).status_code == 403   # pas de jeton sur les pages
+    client.cookies.set(web.COOKIE, auth.make_cookie(uid, days=1))
+    page = client.get("/admin/programme")
     assert page.status_code == 200 and "Relevé SEORS → COP31" in page.text and "javascript:" in page.text

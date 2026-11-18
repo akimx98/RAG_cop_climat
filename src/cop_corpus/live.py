@@ -494,7 +494,10 @@ def notes(conn, dossier_slug: str | None = None, since: str | None = None, limit
 
 # --- étape d'un texte ----------------------------------------------------------------
 
-_ADOPTED = re.compile(r"\b(as adopted|adopted by|advance unedited|decision -/|\d+/(?:CP|CMA|CMP)\.\d+)", re.I)
+# Marqueurs explicites d'adoption seulement. « Draft decision -/CMA.8 » (projet) et les renvois « decision 1/CMA.5 »
+# présents dans les titres de projets ne sont PAS des adoptions.
+_ADOPTED = re.compile(r"\b(as adopted|adopted by the|advance unedited version)\b", re.I)
+_DECISION_TITLE = re.compile(r"^\s*decision\s+\d+/(?:CP|CMA|CMP)\.\d+", re.I)
 STAGES = {
     "adopted": ("✅", "adopté", "adopted"),
     "for_adoption": ("🔨", "proposé pour adoption (document L)", "forwarded for adoption (L document)"),
@@ -504,15 +507,16 @@ STAGES = {
 
 
 def text_stage(t: dict) -> str:
-    """Étape d'un texte de session, sans IA : adopté (titre ou cote de décision), proposé pour adoption (document L,
-    texte que les coprésidents transmettent à la plénière), projet (texte de négociation, note informelle), autre."""
+    """Étape d'un texte de session, sans IA : proposé pour adoption (document L, texte que les coprésidents transmettent
+    à la plénière), projet (« Draft … », texte de négociation, note informelle), adopté (marqueur explicite : « as
+    adopted », « advance unedited version », ou titre commençant par une décision numérotée), autre."""
     title, symbol, kind = t.get("title") or "", t.get("symbol") or "", (t.get("cb_type") or "").lower()
-    if _ADOPTED.search(title) or _ADOPTED.search(kind):
-        return "adopted"
     if "/L." in symbol:
         return "for_adoption"
-    if any(k in kind for k in ("draft", "informal", "in-session")):
+    if re.match(r"\s*draft\b", title, re.I) or any(k in kind for k in ("draft", "informal", "in-session")):
         return "draft"
+    if _ADOPTED.search(title) or "adopted" in kind or _DECISION_TITLE.match(title):
+        return "adopted"
     return "other"
 
 

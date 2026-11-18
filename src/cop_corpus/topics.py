@@ -34,9 +34,11 @@ def text_item(conn, t: dict, lang: str = "en", with_delta: bool = True) -> dict[
 
 def new_texts(conn, slug: str, since: str, limit: int = 8) -> list[dict]:
     live.ensure_schema(conn)
+    # first_seen seulement : la synchronisation de l'index réécrit updated_at toutes les 5 minutes, et `published`
+    # est une heure locale sans fuseau.
     rows = conn.execute(
-        """SELECT * FROM live_texts WHERE dossier=? AND (first_seen>=? OR updated_at>=? OR published>=?)
-           ORDER BY COALESCE(published, first_seen) DESC LIMIT ?""", (slug, since, since, since[:16], limit)).fetchall()
+        """SELECT * FROM live_texts WHERE dossier=? AND first_seen>=?
+           ORDER BY COALESCE(published, first_seen) DESC LIMIT ?""", (slug, since, limit)).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -45,12 +47,13 @@ def reports(conn, query: str, since: str, user: dict, limit: int = 3) -> list[di
     if not query:
         return []
     try:
-        hits = search.search(conn, query, {"added_since": since, "doc_types": REPORT_TYPES}, user,
+        # documents publics seulement : ce bloc part aussi sur Telegram (pas chiffré de bout en bout)
+        hits = search.search(conn, query, {"added_since": since, "doc_types": REPORT_TYPES, "access": "public"}, user,
                              limit=limit, per_doc=1, semantic=False)
     except Exception:
         return []
     return [{"titre": h.get("titre"), "organisation": h.get("organisation"), "extrait": (h.get("extrait") or "")[:300],
-             "lien": h.get("lien_passage"), "niveau": h.get("niveau")} for h in hits]
+             "lien": h.get("lien_passage"), "niveau": h.get("niveau")} for h in hits if h.get("acces") == "public"]
 
 
 def keyword_hits(conn, user_id: int, sub_id: int, since: str | None = None, limit: int = 5) -> list[dict]:

@@ -21,7 +21,7 @@
 {% if t.pages %}<span class="sep">·</span><span>{{ t.pages }} p.</span>{% endif %}{% if t.brackets is not none %}<span class="sep">·</span><span><b>{{ t.brackets }}</b> {{ L('crochets', 'brackets') }}</span>{% endif %}{% if t.options %}<span class="sep">·</span><span><b>{{ t.options }}</b> options</span>{% endif %}</div>
 <div class="actions">{{ textstate(t) }}
 {% if t.doc_id and t.version and t.version > 1 %}<a href="/diff/{{ t.doc_id }}">{{ L('Ce qui a changé', 'What changed') }} (v{{ t.version }})</a>{% endif %}
-{% if t.pdf_url %}<a href="{{ t.pdf_url }}" target="_blank" rel="noopener">unfccc.int ↗</a>{% endif %}
+{% if t.pdf_url|safe_url %}<a href="{{ t.pdf_url|safe_url }}" target="_blank" rel="noopener">unfccc.int ↗</a>{% endif %}
 {% if not t.doc_id and user.is_admin %}<a href="/database?tab=texts&dossier={{ d.slug }}#t{{ t.id }}">{{ L('Déposer le PDF', 'Upload the PDF') }}</a>{% endif %}</div>
 {% if t.note %}<div class="small muted">{{ t.note }}</div>{% endif %}
 </div>{% else %}<p class="empty">{{ L("Aucun texte annoncé pour l'instant.", 'No text announced yet.') }}</p>{% endfor %}
@@ -33,12 +33,12 @@
 <div><b>{{ p.actor }}</b> {{ stance(p.stance) }} <span class="small muted">{{ p.issue }}</span></div>
 {% if p.summary %}<div class="small">{{ p.summary }}</div>{% endif %}
 {% if p.quote %}<blockquote>{{ L('« ', '“') }}{{ p.quote }}{{ L(' »', '”') }}</blockquote>{% endif %}
-<div class="meta"><span>{{ p.said_on or when(p.created_at) }}</span><span class="sep">·</span>{% if p.source_url %}<a href="{{ p.source_url }}" target="_blank" rel="noopener">{{ p.source_label }}</a>{% else %}<span>{{ p.source_label }}</span>{% endif %}</div>
+<div class="meta"><span>{{ p.said_on or when(p.created_at) }}</span><span class="sep">·</span>{% if p.source_url %}<a href="{{ p.source_url|safe_url }}" target="_blank" rel="noopener">{{ p.source_label }}</a>{% else %}<span>{{ p.source_label }}</span>{% endif %}</div>
 </div>{% else %}<p class="empty">{{ L("Aucune prise de position relevée pendant la COP pour l'instant.", 'No statements picked up during the COP yet.') }}</p>{% endfor %}
 </div>
 <details class="card"><summary><b>{{ L('Positions de référence avant la COP', 'Pre-COP reference positions') }}</b> <span class="small muted">— {{ credit }}, <a href="{{ cb_www }}">Who wants what</a></span></summary>
 <div class="table-wrap" style="margin-top:10px"><table>
-{% for actor, items in ref_actors %}<tr><td style="white-space:nowrap"><b>{{ actor }}</b></td><td>{% for p in items %}<div>{{ stance(p.stance) }}{% if p.source_url %}<a href="{{ p.source_url }}" target="_blank" rel="noopener">{{ p.issue }}</a>{% else %}{{ p.issue }}{% endif %}</div>{% endfor %}</td></tr>
+{% for actor, items in ref_actors %}<tr><td style="white-space:nowrap"><b>{{ actor }}</b></td><td>{% for p in items %}<div>{{ stance(p.stance) }}{% if p.source_url %}<a href="{{ p.source_url|safe_url }}" target="_blank" rel="noopener">{{ p.issue }}</a>{% else %}{{ p.issue }}{% endif %}</div>{% endfor %}</td></tr>
 {% else %}<tr><td class="muted">{{ L('Aucune.', 'None.') }}</td></tr>{% endfor %}</table></div>
 </details>
 {% if subs %}
@@ -59,7 +59,7 @@
 <h2>{{ L('Dans le corpus (7 jours)', 'In the corpus (7 days)') }}</h2>
 <div class="card flush">{% for h in hits %}<div class="item">{{ docline(h) }}<blockquote>{{ h.extrait[:300] }}</blockquote></div>{% else %}<p class="empty">{{ L('Rien de récent.', 'Nothing recent.') }}</p>{% endfor %}</div>
 <h2>{{ L('Sur Bluesky', 'On Bluesky') }}</h2>
-<div class="card flush">{% for s in social %}<div class="item"><div class="meta" style="margin:0 0 4px"><b>{{ s.author }}</b><span class="sep">·</span><span>{{ when(s.created_at) }} UTC</span></div><div class="small" style="white-space:pre-wrap">{{ s.text }}</div><div class="actions"><a href="{{ s.url }}" target="_blank" rel="noopener">{{ L('Voir', 'View') }} ↗</a></div></div>{% else %}<p class="empty">{{ L('Rien sur ce dossier ces derniers jours.', 'Nothing on this negotiation in recent days.') }}</p>{% endfor %}</div>
+<div class="card flush">{% for s in social %}<div class="item"><div class="meta" style="margin:0 0 4px"><b>{{ s.author }}</b><span class="sep">·</span><span>{{ when(s.created_at) }} UTC</span></div><div class="small" style="white-space:pre-wrap">{{ s.text }}</div><div class="actions"><a href="{{ s.url|safe_url }}" target="_blank" rel="noopener">{{ L('Voir', 'View') }} ↗</a></div></div>{% else %}<p class="empty">{{ L('Rien sur ce dossier ces derniers jours.', 'Nothing on this negotiation in recent days.') }}</p>{% endfor %}</div>
 </section>
 </div>
 {% endblock %}

@@ -245,7 +245,7 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 </div></details>
 </nav>
 <div class="right-tools">
-<span class="langs">{% for code in ['en', 'fr'] %}<a href="/lang/{{ code }}?next={{ path|urlencode }}" class="{{ 'on' if lang == code }}" hreflang="{{ code }}" lang="{{ code }}">{{ code|upper }}</a>{% endfor %}</span>
+<span class="langs">{% for code in ['en', 'fr'] %}<a href="/lang/{{ code }}?next={{ here|urlencode }}" class="{{ 'on' if lang == code }}" hreflang="{{ code }}" lang="{{ code }}">{{ code|upper }}</a>{% endfor %}</span>
 {% if user %}
 <details class="menu avatar"><summary aria-label="{{ L('Compte', 'Account') }}" title="{{ user.email }}">{{ initials }}</summary>
 <div class="menu-list right">

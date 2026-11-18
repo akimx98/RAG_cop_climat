@@ -85,13 +85,16 @@ def topic_terms(conn, user: dict) -> list[str]:
     requête (syntaxe des sujets : expressions séparées par des virgules)."""
     terms: list[str] = []
     for s in alerts.list_subscriptions(conn, user["id"]):
-        terms += [t for t in re.split(r"[,;\n]+|\bOR\b", s["requete"]) if t.strip() and t.strip() != "*"]
+        # opérateurs FTS (AND, NOT, NEAR) : séparateurs, jamais des mots à chercher
+        terms += [t for t in re.split(r"[,;\n]+|\b(?:OR|AND|NOT|NEAR)\b", s["requete"]) if t.strip() and t.strip() != "*"]
     followed = live.followed(conn, user["id"])
     for d in live.dossiers():
         if d["slug"] in followed:
-            terms += [a for a in d.get("alias", []) if len(a) >= 3]
+            # alias : seulement les sigles courts (gga, mwp, ncqg…) ; les mots courants (« finance », « cover ») ramènent
+            # trop d'événements sans rapport
+            terms += [a for a in d.get("alias", []) if 3 <= len(a) <= 4]
             terms += re.split(r"[,;]+", d.get("requete") or "")
-    return [re.sub(r'["*()]', "", t).strip() for t in terms if t.strip()]
+    return [re.sub(r'["*()]', "", t).strip() for t in terms if len(re.sub(r'["*()]', "", t).strip()) >= 3]
 
 
 def query(conn, day: int | None, q: str = "", kinds: list[str] | None = None, zone: str = "", place: str = "",
