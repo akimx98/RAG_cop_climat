@@ -1,6 +1,7 @@
 """Boucle de la veille en direct (fil séparé du veilleur documentaire, pour ne jamais l'attendre).
 
-Toutes les 5 min : index Carbon Brief des textes, rattachement, récupération polie, alertes Telegram.
+Toutes les 5 min : index Carbon Brief des textes et fiches suivantes de docs.unfccc.int (voie de secours), rattachement,
+récupération polie, alertes Telegram.
 Toutes les 10 min : comptes Bluesky suivis, extraction des positions (sources publiques).
 Toutes les 6 h : programme (planner des side events et réunions officielles).
 Toutes les heures : relevé SEORS par requête ordinaire (bloqué tant que la CCNUCC n'autorise pas l'adresse du serveur).
@@ -41,6 +42,14 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         pavillons.log(str(pavillons.sync(conn, client)))
     if due("texts"):
         new = live.sync_texts(conn, client)
+        from . import docs_unfccc
+
+        try:  # voie de secours : fiches de docs.unfccc.int, sans attendre l'index de Carbon Brief
+            seen = docs_unfccc.sync(conn, client)
+            if seen.get("nouveaux"):
+                live.log(f"docs.unfccc.int : {seen}")
+        except Exception as exc:
+            live.log(f"docs.unfccc.int : {exc!r}")
         linked = live.link_existing(conn)
         got = live.retrieve_pending(conn, client)
         live.link_existing(conn)

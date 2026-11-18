@@ -95,7 +95,9 @@ une lettre n'en fait pas une version du texte cité.
 
 ### Négociations en direct
 
-Index public de Carbon Brief (textes de session, positions de référence « Who wants what », cité) ; récupération
+Index public de Carbon Brief (textes de session, positions de référence « Who wants what », cité) ; en secours, fiches
+numérotées de docs.unfccc.int (`docs_unfccc.py` : numéros suivants essayés toutes les 5 min, pas d'anti-bot), qui
+annoncent un texte sans attendre l'index ; récupération
 des textes par leur adresse puis par l'ODS, sinon « à récupérer » (dépôt manuel) ; positions extraites des sources
 publiques récentes — comptes rendus de négociation (TWN, Climate Home, Carbon Brief, ENB, ECO) et déclarations
 officielles (G77, AOSIS, présidence COP31, DG CLIMA), pas la presse généraliste (`positions.POSITION_SOURCES`) —,
@@ -216,7 +218,7 @@ téléchargent depuis la page « Connect an LLM » du site.
 | Soumissions : index du portail + rattachement aux dossiers | fil dédié `worker.submissions_forever` | 30 min |
 | Soumissions : téléchargement (récentes d'abord, puis le stock) | idem | 60 fichiers par passage, un passage par minute, dès le démarrage |
 | Récapitulatif de mes sujets (Telegram, sans IA) | `worker.digest` → `digest.run` | 7 h et 19 h, heure d'Antalya |
-| Textes de session (index Carbon Brief, récupération, alertes) | `live_worker` | 5 min |
+| Textes de session (index Carbon Brief, fiches suivantes de docs.unfccc.int en secours, récupération, alertes) | `live_worker` | 5 min |
 | Bluesky, extraction des positions | `live_worker` | 10 min |
 | Analyse des soumissions de Parties récentes (si `COP_SUB_AUTO_ANALYSE=1`) | `live_worker` | 10 min (5 par passage) |
 | État des dossiers, positions de référence Carbon Brief | `live_worker` | 1 h |
