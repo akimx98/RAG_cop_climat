@@ -34,6 +34,7 @@ def render(conn, user: dict, since: str, now: datetime | None = None) -> str | N
     if news["aucun_sujet"]:
         return None
     blocks: list[str] = []
+    seen_reports: set[str] = set()  # un bulletin qui parle de tout (ENB) n'apparaît qu'une fois, sous le premier sujet
     for item in news["sujets"]:
         lines: list[str] = []
         if item["type"] == "dossier":
@@ -44,10 +45,9 @@ def render(conn, user: dict, since: str, now: datetime | None = None) -> str | N
                     t.get("changements") or "") if x)
                 lines.append(f"{t['etape_libelle']} {html.escape(ref)}" + (f"\n   {html.escape(extra)}" if extra else "")
                              + f"\n   {html.escape(t.get('lien_diff') or t.get('lien') or '')}")
-            for r in item["comptes_rendus"]:
-                lines.append(f"📰 <b>{html.escape((r.get('organisation') or '')[:40])}</b> "
-                             f"{html.escape((r.get('titre') or '')[:90])}\n   « {html.escape((r.get('extrait') or '')[:180])} »"
-                             f"\n   {html.escape(r.get('lien') or '')}")
+            for r in [r for r in item["comptes_rendus"] if (r.get("titre") or r.get("lien")) not in seen_reports][:1]:
+                seen_reports.add(r.get("titre") or r.get("lien"))
+                lines.append(f"📰 {html.escape((r.get('titre') or '')[:100])}\n   {html.escape(r.get('lien') or '')}")
         else:
             for d in item["documents"][:3]:
                 if d.get("niveau") == "R" and not config.TELEGRAM_RESTRICTED_SNIPPETS:
