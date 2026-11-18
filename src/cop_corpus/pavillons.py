@@ -693,6 +693,7 @@ def for_programme(conn, sujet: str | None, jour: str | None, limit: int = 25, se
     out = [{k: v for k, v in {
         "date": r["date"], "heure": "–".join(x for x in (r["start"], r["end"]) if x), "pavillon": r["pavilion"],
         "zone": {"blue": "Blue Zone", "green": "Green Zone (public)", "autre": "hors site"}.get(r["zone"], r["zone"]),
+        "lieu": r["area"],  # secteur du site (« Area B2 Delegation Pavilions », « Climate Finance Hub ») ; pas de n° de stand publié
         "titre": r["title"], "organisateur": r["organizer"],
         "resume": (r["description"] or "")[:260] + ("…" if len(r["description"] or "") > 260 else ""),
         "intervenants": [s["name"] for s in json.loads(r["speakers"] or "[]")][:5] or None,

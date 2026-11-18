@@ -59,10 +59,10 @@ négociation et leurs alias), `catalog/groupes.yaml`, `catalog/glossaire.yaml`, 
 
 Collecte polie (délai par hôte, requêtes conditionnelles, anti-bot jamais contourné : unfccc.int passe par l'ODS
 de l'ONU ou par un dépôt manuel), extraction PDF/HTML/Word, découpage par paragraphe numéroté (« 1/CMA.5 §28 »),
-lignées de versions et diff, recherche hybride (paliers lexicaux + sens, priorité au texte adopté à pertinence
+lignées de versions (textes de session : par dossier et titre, car la cote change d'un organe à l'autre, `live.tidy_texts`) et diff par contenu, recherche hybride (paliers lexicaux + sens, priorité au texte adopté à pertinence
 égale), liens directs vers chaque passage (`lien_source`, `lien_page`, `lien_passage`).
 
-Extraction (`extract.py`) : PDF à colonnes lus colonne par colonne (lignes classées gauche/droite, les lignes pleine
+Extraction (`extract.py`) : tableaux tracés lus ligne par ligne, cellule par cellule (« a | b | c » : notes informelles en tableau) ; PDF à colonnes lus colonne par colonne (lignes classées gauche/droite, les lignes pleine
 largeur coupent la page en bandes ; les tableaux, aux cellules courtes, restent lus par ordonnée) ; réparation des
 artefacts (UTF-8 lu en Windows-1252 « TÃ¼rkiye », lettres espacées « S u b m i s s i o n ») ; pages HTML sans
 jeu de caractères déclaré décodées en Windows-1252 (TWN) ; texte brut de la page quand trafilatura n'en garde qu'un
@@ -176,17 +176,17 @@ par famille d'outils ; le détail est dans la description de chaque outil. Un te
 
 | Outil | Rôle |
 |---|---|
-| `rechercher` | recherche hybride dans le corpus (filtres niveau, type, session, partie, groupe, dates) ; seuil de pertinence (`faible_pertinence`, « rien de pertinent ») |
+| `rechercher` | recherche hybride dans le corpus (filtres niveau, type, session, partie, groupe, dates) ; trois degrés de pertinence : `resultats`, `pertinence_partielle` (la plupart des termes, pondérés par leur rareté ; `termes_manquants`), `faible_pertinence` ; `verdict` nuancé |
 | `lire_passage` | texte exact d'un passage et de ses voisins |
 | `document` | métadonnées et versions d'un document |
-| `comparer_versions` | ce qui a changé entre deux versions d'un texte (diff, crochets, options) |
+| `comparer_versions` | ce qui a changé entre deux versions d'un texte : paragraphes appariés par contenu, renumérotations (notes, renvois) écartées, crochets, options, paragraphes entièrement entre crochets, indice de compilation |
 | `crochets` | formulations entre crochets d'un projet de texte sur un thème (genre, droits humains, désinformation…) et depuis quelle version |
 | `nouveautes` | documents entrés récemment ; `mes_sujets=true` : ce qui a bougé sur les sujets de l'utilisateur |
 | `donnees` | chiffres d'émissions |
 | `glossaire` | sigles et notions |
 | `dossiers` | vue d'ensemble des dossiers ; `textes=true` : derniers textes annoncés |
 | `dossier` | un dossier : état, textes, brief, positions, positions écrites, soumissions liées, notes |
-| `positions` | qui veut quoi (acteur, dossier, période) ; `divisions=true` : clivages internes d'un groupe (sous-groupes, membres) et alliés hors groupe |
+| `positions` | qui veut quoi (acteur, dossier, période) ; `divisions=true` : clivages internes d'un groupe (sous-groupes, membres) et alliés hors groupe ; `compact`, `limite` + `decalage` (pagination) |
 | `soumissions` | appels, qui a soumis quoi, par dossier ou par groupe ; `document=` : analyse |
 | `comparer_soumissions` | comparaison de deux acteurs (repli : sous-groupes et membres, puis dernière soumission ; écart de dates signalé ; appels candidats listés), ou contre tout un appel ; `acteurs=` : matrice (cache) |
 | `groupes` | membres sourcés d'un groupe, groupes d'une Partie |

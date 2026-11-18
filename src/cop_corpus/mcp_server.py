@@ -152,8 +152,9 @@ def rechercher(
     - groupe: LDC, AOSIS, G77, EU, Umbrella…: documents (NDCs, submissions) of its members (sourced list, see groupes)
     - depuis / jusqu_a: ISO date (YYYY-MM-DD) on the publication (or retrieval) date.
     Returns passages with level, symbol, paragraph, page, excerpt and links. Use lire_passage for the full text.
-    Relevance threshold: passages containing neither the phrase nor all terms and far in meaning go to
-    `faible_pertinence`; if nothing is relevant, `verdict` says so ("nothing relevant": say it as is).
+    Relevance: `resultats` = phrase, all terms or close in meaning; `pertinence_partielle` = most terms
+    (`termes_manquants` listed: read them before saying "not found"); `faible_pertinence` = one term among
+    several, far in meaning. `verdict` when nothing is fully relevant: follow it as is.
     """
     user = _user(ctx)
     filters = {"levels": niveaux, "doc_types": types, "session": session, "org": organisation, "party": partie,
@@ -163,13 +164,23 @@ def rechercher(
     hits = search.search(db.get(), requete, {k: v for k, v in filters.items() if v}, user, limit=min(limite, 30),
                          signals=signals)
     n = search.n_terms(requete)
-    strong = [h for h in hits if search.is_relevant(signals.get(h["passage_id"]), n)]
-    weak = [h for h in hits if not search.is_relevant(signals.get(h["passage_id"]), n)]
+    level = {h["passage_id"]: search.relevance(signals.get(h["passage_id"]), n) for h in hits}
+    strong = [h for h in hits if level[h["passage_id"]] == "forte"]
+    partial = [h for h in hits if level[h["passage_id"]] == "partielle"]
+    weak = [h for h in hits if level[h["passage_id"]] == "faible"]
     out: dict[str, Any] = {"requete": requete, "nb": len(strong), "resultats": strong}
+    if partial:
+        out["pertinence_partielle"] = [{**h, "termes_manquants": signals[h["passage_id"]].get("termes_manquants")}
+                                       for h in partial[:8]]
     if weak:
         out["faible_pertinence"] = [{**h, "pertinence": signals.get(h["passage_id"])} for h in weak[:5]]
-    if not strong:
-        out["verdict"] = ("nothing relevant: no passage contains the phrase or all the terms, or is "
+    if not strong and partial:
+        missing = sorted({t for h in partial for t in signals[h["passage_id"]].get("termes_manquants") or []})
+        out["verdict"] = (f"partial relevance: passages contain most terms but not {', '.join(missing)}. Read them "
+                          "(lire_passage) before concluding: if they answer the question, cite them and say which "
+                          "term is absent; do not answer \"not found\" without reading them.")
+    elif not strong:
+        out["verdict"] = ("nothing relevant: no passage contains the phrase, all or most of the terms, or is "
                           "close in meaning. Say so (\"not found in the corpus\"); try 2–3 other phrasings or remove "
                           "filters; do not present `faible_pertinence` as an answer.")
     out["rappel"] = "Quote the exact text, the reference and the level. Nothing relevant → say so."
@@ -212,17 +223,24 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
     if document_ancien:
         old = search.find_doc(conn, document_ancien, user)
     else:
-        old = conn.execute(
-            "SELECT * FROM documents WHERE lineage_key=? AND id<? ORDER BY id DESC LIMIT 1",
-            (new["lineage_key"], new["id"]),
-        ).fetchone()
+        prev = diff.previous_in_lineage(conn, new["id"])
+        old = conn.execute("SELECT * FROM documents WHERE id=?", (prev,)).fetchone() if prev else None
         if old and old["access"] != "public" and not auth.can_restricted(user):
             old = None
     if not old:
-        return {"erreur": "no known earlier version", "versions": search.versions(conn, new["lineage_key"], user)}
+        return {"erreur": "no known earlier version",
+                "versions": search.versions(conn, new["lineage_key"], user) if new["lineage_key"] else [],
+                "conseil": "versions of a session text are linked by item and title (the symbol changes between "
+                           "bodies); pass document_ancien=<symbol or doc_id> to compare any two texts"}
     out = diff.compare(conn, old["id"], new["id"])
     out["ancien"] = search.doc_public(old)
     out["nouveau"] = search.doc_public(new)
+    from . import live as lv
+
+    for side, row in (("ancien", old), ("nouveau", new)):
+        hint = lv.compilation_hint(conn, row["id"])
+        if hint:
+            out[side]["compilation"] = hint
     return out
 
 
@@ -256,7 +274,7 @@ def crochets(theme: str, texte: str | None = None, dossier: str | None = None, l
         row = search.find_doc(conn, str(got[0]["doc_id"]), user)
         if not row:
             return {"erreur": "text not accessible"}
-        others = [{"cote": t["symbol"], "titre": t["title"], "date": t["published"], "doc_id": t["doc_id"]}
+        others = [{"cote": t["symbol"], "titre": t["title"], "date": live.local_time(t["published"]), "doc_id": t["doc_id"]}
                   for t in got[1:8]] or None
     else:
         return {"erreur": "specify texte=<symbol or doc_id> or dossier=<slug or alias>"}
@@ -349,7 +367,9 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
     if mes_sujets:
         if not user or not user.get("id"):
             return {"erreur": "mes_sujets requires being signed in; otherwise specify `sujet`"}
-        subjects = [(s["libelle"], s["requete"]) for s in alerts.list_subscriptions(conn, user["id"])]
+        # Un sujet joker (« * » : tout nouveau projet de texte) vaut pour les documents, pas pour le programme.
+        subjects = [(s["libelle"], s["requete"]) for s in alerts.list_subscriptions(conn, user["id"])
+                    if s["requete"].strip() not in ("*", "")]
         live, _, _ = _live()
         for slug in sorted(live.followed(conn, user["id"])):
             d = live.dossier(slug) or {}
@@ -359,7 +379,9 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
         day = agenda.resolve_day(jour)
         blocs = []
         for label, q in subjects[:8]:
-            terms = ", ".join(t for t in re.split(r"[,;]| OR | AND ", q.replace('"', "")) if t.strip())
+            terms = ", ".join(t for t in re.split(r"[,;]| OR | AND ", q.replace('"', "")) if t.strip() and t.strip() != "*")
+            if not terms:
+                continue
             ag = agenda.query(conn, jour=jour, sujet=terms, types=types, limit=12)
             bloc: dict[str, Any] = {"sujet": label, "requete": terms, "side_events_et_reunions": ag["evenements"],
                                     "total_side_events_et_reunions": ag["total"]}
@@ -386,23 +408,13 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
 def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str | None = None,
               zone: str | None = None, mode: str = "hybride", limite: int = 80, evenement: str | None = None,
               couverture: bool = False) -> dict[str, Any]:
-    """Search the CONTENT of programmes (counts, coverage, who talked about what). For "where and when to go
-    today": `programme` tool. Programmes of ALL COP31 pavilions and side events (≈5,000 events: title, summary,
-    speakers, themes, keywords), for cross-cutting questions: "how many pavilions talked about tropical
-    forests?", "which pavilions criticised technical fixes (CCS, geoengineering…)?", "what is the Indonesia
-    pavilion doing on methane?", "who talked about critical minerals?".
-    Results grouped by pavilion, with the number of events per pavilion.
-    `sujet`: comma-separated terms (OR), preferably in English, with synonyms
-    ("tropical forest, rainforest, Amazon, Congo Basin, REDD+, deforestation"). Quoted word = exact phrase;
-    `word*` = prefix. `mode`: hybride (words + meaning, default), mots (strict count), sens (related ideas:
-    "critique of techno-solutionism"). `pavillon`: partial name ("Brazil", "WWF"); without `sujet`, returns its
-    whole programme. `jour`: "14", "2026-11-14", "today". `zone`: blue, green, autre (other).
-    `evenement`: returned id → full summary and record. `couverture=true`: list of pavilions covered
-    (events, summaries, known speakers).
-    METHOD for counting: run 2–3 phrasings, reread the summaries of "sens" matches before counting them,
-    give the number of pavilions AND events, and state the limits (self-declared programmes, summaries sometimes
-    missing, pavilions absent from the source). Quote the exact title and the pavilion; level 5 source
-    (programme published by the organisers)."""
+    """Searches the CONTENT of all pavilion and side-event programmes (≈5,000 events: title, summary,
+    speakers, themes) for cross-cutting questions: "how many pavilions talked about tropical forests?", "who
+    talked about critical minerals?". Results grouped by pavilion. For where/when to go: `programme`.
+    `sujet`: comma-separated terms (OR), English + synonyms; "quoted" = exact phrase, word* = prefix.
+    `mode`: hybride (default), mots (strict count), sens (related ideas: reread summaries). `pavillon`: partial
+    name; `jour`; `zone`: blue|green|autre; `evenement`: id → full record; `couverture=true`: pavilions covered.
+    Counting: 2–3 phrasings, give pavilions AND events, state limits (self-declared programmes). Level 5."""
     from . import pavillons as pav
 
     conn = db.get()
@@ -421,25 +433,14 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
                 requete: str | None = None, theme: str | None = None, session: str | None = None,
                 ouverts: bool = False, parties_seulement: bool = False, limite: int = 40,
                 ctx: Context | None = None) -> dict[str, Any]:
-    """Official UNFCCC submissions (submissions.unfccc.int portal, since 2015): calls, who submitted what, and
-    analysis of a submission. ONE mode per call, in this priority order: document, appel, groupe, dossier,
-    auteur, otherwise list of calls (requete / theme / session / ouverts).
-    - no argument (or requete / theme / session / ouverts): list of calls, with number of submissions;
-      requete = title words, all required ("just transition", "adaptation indicators", "Article 6.8");
-      session = COP31, SB64…; ouverts=true: calls open or of the current session.
-    - appel=<id>: call detail and all its submissions (author, Party or observer, date, AI summary if any, doc_id).
-    - auteur="EU" / "UE" / "European Union", "LDC", "Brazil"…: submissions by this actor, as author or co-author
-      (exact name after normalisation; an unknown name returns close names, never another country).
-    - dossier=<slug or alias: GGA, finance, JTWP, art6, ACE…>: calls linked to the item (most recent), who
-      submitted (canonical actors; group when a Party submits on its behalf), alignments already computed.
-    - groupe="LDC", "AOSIS", "G77"…: submissions by the group in its own name, by its SUB-GROUPS (G77 → AGN, LDC,
-      AOSIS, Arab Group, LMDC…) and by its members (sourced list); add dossier= to restrict to one item.
-      A group often does not submit in its own name: then look at its sub-groups, then an older submission.
-    - document=<doc_id>: submission TEXT (passages, links) and analysis instructions, for you to carry out: summary,
-      points raised, strength of language (1 notes, 2 suggests, 3 requests, 4 demands), verbatim quotes. A cached
-      analysis, if any, is attached.
-    Level: Party submission = 2 (official written position, not adopted), observer = 5.
-    For "who wants what" during the COP, see also `positions`; to compare two actors: comparer_soumissions."""
+    """Official UNFCCC submissions (submissions.unfccc.int, since 2015). ONE mode per call, by priority:
+    - document=<doc_id>: submission text + analysis instructions (you analyse; cached analysis attached).
+    - appel=<id>: a call and all its submissions.
+    - groupe="LDC"|"AOSIS"|"G77"…: by the group, its sub-groups and members (+ dossier= to narrow).
+    - dossier=<slug|alias>: calls linked to the item, who submitted, known alignments.
+    - auteur="EU"|"Brazil"…: by this actor (exact name after normalisation; close names if unknown).
+    - otherwise: list of calls (requete = title words, theme, session, ouverts=true for current ones).
+    Level: Party = 2 (not adopted), observer = 5. Compare two actors: comparer_soumissions."""
     from . import soumissions as sm
 
     conn = db.get()
@@ -503,27 +504,14 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
                          dossier: str | None = None, acteurs: list[str] | None = None,
                          qualifications: list[dict] | None = None, max_comparaisons: int = 6,
                          ctx: Context | None = None) -> dict[str, Any]:
-    """Compares the written positions of two actors (official submissions), in two steps:
-    1. comparer_soumissions(a, b): the two selected submissions (common call), their texts and instructions; YOU
-       qualify each point (agreement / partial / conflict / one side only, strength of language on each side,
-       verbatim quotes). If a comparison is already cached, it is returned directly.
-    2. comparer_soumissions(a=<doc_id A>, b=<doc_id B>, qualifications=[{point, a_position, b_position, a_force,
-       b_force, relation, a_citation, b_citation, explication}]): the server checks each quote in the document
-       (strength lowered to 2 if not found) and computes the overall indication by fixed rules
-       (aligned, partially, not aligned, no common position; decompte.regle).
-    - a, b: actor name ("EU", "LMDC", "Saudi Arabia", "AOSIS") or doc_id. Uses the most recent call both answered
-      (or `appel`, or the most recent call of the `dossier`: GGA, finance, ACE…); if there are several, the others
-      are listed (`autres_appels_communs`): say so, do not pick silently. Ambiguous item → `candidats`: ask.
-    - Group that did not submit in its own name (common: the G77 answers through sub-groups): fallback, each step
-      stated in `repli` — 1) submissions by its SUB-GROUPS (G77 → African Group, LDC, AOSIS, Arab Group, LMDC…) and
-      its MEMBERS on the common call, with coverage; its own latest submission on the item is given
-      (`derniere_soumission_propre`); 2) no common call: each side's latest submission (different calls).
-    - `ecart_dates`: gap between the two submissions; over a year, a warning to relay as is.
-    - b missing: compares `a`'s submission with the other Parties on the same call (cached comparisons first,
-      a few new ones per request; call again for more).
-    - acteurs=["EU","LMDC","AOSIS",…] + dossier=…: alignment matrix READ FROM THE CACHE (pairs already compared,
-      pairs "to compute" with their common call); no comparison is run.
-    Present it as an analytical aid (not a judgement), with the quotes and links of both documents."""
+    """Compares two actors' written positions (official submissions), in two steps:
+    1. (a, b): picks their latest common call (or `appel`, or the item's via `dossier`) and returns both texts +
+       instructions; you qualify each point. Cached comparison → returned directly.
+    2. (a=<doc_id>, b=<doc_id>, qualifications=[…] as instructed): the server checks the quotes and computes the
+       overall verdict by fixed rules.
+    a/b: actor ("EU", "LMDC", "AOSIS") or doc_id. A group without its own submission falls back to sub-groups and
+    members, then latest submissions (`repli`, `ecart_dates`: relay as is). b missing: `a` vs the other Parties of
+    the call. acteurs=[…] + dossier=: alignment matrix from the cache only. An analytical aid, not a judgement."""
     from . import soumissions as sm
 
     conn = db.get()
@@ -607,9 +595,19 @@ def mes_sujets(ctx: Context | None = None) -> dict[str, Any]:
     ).fetchall()
     live, _, _ = _live()
     follows = sorted(live.followed(conn, user["id"])) if user.get("id") else []
-    return {"sujets": alerts.list_subscriptions(conn, user["id"]),
-            "dossiers_suivis": [{"slug": s, "nom": (live.dossier(s) or {}).get("nom")} for s in follows],
-            "dernieres_alertes": [dict(r) for r in rows]}
+    subs = alerts.list_subscriptions(conn, user["id"])
+    out = {"sujets": subs,
+           "dossiers_suivis": [{"slug": s, "nom": (live.dossier(s) or {}).get("nom")} for s in follows],
+           "dernieres_alertes": [dict(r) for r in rows]}
+    over = alerts.overlaps(subs)
+    if over:
+        out["chevauchements"] = over
+    vague = {s["id"]: alerts.generic_fragments(s["requete"]) for s in subs}
+    vague = {k: v for k, v in vague.items() if v}
+    if vague:
+        out["termes_trop_vagues"] = {"par_sujet": vague, "conseil": "these fragments match almost any text "
+                                     "(e.g. “paragraph 8” alone): rewrite the topic with full phrases"}
+    return out
 
 
 @mcp.tool(annotations=WRITE)
@@ -637,8 +635,16 @@ def suivre(mots_cles: str | None = None, dossier: str | None = None, arreter: in
             return {"erreur": "unknown item: see the `dossiers` tool for the list and aliases"}
         live.follow(conn, user["id"], slug, not ne_plus_suivre)
         return {"ok": True, "dossier": slug, "suivi": not ne_plus_suivre}
+    existing = alerts.list_subscriptions(conn, user["id"])
     sid = alerts.add_subscription(conn, user["id"], libelle or mots_cles[:60], mots_cles, niveaux, types)
-    return {"ok": True, "id": sid, "apercu_7_jours": alerts.preview(conn, mots_cles, niveaux, types, user, days=7, limit=5)}
+    out = {"ok": True, "id": sid, "apercu_7_jours": alerts.preview(conn, mots_cles, niveaux, types, user, days=7, limit=5)}
+    over = alerts.overlaps(existing, mots_cles)
+    if over:
+        out["chevauchements"] = [{**o, "ids": [sid, *o["ids"]]} for o in over]
+    vague = alerts.generic_fragments(mots_cles)
+    if vague:
+        out["termes_trop_vagues"] = vague
+    return out
 
 
 _DATE_IN_TEXT = re.compile(
@@ -741,6 +747,10 @@ def etat_corpus() -> dict[str, Any]:
 
 # --- veille en direct : dossiers, textes en cours, positions, notes ------------------------
 
+TIME_NOTE = ("published: local time in Antalya (UTC+3), as posted by the index; server timestamps (first_seen, "
+             "recu_le, created_at) are UTC (Z)")
+
+
 def _live():
     from . import briefs, live, positions
 
@@ -763,9 +773,11 @@ def dossiers(textes: bool = False, a_recuperer: bool = False, limite: int = 30,
            "source_index": f"{live.CB_CREDIT} — {live.CB_TEXTS_PAGE} (to cite)"}
     if textes or a_recuperer:
         ts = live.texts(conn, None, pending_only=a_recuperer, limit=min(limite, 100))
-        out["textes"] = [{**{k: t[k] for k in ("dossier", "symbol", "title", "body", "agenda_item", "published",
-                                               "brackets", "options", "pdf_url")},
+        out["textes"] = [{**{k: t[k] for k in ("dossier", "symbol", "title", "body", "agenda_item", "brackets",
+                                               "options", "pdf_url")},
+                          "published": live.local_time(t["published"]), "etape": live.text_stage(dict(t)),
                           "lien": f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t["doc_id"] else None} for t in ts]
+    out["fuseau"] = TIME_NOTE
     return out
 
 
@@ -786,16 +798,26 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
         return err
     d = live.dossier(slug)
     pos = positions.for_dossier(conn, slug, limit=300)
+    texts = live.texts(conn, slug, limit=40)
+
+    def text_row(t) -> dict[str, Any]:
+        row = {**{k: t[k] for k in ("symbol", "title", "body", "agenda_item", "pages", "brackets", "options",
+                                    "pdf_url", "note")},
+               "published": live.local_time(t["published"]),
+               "statut": "retrieved" if t["doc_id"] else "to retrieve",
+               "etape": live.text_stage(dict(t)),
+               "lien": f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t["doc_id"] else None,
+               "diff": f"{config.PUBLIC_BASE}/diff/{t['doc_id']}" if t["doc_id"] else None}
+        hint = live.compilation_hint(conn, t["doc_id"]) if t["doc_id"] else None
+        if hint:
+            row["compilation"] = hint["consequence"]
+        return {k: v for k, v in row.items() if v is not None}
+
+    statuses = live.status_by_dossier(conn).get(slug, [])
     out = {
         "dossier": {k: d[k] for k in ("slug", "nom", "enjeu", "alias")},
-        "etat": [x["status"] for x in live.status_by_dossier(conn).get(slug, [])],
-        "textes": [{**{k: t[k] for k in ("symbol", "title", "body", "agenda_item", "published", "pages", "brackets",
-                                         "options", "pdf_url", "note")},
-                    "statut": "retrieved" if t["doc_id"] else "to retrieve",
-                    "etape": live.text_stage(dict(t)),
-                    "lien": f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t["doc_id"] else None,
-                    "diff": f"{config.PUBLIC_BASE}/diff/{t['doc_id']}" if t["doc_id"] else None}
-                   for t in live.texts(conn, slug, limit=40)],
+        "etat": [f"{x['cb_topic']}: {x['status']}" for x in statuses],
+        "textes": [text_row(t) for t in texts],
         "brief": briefs.latest(conn, slug),
         "positions_cop": [{k: p[k] for k in ("actor", "stance", "issue", "summary", "quote", "said_on",
                                              "source_label", "source_url")}
@@ -809,7 +831,16 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
                   "sources, quote checked word for word. Written positions: points from recent official Party "
                   "submissions (level 2, quote checked), dated by filing. Brief: AI-written, check against the sources.",
         "page": f"{config.PUBLIC_BASE}/database/negotiations/{slug}",
+        "fuseau": TIME_NOTE,
+        "lexique": "etape: draft (draft text, informal note), for_adoption (L document forwarded to the plenary), "
+                   "adopted, other; brackets/options: counts from Carbon Brief's index (crochets tool for themes)",
     }
+    stale = [x["cb_topic"] for x in statuses if re.search(r"\bno text\b", x["status"] or "", re.I)]
+    if stale and texts:
+        out["etat_avertissement"] = (
+            f"Carbon Brief status “No text” for {', '.join(stale)} while {len(texts)} texts of this item are indexed "
+            f"(latest {live.local_time(texts[0]['published']) or texts[0]['first_seen']}): the status is per "
+            "sub-topic and may lag; rely on the texts list")
     return out
 
 
@@ -825,15 +856,17 @@ def _sub_section(conn, slug: str) -> dict[str, Any] | None:
 
 @mcp.tool(annotations=READ)
 def positions(acteur: str | None = None, dossier: str | None = None, depuis: str | None = None,
-              limite: int = 80, divisions: bool = False, groupe: str | None = None,
-              ctx: Context | None = None) -> dict[str, Any]:
+              limite: int = 80, divisions: bool = False, groupe: str | None = None, compact: bool | None = None,
+              decalage: int = 0, ctx: Context | None = None) -> dict[str, Any]:
     """Who wants what: positions of an actor (EU, G77 and China, LMDC, AOSIS, LDC, AGN, Arab Group, China,
     Saudi Arabia…) and/or on an item, with stance, issue, exact quote, date and source. `depuis`: "24h", "3d"
     (or "3j") or ISO date (positions recorded since). Sources: negotiation reports (ENB, level 4, attributes
     interventions in the room: "X, supported by Y, opposed by Z"), official statements, submissions.
     divisions=true (+ groupe="G77" by default, "AOSIS", "AGN"…; dossier= optional): the group's INTERNAL
     DIVISIONS — issues where some sub-groups or members support while others oppose, with each camp's allies
-    outside the group (e.g. AOSIS and LDCs with the EU, against the Arab Group and India)."""
+    outside the group (e.g. AOSIS and LDCs with the EU, against the Arab Group and India).
+    `compact=true` (default with divisions): actor, stance, issue, date, link — no quotes (fetch them with
+    compact=false on a narrower query). `limite` + `decalage` paginate (`suite` gives the next offset)."""
     live, pos, _ = _live()
     conn = db.get()
     live.ensure_schema(conn)
@@ -848,7 +881,14 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
         gid = grp.group_id(groupe or acteur or "G77")
         if not gid:
             return {"erreur": f"unknown group: {groupe or acteur} (see the `groupes` tool)"}
-        return pos.divisions(conn, gid, dossier=slug, since=_since(depuis))
+        out = pos.divisions(conn, gid, dossier=slug, since=_since(depuis), compact=compact is not False)
+        lim = max(1, min(limite, 25))
+        total = len(out["divisions"])
+        out["divisions"] = out["divisions"][decalage:decalage + lim]
+        out["nb_divisions"] = total
+        if decalage + lim < total:
+            out["suite"] = {"decalage": decalage + lim, "reste": total - decalage - lim}
+        return out
     where, params = ["access='public'"], []
     if acteur:
         # Nom canonique exact (« UE » → « EU ») ; jamais de correspondance partielle (« Mali » ≠ « Somalia ») :
@@ -871,11 +911,18 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
     if depuis:
         where.append("created_at>=?")
         params.append(_since(depuis))
+    lim = max(1, min(limite, 300))
+    total = conn.execute(f"SELECT COUNT(*) FROM positions WHERE {' AND '.join(where)}", params).fetchone()[0]
     rows = conn.execute(
         f"""SELECT dossier, actor, stance, issue, summary, quote, said_on, source_kind, source_label, source_url
-            FROM positions WHERE {' AND '.join(where)} ORDER BY COALESCE(said_on, created_at) DESC LIMIT ?""",
-        (*params, min(limite, 300))).fetchall()
-    return {"positions": [dict(r) for r in rows],
+            FROM positions WHERE {' AND '.join(where)} ORDER BY COALESCE(said_on, created_at) DESC LIMIT ? OFFSET ?""",
+        (*params, lim, max(0, decalage))).fetchall()
+    keys = ("dossier", "actor", "stance", "issue", "said_on", "source_url") if compact else None
+    out_rows = [{k: r[k] for k in keys} if keys else dict(r) for r in rows]
+    extra: dict[str, Any] = {"nb_total": total}
+    if decalage + lim < total:
+        extra["suite"] = {"decalage": decalage + lim, "reste": total - decalage - lim}
+    return {"positions": out_rows, **extra,
             "note": "source_kind=carbonbrief: pre-COP reference positions (Carbon Brief, to cite); "
                     "extraction/bluesky: recorded during the COP, quote checked in the source; "
                     "soumission: written position, a point from a recent official UNFCCC submission (level 2), "

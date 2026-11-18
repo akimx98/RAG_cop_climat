@@ -95,6 +95,17 @@ def ensure_schema(conn) -> None:
     _ready.add(key)
 
 
+COP_UTC_OFFSET = "+03:00"  # Antalya (heure de Türkiye, UTC+3, sans heure d'été)
+
+
+def local_time(value: str | None) -> str | None:
+    """Heure de l'index (Carbon Brief, docs.unfccc.int : heure locale d'Antalya, sans fuseau) → ISO avec fuseau
+    explicite « 2026-11-17T22:30+03:00 ». Les horodatages du serveur (first_seen, created_at…) sont en UTC (« Z »)."""
+    if not value or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?", value):
+        return value
+    return value + COP_UTC_OFFSET
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -261,6 +272,17 @@ def sync_texts(conn, client: fetch.Client) -> list[int]:
             brackets=_int(g(r, "brackets")), options=_int(g(r, "options")), note=g(r, "note") or None,
         )
         old = conn.execute("SELECT id FROM live_texts WHERE key=?", (key,)).fetchone()
+        if not symbol and pdf and conn.execute(
+                "SELECT 1 FROM live_texts WHERE pdf_url=? AND symbol IS NOT NULL AND key<>?", (pdf, key)).fetchone():
+            # Ligne de l'index sans cote ni titre pour un PDF déjà annoncé avec sa cote : doublon vide.
+            if old:
+                conn.execute("DELETE FROM live_texts WHERE id=?", (old["id"],))
+            continue
+        if not old and symbol and pdf:
+            # Le même PDF annoncé d'abord sans cote (clé = adresse) : la ligne prend sa cote, pas de doublon.
+            old = conn.execute("SELECT id FROM live_texts WHERE key=? AND symbol IS NULL", (pdf,)).fetchone()
+            if old:
+                conn.execute("UPDATE live_texts SET key=? WHERE id=?", (key, old["id"]))
         if old:
             sets = ", ".join(f"{k}=?" for k in vals)
             conn.execute(f"UPDATE live_texts SET {sets}, updated_at=? WHERE id=?", (*vals.values(), now_iso(), old["id"]))
@@ -342,13 +364,31 @@ def _session(body: str) -> str | None:
     return f"{m.group(1).upper()}{m.group(2)}" if m else None
 
 
+NEGOTIATED_KINDS = ("draft", "informal", "in-session", "conclusion", "decision")
+
+
+def negotiated(t) -> bool:
+    """Texte négocié (projet de texte, note informelle, projet de conclusions ou de décision, document L), par
+    opposition aux documents d'avant-session, rapports et ordres du jour."""
+    symbol, kind = (t["symbol"] or ""), (t["cb_type"] or "").lower()
+    return symbol.startswith(("DT.", "IN.")) or "/L." in symbol or any(k in kind for k in NEGOTIATED_KINDS)
+
+
+def _doc_type(t) -> str:
+    kind = (t["cb_type"] or "").lower()
+    if negotiated(t) or (t["title"] or "").lower().startswith(("draft", "proposal by the president", "projet")):
+        return "projet_texte"
+    if kind.startswith("agenda"):
+        return "ordre_du_jour"
+    if kind == "summary reports":
+        return "compte_rendu"
+    return "autre"
+
+
 def _meta(t) -> dict[str, Any]:
-    doc_type = {"Draft texts": "projet_texte", "Informal notes": "projet_texte", "Draft conclusions": "projet_texte",
-                "Agendas and annotations": "ordre_du_jour", "Summary reports": "compte_rendu"}.get(t["cb_type"], "autre")
-    if (t["title"] or "").lower().startswith(("draft", "proposal by the president", "projet")):
-        doc_type = "projet_texte"
     return {"title": f"{t['symbol'] + ' — ' if t['symbol'] else ''}{t['title']}"[:300], "symbol": t["symbol"],
-            "level": "2", "org": "UNFCCC", "doc_type": doc_type, "session": _session(t["body"]),
+            "level": "2", "org": "UNFCCC", "doc_type": _doc_type(t), "session": _session(t["body"]),
+            "published": (t["published"] or "")[:10] or None,
             "topics": [t["dossier"]] if t["dossier"] else None}
 
 
@@ -372,6 +412,88 @@ def link_existing(conn) -> int:
             conn.execute("UPDATE live_texts SET doc_id=?, status='recupere', updated_at=? WHERE id=?",
                          (row["id"], now_iso(), t["id"]))
             n += 1
+    conn.commit()
+    return n
+
+
+_COMPILATION_NOTE = re.compile(r"all (?:the )?proposals|compilation|reflections|everyone.s priorities|all (?:the )?views",
+                               re.I)
+_COMPILATION_TEXT = re.compile(
+    r"compilation of (?:all )?(?:the )?(?:textual )?(?:proposals|submissions|views|inputs)|"
+    r"(?:captures|reflects|contains|includes) all (?:the )?(?:textual )?(?:proposals|views|submissions)|"
+    r"does not (?:reflect|represent) (?:a )?consensus", re.I)
+
+
+def compilation_hint(conn, doc_id: int) -> dict[str, str] | None:
+    """Indice qu'un texte est une COMPILATION de toutes les propositions (contestée en bloc) : le nombre de crochets
+    y sous-estime le désaccord. Sources : note de l'index Carbon Brief (« Still includes all proposals »), titre,
+    premiers paragraphes du texte. None si rien ne l'indique."""
+    ensure_schema(conn)
+    clue = None
+    t = conn.execute("SELECT note FROM live_texts WHERE doc_id=? AND note IS NOT NULL ORDER BY id DESC LIMIT 1",
+                     (doc_id,)).fetchone()
+    if t and _COMPILATION_NOTE.search(t["note"]):
+        clue = f"Carbon Brief note: “{t['note']}”"
+    if not clue:
+        d = conn.execute("SELECT title FROM documents WHERE id=?", (doc_id,)).fetchone()
+        if d and re.search(r"\bcompilation\b", d["title"] or "", re.I):
+            clue = f"title: “{d['title'][:120]}”"
+    if not clue:
+        head = " ".join(r[0] for r in conn.execute(
+            "SELECT text FROM passages WHERE doc_id=? ORDER BY seq LIMIT 4", (doc_id,)))
+        m = _COMPILATION_TEXT.search(" ".join(head.split()))
+        if m:
+            clue = f"text: “…{m.group(0)}…”"
+    if not clue:
+        return None
+    return {"indice": clue, "consequence": "compilation of all proposals, contested as a whole: the bracket count "
+                                          "understates disagreement; do not read few brackets as convergence"}
+
+
+def tidy_texts(conn) -> dict[str, int]:
+    """Remise en ordre idempotente de l'index des textes de session, après chaque synchronisation :
+
+    1. lignes de l'index sans cote ni titre, doublons d'une ligne qui a la cote du même PDF ;
+    2. métadonnées des documents récupérés par l'index : cote, titre, type et date de l'index (la cote lue dans le
+       PDF peut être celle d'un document cité : un projet de conclusions sur le renforcement des capacités était
+       devenu « FCCC/SBI/2026/24 », le rapport qu'il cite, et une « version 2 » de ce rapport) ;
+    3. lignées des textes négociés : même dossier et même titre, quelle que soit la cote. La cote change quand un
+       point passe d'un organe à l'autre (DT.SBI65.i13b.2 → DT.COP31.i9b_CMA8.i12b.1, « Host of the Climate
+       Technology Centre ») et chaque itération porte un suffixe (.1, .2) : la cote ne suffit pas à relier les
+       versions. Ordre des versions : date de publication de l'index."""
+    from . import ingest
+
+    ensure_schema(conn)
+    n = {"doublons": 0, "metadonnees": 0, "lignees": 0}
+    n["doublons"] = conn.execute(
+        """DELETE FROM live_texts WHERE symbol IS NULL AND COALESCE(title,'')='' AND pdf_url IS NOT NULL
+           AND EXISTS (SELECT 1 FROM live_texts b WHERE b.pdf_url=live_texts.pdf_url AND b.symbol IS NOT NULL
+                       AND b.id<>live_texts.id)""").rowcount
+    for t in conn.execute("SELECT * FROM live_texts WHERE doc_id IS NOT NULL AND symbol IS NOT NULL ORDER BY id"):
+        d = conn.execute("SELECT * FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
+        if not d or d["source_id"] != "live-texts":
+            continue
+        m = _meta(t)
+        title = m["title"] if d["symbol"] != t["symbol"] else d["title"]
+        if (d["symbol"], d["title"], d["doc_type"]) != (t["symbol"], title, m["doc_type"]) or \
+                (not d["published"] and m["published"]):
+            conn.execute("UPDATE documents SET symbol=?, title=?, doc_type=?, published=COALESCE(published, ?) "
+                         "WHERE id=?", (t["symbol"], title, m["doc_type"], m["published"], d["id"]))
+            n["metadonnees"] += 1
+    groups: dict[str, dict[int, tuple[str, int]]] = {}
+    for t in conn.execute("""SELECT * FROM live_texts WHERE doc_id IS NOT NULL AND dossier IS NOT NULL
+                             AND COALESCE(title,'')<>''"""):
+        if not negotiated(t):
+            continue
+        key = f"neg:{t['dossier']}|{ingest.normalize_title(t['title'])}"
+        rank = (t["published"] or t["first_seen"] or "", t["doc_id"])
+        g = groups.setdefault(key, {})
+        g[t["doc_id"]] = min(g.get(t["doc_id"], rank), rank)
+    for key, docs in groups.items():
+        for version, doc_id in enumerate(sorted(docs, key=docs.get), start=1):
+            n["lignees"] += conn.execute(
+                """UPDATE documents SET lineage_key=?, version=? WHERE id=? AND access='public'
+                   AND (lineage_key IS NOT ? OR version IS NOT ?)""", (key, version, doc_id, key, version)).rowcount
     conn.commit()
     return n
 

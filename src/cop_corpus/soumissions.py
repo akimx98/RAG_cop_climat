@@ -122,6 +122,34 @@ def norm_session(value: str | None) -> str | None:
     return v if v and v.upper() not in ("N/A", "NA") else None
 
 
+_TEST = re.compile(r"\s*test(?:t*|[\s_-]*(?:party|parties|org|organi[sz]ation))?"
+                   r"(?:\s+(?:submission|ignore|please|this|only)\b.*)?\s*", re.I)
+
+
+def _test_author(name: str | None) -> bool:
+    """Dépôt de test du portail (« test-Party », « testtt », « Test submission please ignore ») : jamais un
+    auteur réel, ni une soumission à analyser."""
+    return bool(_TEST.fullmatch(name or ""))
+
+
+def purge_test_items(conn) -> int:
+    """Retire les dépôts de test du portail : fiches, acteurs, et texte de leurs documents (hors recherche)."""
+    ids = [(r["id"], r["doc_id"]) for r in conn.execute("SELECT id, entity, doc_id FROM sub_items")
+           if _test_author(r["entity"])]
+    for sub_id, doc_id in ids:
+        conn.execute("DELETE FROM sub_actors WHERE sub_id=?", (sub_id,))
+        conn.execute("DELETE FROM sub_items WHERE id=?", (sub_id,))
+        if doc_id:
+            for (pid,) in conn.execute("SELECT id FROM passages WHERE doc_id=?", (doc_id,)).fetchall():
+                conn.execute("DELETE FROM passages_fts WHERE rowid=?", (pid,))
+                conn.execute("DELETE FROM vectors WHERE passage_id=?", (pid,))
+            conn.execute("DELETE FROM passages WHERE doc_id=?", (doc_id,))
+            conn.execute("UPDATE documents SET status='excluded', note='dépôt de test du portail' WHERE id=?",
+                         (doc_id,))
+    conn.commit()
+    return len(ids)
+
+
 def entity_kind(entity_type: str | None, entity: str, parties: set[str]) -> str:
     """party | observer. Le type est vide pour ~30 % des anciens dépôts : on reconnaît alors une Partie
     à son nom, s'il apparaît ailleurs avec le type « Party »."""
@@ -239,6 +267,8 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
     known_ids = {r[0] for r in conn.execute("SELECT id FROM sub_items")}
     for s in subs:
         entity = (s.get("Entity") or "").replace("\u200b", "").strip()
+        if _test_author(entity):
+            continue  # dépôt de test du portail
         conn.execute(
             """INSERT INTO sub_items(id,call_id,title,file_name,path,lang,submitted,entity,entity_type,kind,
                  co_submitters,modified) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
@@ -268,6 +298,7 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
             if not is_document(r["file_name"])]
     conn.executemany("UPDATE sub_items SET status='skipped' WHERE id=?", skip)
     conn.commit()
+    purge_test_items(conn)
     db.meta_set(conn, "soumissions_index", db.now())
     map_calls(conn)
     return {"appels": len(calls), "soumissions": len(subs), "nouvelles": sum(1 for x in subs if x["Id"] not in known_ids)}
@@ -1129,6 +1160,9 @@ def _alignment(conn, call_id: int) -> list[dict[str, Any]]:
     return out
 
 
+AUTHORS_SHOWN = 25  # au-delà, un appel très suivi (≈120 auteurs) noie la rubrique d'un dossier
+
+
 def dossier_section(conn, slug: str, *, limit: int = 10, recent_days: int = 365) -> dict[str, Any]:
     """Rubrique « soumissions » d'un dossier : appels liés (compacts), auteurs pour les appels récents ou de la session,
     alignements déjà calculés."""
@@ -1150,7 +1184,11 @@ def dossier_section(conn, slug: str, *, limit: int = 10, recent_days: int = 365)
             for it in conn.execute("SELECT * FROM sub_items WHERE call_id=? AND kind='party' ORDER BY submitted DESC",
                                    (r["id"],)):
                 authors[speaks_for(it)] = None  # nom canonique ; le groupe quand la Partie soumet en son nom
-            item["auteurs_parties"] = list(authors)
+            names = [a for a in authors if not _test_author(a)]
+            item["auteurs_parties"] = names[:AUTHORS_SHOWN]
+            if len(names) > AUTHORS_SHOWN:
+                item["auteurs_parties_autres"] = (f"+{len(names) - AUTHORS_SHOWN} more: "
+                                                  f"soumissions(appel={r['id']}) for the full list")
             item["observateurs"] = conn.execute("SELECT COUNT(*) FROM sub_items WHERE call_id=? AND kind<>'party'",
                                                 (r["id"],)).fetchone()[0]
             al = _alignment(conn, r["id"])

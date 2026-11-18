@@ -17,15 +17,44 @@ from typing import Any
 from . import auth, config, db, search, telegram
 
 
+_ART_DOTTED = re.compile(r"(?:art(?:icle|\.)?)\s*(\d+)\.(\d+)", re.I)
+_ARTICLE = re.compile(r".*\barticle\s+\d+[a-z]?$", re.I)
+_SUBPART = re.compile(r"(?:paragraph|para\.?|§|subparagraph)\s*\d+.*", re.I)
+_GENERIC = re.compile(r"(?:(?:paragraph|para\.?|§|article|art\.?|item|point)\s*)?[\d.()a-z]{0,6}", re.I)
+
+
+def fragments(query: str) -> list[str]:
+    """Fragments d'une requête par virgules, en recollant ce que la virgule coupe à tort : « Article 6, paragraph 8 »
+    est UNE expression (sinon « paragraph 8 » seul remonte n'importe quel texte qui a un paragraphe 8)."""
+    out: list[str] = []
+    for p in (x.strip() for x in re.split(r"[,;\n]+", query or "")):
+        if not p:
+            continue
+        if out and _SUBPART.fullmatch(p) and _ARTICLE.fullmatch(out[-1]):
+            out[-1] = f"{out[-1]}, {p}"
+        else:
+            out.append(p)
+    return out
+
+
+def generic_fragments(query: str) -> list[str]:
+    """Fragments trop vagues pour une alerte (« paragraph 8 », « 11(b) », « item 4 ») : à signaler à l'utilisateur."""
+    return [p for p in fragments(query) if p != "*" and _GENERIC.fullmatch(p)]
+
+
 def sub_to_fts(query: str) -> str | None:
     query = (query or "").strip()
     if not query or query == "*":
         return None
     if search.FTS_OPS.search(query) and not ("," in query and '"' not in query):
         return query
-    parts = [p.strip() for p in re.split(r"[,;\n]+", query) if p.strip()]
     terms = []
-    for p in parts:
+    for p in fragments(query):
+        art = _ART_DOTTED.fullmatch(p)
+        if art:  # « art. 6.8 » : « Article 6.8 » ou « Article 6, paragraph 8 », jamais « 6 » et « 8 » épars
+            a, b = art.group(1), art.group(2)
+            terms.append(f'"article {a} {b}" OR "article {a} paragraph {b}"')
+            continue
         words = [w for w in search.WORD.findall(p)]
         if not words:
             continue
@@ -58,6 +87,31 @@ def list_subscriptions(conn, user_id: int) -> list[dict[str, Any]]:
          "types": db.jload(r["doc_types"]), "telegram": bool(r["notify_telegram"])}
         for r in rows
     ]
+
+
+def _terms(query: str) -> set[str]:
+    return {" ".join(search.WORD.findall(p.lower())) for p in fragments(query) if p != "*"} - {""}
+
+
+def overlaps(subs: list[dict[str, Any]], new_query: str | None = None) -> list[dict[str, Any]]:
+    """Sujets qui se recoupent (même libellé, ou au moins la moitié des termes du plus petit en commun) : deux
+    alertes « Peuples autochtones », « Amazonie » et « Amazonie et orpaillage ». Avec `new_query` : recoupements de
+    ce nouveau sujet avec les existants."""
+    out = []
+    items = [(s["id"], s["libelle"], _terms(s["requete"])) for s in subs if s["requete"].strip() != "*"]
+    pairs = ([(None, "new", _terms(new_query), x) for x in items] if new_query is not None else
+             [(a, None, None, b) for i, a in enumerate(items) for b in items[i + 1:]])
+    for a, _, new_terms, b in pairs:
+        ida, la, ta = a if a else (None, "(new)", new_terms)
+        idb, lb, tb = b
+        common = ta & tb
+        same_label = la.strip().lower() == lb.strip().lower()
+        if same_label or (common and len(common) >= max(1, min(len(ta), len(tb)) / 2)):
+            out.append({"ids": [x for x in (ida, idb) if x is not None], "libelles": [la, lb],
+                        "termes_communs": sorted(common)[:10],
+                        "conseil": "overlapping topics: merge them (keep one, add the missing terms, "
+                                   "suivre(arreter=<id>) the other) to avoid duplicate alerts"})
+    return out
 
 
 def remove_subscription(conn, user_id: int, sub_id: int) -> bool:

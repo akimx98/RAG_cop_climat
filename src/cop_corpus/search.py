@@ -293,6 +293,9 @@ STRONG_TIERS = {"explicite", "phrase", "tous"}
 STRONG_COS = 0.40
 
 
+PARTIAL_SHARE = 0.6  # part des termes présents pour une pertinence « partielle » (requête d'au moins 3 termes)
+
+
 def is_relevant(signal: dict[str, Any] | None, n_terms: int) -> bool:
     if not signal:
         return True
@@ -300,6 +303,67 @@ def is_relevant(signal: dict[str, Any] | None, n_terms: int) -> bool:
     if tier in STRONG_TIERS or (tier == "un" and n_terms <= 1):
         return True
     return cos is not None and cos >= STRONG_COS
+
+
+def relevance(signal: dict[str, Any] | None, n_terms: int) -> str:
+    """« forte » (expression, tous les termes ou proche par le sens), « partielle » (la plupart des termes : un mot
+    absent ne doit pas faire conclure « rien trouvé » — « electrification » manquant dans un paragraphe sur la sortie
+    des fossiles), « faible » (un terme sur plusieurs, loin par le sens)."""
+    if is_relevant(signal, n_terms):
+        return "forte"
+    share = (signal or {}).get("part_termes")
+    if n_terms >= 3 and share is not None and share >= PARTIAL_SHARE:
+        return "partielle"
+    return "faible"
+
+
+_DF: dict[str, int] = {}
+_N_PASSAGES: list[int] = []
+
+
+def _idf(conn, group: list[str]) -> float:
+    """Poids d'un terme (rareté dans le corpus, idf de BM25) : manquer « empowerment » compte plus que manquer
+    « climate »."""
+    import math
+
+    if not _N_PASSAGES or len(_DF) > 5000:
+        _DF.clear()
+        _N_PASSAGES[:] = [conn.execute("SELECT COUNT(*) FROM passages").fetchone()[0] or 1]
+    key = " OR ".join(group)
+    if key not in _DF:
+        try:
+            _DF[key] = conn.execute("SELECT COUNT(*) FROM passages_fts WHERE passages_fts MATCH ?", (key,)).fetchone()[0]
+        except sqlite3.OperationalError:
+            _DF[key] = 0
+    n, df = _N_PASSAGES[0], _DF[key]
+    return math.log(1 + (n - df + 0.5) / (df + 0.5))
+
+
+def _fold(text: str) -> str:
+    import unicodedata
+
+    return "".join(c for c in unicodedata.normalize("NFKD", (text or "").lower()) if not unicodedata.combining(c))
+
+
+def term_coverage(conn, pids: list[int], query: str) -> dict[int, tuple[list[str], list[str], float]]:
+    """Pour chaque passage : (termes présents, termes absents, part pondérée par la rareté des termes présents),
+    synonymes compris, dans le texte et le titre."""
+    groups = _term_groups(query)
+    if not pids or not groups:
+        return {}
+    labels = [g[0].strip('"') for g in groups]
+    weights = [_idf(conn, g) for g in groups]
+    pats = [re.compile("|".join(rf"(?<!\w){re.escape(_fold(t.strip('"')))}" for t in g)) for g in groups]
+    out = {}
+    for r in conn.execute(
+            f"""SELECT p.id, p.text, d.title FROM passages p JOIN documents d ON d.id=p.doc_id
+                WHERE p.id IN ({','.join('?' * len(pids))})""", pids):
+        hay = _fold(f"{r['title'] or ''} {r['text'] or ''}")
+        hit = [bool(p.search(hay)) for p in pats]
+        share = sum(w for w, h in zip(weights, hit) if h) / (sum(weights) or 1)
+        out[r["id"]] = ([l for l, h in zip(labels, hit) if h], [l for l, h in zip(labels, hit) if not h],
+                        round(share, 2))
+    return out
 
 
 def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict | None = None,
@@ -395,9 +459,13 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
         if len(picked) >= limit:
             break
     if signals is not None:
+        cover = term_coverage(conn, picked, query) if not FTS_OPS.search(query.strip()) else {}
         for pid in picked:
             signals[pid] = {"lexical": tier_of.get(pid),
                             "sens": round(cos_of[pid], 3) if pid in cos_of else None}
+            if pid in cover:
+                (signals[pid]["termes_trouves"], signals[pid]["termes_manquants"],
+                 signals[pid]["part_termes"]) = cover[pid]
     return _hits(conn, picked, query)
 
 
@@ -437,10 +505,12 @@ def document(conn, doc_id: int, user: dict | None) -> dict[str, Any] | None:
 def versions(conn, lineage_key: str, user: dict | None) -> list[dict[str, Any]]:
     access = "" if auth.can_restricted(user) else "AND access='public'"
     rows = conn.execute(
-        f"SELECT * FROM documents WHERE lineage_key=? {access} ORDER BY id", (lineage_key,)
+        f"SELECT * FROM documents WHERE lineage_key=? {access} ORDER BY COALESCE(version, 0), id", (lineage_key,)
     ).fetchall()
     return [
-        {"doc_id": r["id"], "version": i + 1, "titre": r["title"], "recupere_le": r["fetched_at"], "url_source": r["url"]}
+        {k: v for k, v in {"doc_id": r["id"], "version": i + 1, "cote": r["symbol"], "titre": r["title"],
+                           "publie_le": r["published"], "recupere_le": r["fetched_at"], "url_source": r["url"]}.items()
+         if v is not None}
         for i, r in enumerate(rows)
     ]
 

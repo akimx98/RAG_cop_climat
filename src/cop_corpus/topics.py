@@ -20,10 +20,14 @@ def _name(d: dict, lang: str) -> str:
 
 def text_item(conn, t: dict, lang: str = "en", with_delta: bool = True) -> dict[str, Any]:
     stage = live.text_stage(t)
-    out = {"cote": t.get("symbol"), "titre": t.get("title"), "publie_le": t.get("published"),
+    out = {"cote": t.get("symbol"), "titre": t.get("title"), "publie_le": live.local_time(t.get("published")),
            "etape": stage, "etape_libelle": live.stage_label(stage, lang), "organe": t.get("body"),
            "crochets": t.get("brackets"), "options": t.get("options"), "doc_id": t.get("doc_id"),
            "lien": f"{config.PUBLIC_BASE}/doc/{t['doc_id']}" if t.get("doc_id") else t.get("pdf_url")}
+    if t.get("doc_id"):
+        hint = live.compilation_hint(conn, t["doc_id"])
+        if hint:
+            out["compilation"] = hint["consequence"]
     if with_delta and t.get("doc_id"):
         delta = live.since_previous(conn, t["doc_id"])
         if delta:
@@ -44,11 +48,15 @@ def new_texts(conn, slug: str, since: str, limit: int = 8) -> list[dict]:
 
 def reports(conn, query: str, since: str, user: dict, limit: int = 3) -> list[dict]:
     """Lettres d'information et comptes rendus récents qui parlent du sujet (mots seulement : aucun appel payant)."""
-    if not query:
+    # La requête d'un dossier est une liste d'EXPRESSIONS séparées par des virgules : chacune cherchée telle quelle
+    # (« Article 12 of the Paris Agreement »), jamais ses mots épars (« article », « 12 », « paris » remontaient des
+    # comptes rendus sur la finance, article 9.1, dans le dossier ACE).
+    fts = alerts.sub_to_fts(query or "")
+    if not fts:
         return []
     try:
         # documents publics seulement : ce bloc part aussi sur Telegram (pas chiffré de bout en bout)
-        hits = search.search(conn, query, {"added_since": since, "doc_types": REPORT_TYPES, "access": "public"}, user,
+        hits = search.search(conn, fts, {"added_since": since, "doc_types": REPORT_TYPES, "access": "public"}, user,
                              limit=limit, per_doc=1, semantic=False)
     except Exception:
         return []

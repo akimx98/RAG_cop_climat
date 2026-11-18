@@ -374,7 +374,7 @@ def test_programme_planner_and_seors(env):
     assert agenda.sync_planner(conn, FakeClient(), min_events=1)["construit_le"] == "2026-11-09"
 
     out = agenda.query(conn, jour="aujourd'hui", sujet="youth, LCIPP", today=date(2026, 11, 13))
-    assert out["jour"] == "2026-11-13" and "Negotiations" in out["negociations_du_jour"]
+    assert out["jour"] == "2026-11-13" and "Negotiations" in out["negociations_du_jour"]["resume"]
     assert [e["titre"] for e in out["evenements"]][0] == "LCIPP Annual Intergenerational Dialogue"  # 13:00 < 13:15
     side = next(e for e in out["evenements"] if e["titre"].startswith("Youth"))
     assert side["lien"].endswith("scheduled_date=2026-11-13") and "seors.unfccc.int" in out["a_verifier"]

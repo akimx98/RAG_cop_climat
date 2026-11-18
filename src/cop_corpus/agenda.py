@@ -628,8 +628,23 @@ def query(conn, jour: str | int | None = None, sujet: str | None = None, types: 
         out["tronque"] = f"{limit} premiers sur {total} : préciser le jour ou le sujet"
     if day:
         ov = conn.execute("SELECT text FROM agenda_overview WHERE day=?", (day,)).fetchone()
-        if ov:
-            out["negociations_du_jour"] = ov["text"] + " (résumé du calendrier d'ensemble CCNUCC, via le planner)"
+        talks = [dict(r) for r in conn.execute(
+            """SELECT title, start, end, room, access FROM agenda_events WHERE kind='reunion' AND source=?
+               AND days LIKE ? AND (type LIKE '%consult%' OR type LIKE 'Negotiations%' OR type LIKE '%contact group%'
+               OR title LIKE '%informal consultation%' OR title LIKE '%contact group%')""",
+            (re_source, f"%,{day},%"))]
+        talks.sort(key=lambda r: _minutes(r["start"]))
+        if ov or talks:
+            out["negociations_du_jour"] = {k: v for k, v in {
+                "resume": (ov["text"] + " (résumé du calendrier d'ensemble CCNUCC, via le planner)") if ov else None,
+                "nb_seances": len(talks),
+                "seances": [{k: v for k, v in {"heure": "–".join(x for x in (r["start"], r["end"]) if x),
+                                               "titre": r["title"][:160], "salle": r["room"],
+                                               "acces": r["access"]}.items() if v}
+                            for r in talks[:40]] or None,
+                "note": ("consultations informelles et séances de négociation du calendrier officiel ; horaires "
+                         "et salles changent : vérifier sur " + UNFCCC_SCHEDULE_URL) if talks else None,
+            }.items() if v not in (None, [])}
     built = db.meta_get(conn, "agenda_planner_built")
     seors_at = db.meta_get(conn, "agenda_seors_at")
     out["a_verifier"] = (

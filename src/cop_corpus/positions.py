@@ -44,7 +44,12 @@ ALIASES = {"european union": "EU", "eu27": "EU", "g77/china": "G77 and China", "
            "états-unis": "United States", "etats-unis": "United States", "royaume-uni": "UK",
            "turquie": "Türkiye", "republic of türkiye": "Türkiye", "people's republic of china": "China",
            "cfrn": "CfRN", "coalition for rainforest nations": "CfRN", "coalition of rainforest nations": "CfRN",
-           "bolivarian alliance for the peoples of our america": "ALBA", "alba group": "ALBA", "alba+": "ALBA"}
+           "bolivarian alliance for the peoples of our america": "ALBA", "alba group": "ALBA", "alba+": "ALBA",
+           "g-77/china": "G77 and China", "g77/chine": "G77 and China", "g-77": "G77 and China",
+           "présidence": "Présidence COP31", "presidence": "Présidence COP31", "presidence cop31": "Présidence COP31",
+           "présidence cop31": "Présidence COP31", "cop 31 presidency": "Présidence COP31",
+           "cop31 presidencies": "Présidence COP31", "cop 31 presidencies": "Présidence COP31",
+           "présidence de la cop31": "Présidence COP31", "turkish presidency": "Présidence COP31"}
 
 
 def normalize_actor(name: str) -> str:
@@ -53,6 +58,8 @@ def normalize_actor(name: str) -> str:
     « Mali » ne doit jamais trouver « Somalia »."""
     raw = re.sub(r"\s+", " ", (name or "").replace("\u200b", "").strip())
     raw = re.sub(r"^(the|le|la|les)\s+", "", raw, flags=re.I)
+    # « Arab Group Statement », « G77 submission » : le support n'est pas l'acteur.
+    raw = re.sub(r"\s+(statement|declaration|déclaration|submission|soumission|intervention)s?$", "", raw, flags=re.I)
     if raw.lower() in ALIASES:
         return ALIASES[raw.lower()]
     for inner in re.findall(r"\(([A-Z0-9][A-Z0-9.&+-]{1,10}s?)\)", raw):  # vrai sigle : « … (LDCs) Group »
@@ -111,6 +118,41 @@ def _dossier_list() -> str:
     return "\n".join(f"- {d['slug']} : {d['nom']}" for d in live.dossiers())
 
 
+def _quote_key(quote: str) -> str:
+    return re.sub(r"[^\w]+", " ", _norm(quote or "")).strip()[:200]
+
+
+def _already_known(conn, actor: str, quote: str) -> bool:
+    key = _quote_key(quote)
+    return any(_quote_key(r[0]) == key for r in conn.execute(
+        "SELECT quote FROM positions WHERE actor=? AND access='public'", (actor,)))
+
+
+def tidy(conn) -> dict[str, int]:
+    """Remise en ordre idempotente des positions relevées : noms d'acteurs renormalisés (alias ajoutés depuis :
+    « Arab Group Statement » → « Arab Group », « Presidence COP31 » → « Présidence COP31 »), puis doublons retirés
+    (même acteur, même citation : un article repris par deux flux devenait deux documents)."""
+    live.ensure_schema(conn)
+    renamed = 0
+    for r in conn.execute("SELECT DISTINCT actor FROM positions").fetchall():
+        canon = normalize_actor(r["actor"])
+        if canon and canon != r["actor"]:
+            renamed += conn.execute("UPDATE positions SET actor=? WHERE actor=?", (canon, r["actor"])).rowcount
+    seen: set[tuple[str, str, str]] = set()
+    dupes = []
+    for r in conn.execute("SELECT id, actor, quote, source_kind FROM positions ORDER BY id"):
+        k = (r["source_kind"] == "carbonbrief" and "cb" or "x", r["actor"], _quote_key(r["quote"]))
+        if not k[2]:
+            continue
+        if k in seen:
+            dupes.append((r["id"],))
+        else:
+            seen.add(k)
+    conn.executemany("DELETE FROM positions WHERE id=?", dupes)
+    conn.commit()
+    return {"renommees": renamed, "doublons": len(dupes)}
+
+
 def _store(conn, items: list[dict], source_text: str, *, kind: str, label: str, url: str | None,
            doc_id: int | None, default_date: str | None) -> int:
     slugs = {d["slug"] for d in live.dossiers()}
@@ -121,11 +163,14 @@ def _store(conn, items: list[dict], source_text: str, *, kind: str, label: str, 
         if len(quote) < 15 or _norm(quote) not in hay:
             continue  # citation introuvable telle quelle dans la source : rejetée
         dossier = p.get("dossier") if p.get("dossier") in slugs else None
+        actor = normalize_actor(p["actor"])
+        if _already_known(conn, actor, quote):
+            continue  # même citation du même acteur déjà relevée (article repris par deux flux, autre source)
         key = "x|" + hashlib.sha1(f"{doc_id}|{url}|{p['actor']}|{_norm(quote)[:120]}".encode()).hexdigest()
         cur = conn.execute(
             """INSERT OR IGNORE INTO positions(key,dossier,actor,issue,stance,summary,quote,source_kind,source_label,
                  source_url,doc_id,said_on,created_at,access) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'public')""",
-            (key, dossier, normalize_actor(p["actor"]), p["issue"].strip()[:200], p["stance"], p["summary"].strip()[:500],
+            (key, dossier, actor, p["issue"].strip()[:200], p["stance"], p["summary"].strip()[:500],
              quote[:400], kind, label[:200], url, doc_id, p.get("said_on") or default_date, live.now_iso()))
         n += cur.rowcount
     conn.commit()
@@ -373,7 +418,7 @@ def group_actors(conn, gid: str) -> dict[str, str]:
 
 
 def divisions(conn, gid: str, dossier: str | None = None, since: str | None = None,
-              allies: int = 6) -> dict[str, Any]:
+              allies: int = 6, compact: bool = False) -> dict[str, Any]:
     """Divisions internes d'un groupe : sur un même enjeu (même dossier, mots de l'enjeu proches), des acteurs du
     groupe (sous-groupes, membres) soutiennent pendant que d'autres s'opposent. Pour chaque division, les acteurs
     hors groupe qui partagent chaque attitude (ex. AOSIS et PMA avec l'UE, contre le Groupe arabe et l'Inde)."""
@@ -433,6 +478,9 @@ def divisions(conn, gid: str, dossier: str | None = None, since: str | None = No
             continue
 
         def fmt(r):
+            if compact:
+                return {"acteur": r["actor"], "role": role(r["actor"]) or "hors groupe", "attitude": r["stance"],
+                        "date": r["said_on"], "lien": r["source_url"]}
             return {"acteur": r["actor"], "role": role(r["actor"]) or "hors groupe", "attitude": r["stance"],
                     "citation": r["quote"], "date": r["said_on"], "source": r["source_label"], "lien": r["source_url"]}
 

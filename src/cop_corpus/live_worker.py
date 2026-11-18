@@ -32,6 +32,9 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         live.sync_status(conn, client)
         n = live.sync_positions_cb(conn, client)
         live.log(f"référence Carbon Brief : {n} positions")
+        tidy = positions.tidy(conn)
+        if any(tidy.values()):
+            live.log(f"positions : {tidy}")
     if due("agenda"):
         agenda.log(str(agenda.sync_planner(conn, client)))
     if due("seors"):
@@ -53,6 +56,9 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         linked = live.link_existing(conn)
         got = live.retrieve_pending(conn, client)
         live.link_existing(conn)
+        tidy = live.tidy_texts(conn)  # avant les alertes : le diff suit la lignée par dossier et titre
+        if any(tidy.values()):
+            live.log(f"index des textes : {tidy}")
         sent = live.notify_new_texts(conn, telegram.send)
         sent += live.notify_retrieved(conn, telegram.send)
         if new or linked or got.get("recupere") or sent:

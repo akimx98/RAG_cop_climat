@@ -112,7 +112,9 @@ def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
         return "error"
     chunks = extract.chunk(pages)
     # Une lettre d'information cite des cotes (« FCCC/CP/2026/L.3 ») sans en être une version.
-    symbol = doc["symbol"] or (None if doc["source_id"] == "veille-mail" else extract.detect_symbol(doc["url"] or "", pages))
+    # Texte de session venu de l'index : sa cote est celle de l'index (live.tidy_texts), jamais une cote citée dedans.
+    symbol = doc["symbol"] or (None if doc["source_id"] in ("veille-mail", "live-texts")
+                               else extract.detect_symbol(doc["url"] or "", pages))
     title = doc["title"]
     if title and (extract.FILE_ID.search(title.strip()) or title.strip() == symbol or title.startswith(f"{symbol} — ")):
         title = None  # titre non informatif (identifiant de fichier) : on le recalcule
@@ -126,6 +128,8 @@ def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
     lkey = lineage_key(doc["url"], symbol, title, doc["doc_type"], lang)
     if doc["source_id"] in ("veille-mail", "depot-mail") and not doc["url"] and not symbol:
         lkey = f"mail:{doc['sha256'][:24]}"  # chaque lettre est un document, pas une version de celle de la veille
+    if (doc["lineage_key"] or "").startswith("neg:"):
+        lkey = doc["lineage_key"]  # lignée d'un texte négocié (dossier + titre, live.tidy_texts) : conservée
     with _write_lock:
         prev = conn.execute(
             "SELECT COUNT(*) AS n FROM documents WHERE lineage_key=? AND id<>?", (lkey, doc_id)

@@ -98,9 +98,10 @@ def by_theme(conn, doc_row, theme: str, user: dict | None, limit: int = 40) -> d
     if not terms:
         return {"erreur": "préciser un thème (ex. genre, droits humains, désinformation) ou des mots séparés par des virgules"}
     access = "" if auth.can_restricted(user) else "AND access='public'"
-    rows = conn.execute(f"SELECT * FROM documents WHERE lineage_key=? {access} ORDER BY id",
+    rows = conn.execute(f"SELECT * FROM documents WHERE lineage_key=? {access} ORDER BY COALESCE(version,0), id",
                         (doc_row["lineage_key"],)).fetchall() if doc_row["lineage_key"] else [doc_row]
-    rows = [r for r in rows if r["id"] <= doc_row["id"]] or [doc_row]
+    cur_rank = (doc_row["version"] or 0, doc_row["id"])
+    rows = [r for r in rows if (r["version"] or 0, r["id"]) <= cur_rank] or [doc_row]
     versions = [_version(conn, r) for r in rows]
     cur = versions[-1]
     found = []
@@ -129,12 +130,25 @@ def by_theme(conn, doc_row, theme: str, user: dict | None, limit: int = 40) -> d
             })
             if len(found) >= limit:
                 break
-    return {"document": search.doc_public(doc_row), "theme": label, "termes": terms,
-            "versions_connues": [{"version": i + 1, "doc_id": v["doc_id"], "date": v["date"]} for i, v in enumerate(versions)],
-            "nb": len(found), "crochets": found,
+    from . import live
+
+    paras = cur["paras"]
+    out = {"document": search.doc_public(doc_row), "theme": label, "termes": terms,
+           "versions_connues": [{"version": i + 1, "doc_id": v["doc_id"], "date": v["date"]} for i, v in enumerate(versions)],
+           "texte_entier": {"paires_de_crochets": sum(len(bracket_spans(t)) for _, t in paras),
+                            "paragraphes": len(paras),
+                            "paragraphes_entierement_entre_crochets": sum(1 for _, t in paras if diff.fully_bracketed(t))},
+           "nb": len(found), "crochets": found}
+    hint = live.compilation_hint(conn, doc_row["id"])
+    if hint:
+        out["compilation"] = hint
+    return {**out,
             "note": ("Projet de texte NON ADOPTÉ : donner sa version et sa date. Crochets = formulation non agréée. "
                      "« entre_crochets_depuis » : première version d'une suite ininterrompue de versions où la formulation "
                      "est entre crochets (rapprochement à 85 % de similarité près). Rien trouvé ≠ thème absent : le "
                      "texte peut l'aborder sans crochets (voir rechercher)." if found else
                      "Aucune formulation entre crochets sur ce thème dans cette version (le thème peut figurer sans "
-                     "crochets, ou avec d'autres mots : essayer des termes précis séparés par des virgules).")}
+                     "crochets, ou avec d'autres mots : essayer des termes précis séparés par des virgules)."),
+            "definition": "crochets = formulation non agréée ; paires_de_crochets = crochets de premier niveau (un "
+                          "crochet imbriqué compte dans son parent) ; paragraphes_entierement_entre_crochets = "
+                          "paragraphes contestés en bloc (une annexe entière entre crochets gonfle le nombre de paires)"}

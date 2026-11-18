@@ -87,8 +87,16 @@
   reference: "pratique rédactionnelle ; comparer Accord de Paris art. 4.2 (« shall ») et 4.4 (« should »)"
 - terme: Crochets
   alias: [brackets, texte entre crochets, bracketed text]
-  definition: "Dans un projet de texte, les passages entre crochets [ ] ne sont pas agréés ; les « options » sont des alternatives concurrentes. Suivre le nombre de crochets d'une version à l'autre mesure l'avancée d'une négociation."
-  reference: "pratique de négociation (voir l'outil comparer_versions)"
+  definition: "Dans un projet de texte, les passages entre crochets [ ] ne sont pas agréés ; les « options » sont des alternatives concurrentes. Suivre le nombre de crochets d'une version à l'autre mesure l'avancée d'une négociation. Dans les outils : « brackets » (index Carbon Brief) et « crochets » (comparer_versions) comptent les « [ » ouverts ; « paires_de_crochets » (outil crochets) compte les crochets de premier niveau ; « paragraphes_entierement_entre_crochets » compte les paragraphes contestés en bloc. Limites : une annexe entière entre crochets gonfle le compte, et une COMPILATION de toutes les propositions (champ « compilation ») peut avoir peu de crochets tout en étant contestée en bloc : peu de crochets n'y veut pas dire convergence."
+  reference: "pratique de négociation (outils comparer_versions et crochets)"
+- terme: Étape d'un texte
+  alias: [etape, stage, draft, for_adoption, adopted, document L, L document]
+  definition: "Champ « etape » des textes de session, déduit sans IA de la cote et du type : draft = projet (draft text, note informelle, projet de conclusions) ; for_adoption = document L (cote …/L.x), transmis par les coprésidents à la plénière pour adoption ; adopted = adopté (marqueur explicite ou décision numérotée) ; other = autre document (rapport, ordre du jour). Les versions successives d'un texte sont reliées par dossier et titre, car la cote change quand un point passe d'un organe à l'autre (DT.SBI65… → DT.COP31…)."
+  reference: "outils dossier, nouveautes(mes_sujets=true) et comparer_versions"
+- terme: Fuseau horaire
+  alias: [heure, horaires, timezone, UTC, published, first_seen]
+  definition: "« published » des textes de session : heure locale d'Antalya (UTC+3), telle que publiée par l'index (affichée avec « +03:00 »). Horodatages du serveur (first_seen, recu_le, created_at, releve_le) : UTC, suffixe « Z ». Programme (side events, réunions) : heure locale d'Antalya."
+  reference: "conventions de l'outil"
 - terme: Non-paper
   alias: [non papier, informal note, note informelle]
   definition: "Document informel sans statut officiel (souvent des co-facilitateurs ou de la présidence) qui sert de base de discussion ; il n'a pas de cote FCCC et peut être remplacé à tout moment."

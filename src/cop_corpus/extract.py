@@ -54,9 +54,49 @@ def _pdf(data: bytes) -> tuple[str | None, list[Page]]:
     with pymupdf.open(stream=data, filetype="pdf") as doc:
         title = (doc.metadata or {}).get("title") or None
         for i, page in enumerate(doc, start=1):
-            text = _columns_text(page)
+            text = _table_text(page)
+            if text is None:
+                text = _columns_text(page)
             pages.append(Page(i, fix_text(text if text is not None else page.get_text("text", sort=True))))
     return title, pages
+
+
+def _table_text(page) -> str | None:
+    """Page portant un tableau tracé (note informelle en tableau : activité | entité | calendrier | livrable…) :
+    le tableau est lu ligne par ligne, cellule par cellule (« cellule | cellule | … », une ligne du tableau par
+    paragraphe), le reste de la page par ordonnée. Sans cela, le tri par ordonnée entrelace les cellules voisines et
+    colle un en-tête de colonne au milieu d'un crochet. None si la page n'a pas de tableau tracé."""
+    import pymupdf
+
+    try:
+        if len(page.get_drawings()) < 8:  # pas de filets : pas de tableau tracé (évite un find_tables coûteux)
+            return None
+        tables = [t for t in page.find_tables(strategy="lines").tables if t.col_count >= 3 and t.row_count >= 2]
+    except Exception:
+        return None
+    if not tables:
+        return None
+    boxes = [pymupdf.Rect(t.bbox) for t in tables]
+    items: list[tuple[float, float, str]] = []
+    for block in page.get_text("dict").get("blocks", []):
+        for line in block.get("lines", []):
+            text = "".join(span.get("text", "") for span in line.get("spans", [])).rstrip()
+            if not text.strip():
+                continue
+            x0, y0, x1, y1 = line["bbox"]
+            centre = pymupdf.Point((x0 + x1) / 2, (y0 + y1) / 2)
+            if not any(b.contains(centre) for b in boxes):
+                items.append((y0, x0, text))
+    for t in tables:
+        for row in t.rows:
+            cells = []
+            for c in row.cells:
+                cell = page.get_text("text", clip=pymupdf.Rect(c)) if c else ""
+                cells.append(" ".join(cell.split()))
+            if any(cells):
+                items.append((row.bbox[1], -1.0, "\n" + " | ".join(cells) + "\n"))
+    items.sort(key=lambda it: (round(it[0] / 3), it[1]))
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(it[2] for it in items)).strip()
 
 
 def _columns_text(page) -> str | None:
