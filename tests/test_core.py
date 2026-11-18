@@ -458,9 +458,9 @@ def test_mcp_guest_tools_and_prompts(env, monkeypatch):
     monkeypatch.setattr(mcp_server, "_user", lambda ctx: guest)
     assert "reserved for contributors" in mcp_server.deposer_url("https://example.org")["erreur"]
     assert "contributors" in mcp_server.noter("blocage")["erreur"]
-    assert mcp_server.suivre(dossier="ace")["dossier"] == "technologie-capacites"
+    assert mcp_server.suivre(dossier="ace")["dossier"] == "ace"
     assert "erreur" in mcp_server.suivre(mots_cles="x", dossier="ace")
-    assert [d["slug"] for d in mcp_server.mes_sujets()["dossiers_suivis"]] == ["technologie-capacites"]
+    assert [d["slug"] for d in mcp_server.mes_sujets()["dossiers_suivis"]] == ["ace"]
     assert all(d["nb_notes"] == 0 for d in live.overview(conn, guest))
     assert "notes_terrain_internes" not in mcp_server.dossier("finance")
     for prompt in (mcp_server.point_negociation("ACE"), mcp_server.position_pays("Brésil", "fossiles"),
@@ -912,7 +912,7 @@ def test_soumissions_dossier_link(env, monkeypatch):
     assert sm.rule_dossiers({"title": "Voluntary submissions", "issue": "Unsolicited", "themes": "[]"}) == {}
     # R1 : article 6 de la Convention = ACE, pas les marchés carbone.
     assert sm.rule_dossiers({"title": "Views on Action for Climate Empowerment under Article 6 of the Convention",
-                             "issue": "", "themes": "[]"}) == {"technologie-capacites": 1.0}
+                             "issue": "", "themes": "[]"}) == {"ace": 1.0}
     assert sm.rule_dossiers({"title": "Views on Article 6, paragraph 4 mechanism", "issue": "", "themes": "[]"}) == {
         "article-6": 1.0}
     # R2 : les thèmes du portail ne s'ajoutent jamais à un rattachement spécifique ; dernier recours à 0.6.

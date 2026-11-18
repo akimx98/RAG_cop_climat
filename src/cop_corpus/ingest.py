@@ -111,7 +111,8 @@ def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
         conn.commit()
         return "error"
     chunks = extract.chunk(pages)
-    symbol = doc["symbol"] or extract.detect_symbol(doc["url"] or "", pages)
+    # Une lettre d'information cite des cotes (« FCCC/CP/2026/L.3 ») sans en être une version.
+    symbol = doc["symbol"] or (None if doc["source_id"] == "veille-mail" else extract.detect_symbol(doc["url"] or "", pages))
     title = doc["title"]
     if title and (extract.FILE_ID.search(title.strip()) or title.strip() == symbol or title.startswith(f"{symbol} — ")):
         title = None  # titre non informatif (identifiant de fichier) : on le recalcule
@@ -123,6 +124,8 @@ def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
         title = f"{symbol} — {title}"
     lang = doc["lang"] or extract.detect_lang(" ".join(c.text for c in chunks[:5]))
     lkey = lineage_key(doc["url"], symbol, title, doc["doc_type"], lang)
+    if doc["source_id"] in ("veille-mail", "depot-mail") and not doc["url"] and not symbol:
+        lkey = f"mail:{doc['sha256'][:24]}"  # chaque lettre est un document, pas une version de celle de la veille
     with _write_lock:
         prev = conn.execute(
             "SELECT COUNT(*) AS n FROM documents WHERE lineage_key=? AND id<>?", (lkey, doc_id)
@@ -139,12 +142,21 @@ def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
             )
             conn.execute("INSERT INTO passages_fts(rowid,text,title) VALUES(?,?,?)", (cur.lastrowid, c.text, title))
         status = "indexed" if chunks else "empty"
+        if doc["lineage_key"] == lkey and doc["version"]:
+            prev = doc["version"] - 1  # réindexation : la version ne change pas
         conn.execute(
             """UPDATE documents SET status=?, title=?, symbol=?, lang=?, lineage_key=?, version=?,
                  n_pages=?, n_passages=?, error=NULL WHERE id=?""",
             (status, title, symbol, lang, lkey, prev + 1, len(pages), len(chunks), doc_id),
         )
         conn.commit()
+    if status == "indexed" and doc["doc_type"] != "donnees":
+        from . import doublons
+
+        try:
+            doublons.check(conn, doc_id)
+        except sqlite3.Error:
+            pass  # l'empreinte n'est qu'un plus : jamais bloquante pour l'indexation
     return status
 
 
@@ -177,11 +189,80 @@ def _touch_url(conn, url: str, source_id: str, res: fetch.FetchResult | None, sh
         conn.commit()
 
 
+# --- pages servies par une application JavaScript : texte intégral par l'API du site -----------------
+
+_PRESSCORNER = re.compile(r"^https://ec\.europa\.eu/commission/presscorner/detail/([a-z]{2})/([a-z]+)_(\d{2})_(\d+)/?$", re.I)
+
+
+def resolve(client: fetch.Client, url: str, **kw) -> fetch.FetchResult:
+    """Télécharge une adresse ; pour les pages dont le HTML ne contient pas le texte, passe par l'API publique du
+    même site et renvoie une page HTML reconstituée (titre, date, texte), sans les coordonnées des attachés de presse.
+
+    - Commission européenne (presscorner/detail/…) : application JavaScript, la page ne contient que « Press corner |
+      European Commission » ; le texte est servi en JSON par ``presscorner/api/documents?reference=…``. C'est là que
+      sont publiés les discours et déclarations de la Commission à la COP (segment de haut niveau, conférences de
+      presse)."""
+    m = _PRESSCORNER.match(url)
+    if not m:
+        return client.get(url, **kw)
+    lang, kind, yy, num = m.groups()
+    api = (f"https://ec.europa.eu/commission/presscorner/api/documents?reference="
+           f"{kind.upper()}/{yy}/{num}&language={lang.upper()}")
+    res = client.get(api, accept="application/json")
+    if not res.ok:
+        return res
+    import html as _html
+    import json as _json
+
+    try:
+        data = _json.loads(res.content)
+        doc = data.get("docuLanguageResource") or {}
+        body = doc.get("htmlContent") or ""
+    except (ValueError, AttributeError):
+        return fetch.FetchResult(url=url, status=502, error="presscorner : réponse illisible")
+    if not body:
+        return fetch.FetchResult(url=url, status=502, error="presscorner : texte absent")
+    title = _html.escape(doc.get("title") or data.get("refCd") or "")
+    place = (data.get("placeResource") or {}).get("description") or ""
+    date = data.get("eventDate") or data.get("publishDate") or ""
+    page = (f"<html><head><title>{title}</title><meta name='date' content='{_html.escape(str(date)[:10])}'></head><body>"
+            f"<article><h1>{title}</h1><p>{_html.escape(data.get('refCd') or '')} — {_html.escape(place)}, "
+            f"{_html.escape(str(date)[:10])}</p>{body}</article></body></html>")
+    return fetch.FetchResult(url=url, status=200, content=page.encode("utf-8"), mime="text/html")
+
+
+def refetch_in_place(conn, client: fetch.Client, doc_id: int) -> str:
+    """Retélécharge un document (même identifiant : liens et alertes restent valides) et le réindexe si le contenu
+    a changé. Sert à réparer des documents entrés vides (page JavaScript, page tronquée)."""
+    doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    if not doc or not doc["url"]:
+        return "sans_adresse"
+    res = resolve(client, doc["url"])
+    if not res.ok:
+        return f"erreur {res.status}"
+    digest = fetch.sha256(res.content)
+    if digest == doc["sha256"]:
+        return "inchange"
+    if conn.execute("SELECT 1 FROM documents WHERE sha256=? AND id<>?", (digest, doc_id)).fetchone():
+        return "deja_au_corpus"
+    ext = fetch.guess_ext(res.url, res.mime, res.content)
+    _d, raw = fetch.store_raw(res.content, ext)
+    with _write_lock:
+        conn.execute("UPDATE documents SET sha256=?, raw_path=?, mime=?, size=?, status='pending' WHERE id=?",
+                     (digest, str(raw.relative_to(config.DATA_DIR)), res.mime, len(res.content), doc_id))
+        conn.commit()
+    _touch_url(conn, doc["url"], doc["source_id"] or "", res, digest)
+    return index_document(conn, doc_id)
+
+
 def fetch_one(conn, client: fetch.Client, url: str, source: catalog.Source, meta: dict, recheck: bool) -> str:
     state = _url_seen(conn, url)
     if state and state["last_status"] == 200 and not recheck:
         return "known"
-    res = client.get(url, etag=state["etag"] if state else None, last_modified=state["last_modified"] if state else None)
+    if _PRESSCORNER.match(url):
+        res = resolve(client, url)
+    else:
+        res = client.get(url, etag=state["etag"] if state else None, last_modified=state["last_modified"] if state else None)
     if res.status == 304:
         _touch_url(conn, url, source.id, res, None)
         return "unchanged"
@@ -194,6 +275,9 @@ def fetch_one(conn, client: fetch.Client, url: str, source: catalog.Source, meta
         _touch_url(conn, url, source.id, res, None)
         db.log(conn, source.id, url, "antibot", "page de challenge anti-bot : non contournée")
         return "antibot"
+    if res.status == 404:
+        _touch_url(conn, url, source.id, res, None)  # absent (numéro pas encore paru, lien mort) : pas une panne
+        return "absent"
     if not res.ok:
         _touch_url(conn, url, source.id, res, None)
         db.log(conn, source.id, url, "error", f"{res.status} {res.error or ''}")
@@ -309,6 +393,10 @@ def run_source(source: catalog.Source, client: fetch.Client, recheck: bool = Fal
                     misses = misses + 1 if outcome in ("absent", "error") else 0
                     if misses >= stop_after:
                         break
+        elif source.type == "enb":
+            from . import enb
+
+            enb.run(conn, client, source, bump)
         else:
             bump("unknown_type")
     except Exception as exc:

@@ -268,24 +268,194 @@ def _deposit(conn, msg: EmailMessage, user: dict, rel: str) -> int:
     return len(ids)
 
 
-def ingest_newsletter(conn, msg: EmailMessage, rel: str, inbox_id: int | None = None) -> list[int]:
+# --- lettres d'information : texte complet ------------------------------------------------
+
+# Liens de pistage, de désabonnement et de gestion du compte : jamais retenus comme liens de contenu.
+_TRACKING = re.compile(
+    r"clicks?\.|mlsend|cmail\d*\.com|createsend|list-manage|mailchimp|mcusercontent|updatemyprofile|forwardtomyfriend|"
+    r"unsubscribe|d[ée]sabonn|desinscri|/preferences|sendgrid|hubspot|substack\.com/redirect|mailerlite|brevo|sendinblue|"
+    r"t\.co/|bit\.ly|facebook\.com|twitter\.com|x\.com/|linkedin\.com|instagram\.com|youtube\.com|bsky\.app|/donate", re.I)
+# Partie texte de remplacement (« votre logiciel ne peut pas afficher le HTML ») : la lettre est dans le HTML.
+_STUB = re.compile(r"can.?t display HTML|cannot display HTML|unable to display|ne peut pas afficher|"
+                   r"view (this|the) (e-?mail|newsletter)|view it in your browser|version en ligne|"
+                   r"afficher dans (votre|le) navigateur", re.I)
+_BLOCK = ("p", "div", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6", "table", "blockquote", "section", "article", "ul", "ol")
+# Expéditeurs dont la lettre est un compte rendu de négociation (niveau 4, type compte_rendu).
+_REPORT_SENDERS = re.compile(r"earth negotiations|iisd|carbon ?brief|third world network|twn|climate home", re.I)
+
+
+def html_to_text(html: str) -> str:
+    """Texte lisible d'une lettre HTML (mise en page en tableaux) : un bloc par ligne, sans styles ni scripts."""
+    soup = BeautifulSoup(html, "lxml")
+    for tag in soup(["script", "style", "head", "title", "meta", "noscript"]):
+        tag.decompose()
+    for tag in soup.find_all(style=re.compile(r"display\s*:\s*none|max-height\s*:\s*0", re.I)):
+        tag.decompose()  # texte d'aperçu caché (« preheader »)
+    for br in soup.find_all("br"):
+        br.replace_with("\n")
+    for tag in soup.find_all(_BLOCK):
+        tag.insert_before("\n")
+        tag.append("\n")
+    lines = [" ".join(l.split()) for l in soup.get_text("").split("\n")]
+    out: list[str] = []
+    for line in lines:
+        if line or (out and out[-1]):
+            out.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+
+
+def content_links(msg: EmailMessage) -> list[tuple[str, str]]:
+    """Liens de contenu de la lettre (articles, comptes rendus), sans pistage ni réseaux sociaux. Les deux parties
+    sont lues : le HTML passe souvent par un redirecteur de pistage, la partie texte donne l'adresse directe."""
+    text, html = _body(msg)
+    found: list[tuple[str, str]] = []
+    if html:
+        for a in BeautifulSoup(html, "lxml").find_all("a", href=True):
+            found.append((" ".join(a.get_text(" ").split())[:120], a["href"].strip()))
+    for m in re.finditer(r"(?:([^\n\[]{3,120})\s*)?\[?(https?://[^\s<>\"'\])]+)", text or ""):
+        found.append(((m.group(1) or "").strip(), m.group(2)))
+    seen, out = set(), []
+    for label, href in found:
+        href = href.rstrip(".,;")
+        if not href.startswith(("http://", "https://")) or _TRACKING.search(href) or href in seen:
+            continue
+        seen.add(href)
+        out.append((label or href, href))
+    return out
+
+
+def newsletter_text(msg: EmailMessage) -> str:
+    """Texte complet d'une lettre : la partie HTML dès qu'elle est plus riche que la partie texte (ou que celle-ci
+    n'est qu'un message de remplacement), puis la liste des liens de contenu."""
+    text, html = _body(msg)
+    text = re.sub(r"\n{3,}", "\n\n", text or "").strip()
+    body = text
+    if html:
+        rendered = html_to_text(html)
+        if len(rendered) > 1.2 * len(text) or (_STUB.search(text[:600]) and len(rendered) > len(text) * 0.8) \
+                or len(text) < MIN_BODY:
+            body = rendered
+    links = [(l, h) for l, h in content_links(msg) if h not in body]
+    if links:
+        body += "\n\nLiens de la lettre :\n" + "\n".join(f"- {l} [{h}]" if l != h else f"- {h}" for l, h in links[:120])
+    return body
+
+
+def _mail_date(msg: EmailMessage) -> str | None:
+    from email.utils import parsedate_to_datetime
+    from zoneinfo import ZoneInfo
+
+    try:
+        dt = parsedate_to_datetime(msg.get("Date", ""))
+    except (TypeError, ValueError, IndexError):
+        return None
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.strftime("%Y-%m-%d")
+    return dt.astimezone(ZoneInfo(config.TIMEZONE)).strftime("%Y-%m-%d")
+
+
+def newsletter_meta(msg: EmailMessage) -> dict[str, Any]:
     name, sender = parseaddr(msg.get("From", ""))
-    title = f"{name or sender} — {_clean_subject(msg.get('Subject', ''))}"
-    common = dict(source_id="veille-mail", access="public", meta={"level": "4", "doc_type": "analyse",
-                                                                    "org": name or sender.rpartition("@")[2]})
+    org = name or sender.rpartition("@")[2]
+    day = _mail_date(msg)
+    subject = _clean_subject(msg.get("Subject", ""))
+    title = f"{org} — {subject}" + (f" ({day})" if day and day not in subject else "")
+    report = bool(_REPORT_SENDERS.search(f"{name} {sender}"))
+    return {"level": "4", "doc_type": "compte_rendu" if report else "analyse", "org": org, "title": title,
+            "published": day}
+
+
+def ingest_newsletter(conn, msg: EmailMessage, rel: str, inbox_id: int | None = None) -> list[int]:
+    """Lettre d'un expéditeur autorisé → document public de niveau 4, texte complet, daté du jour d'envoi.
+    Chaque lettre est un document à part entière (jamais une « version » de la lettre de la veille)."""
+    meta = newsletter_meta(msg)
+    common = dict(source_id="veille-mail", access="public")
     ids = []
-    body_id = _ingest_body(conn, msg, title, **common)
-    if body_id:
-        ids.append(body_id)
+    body = newsletter_text(msg)
+    if len(body) >= MIN_BODY:
+        doc_id, _, _ = ingest.ingest_bytes(conn, body.encode("utf-8"), url=None, mime="text/plain",
+                                           filename="lettre.txt", meta=dict(meta), **common)
+        ids.append(doc_id)
     for fname, ctype, data in _attachments(msg):
         if fname.lower().endswith((".pdf", ".docx")):
             doc_id, _, _ = ingest.ingest_bytes(conn, data, url=None, mime=ctype, filename=fname,
-                                               **{**common, "meta": dict(common["meta"])})
+                                               meta={k: v for k, v in meta.items() if k != "title"}, **common)
             ids.append(doc_id)
     if inbox_id:
         conn.execute("UPDATE mail_inbox SET status='ingere', doc_ids=? WHERE id=?", (json.dumps(ids), inbox_id))
         conn.commit()
     return ids
+
+
+def reread_newsletters(conn, since: str | None = None, dry_run: bool = False) -> dict[str, int]:
+    """Relit les lettres déjà reçues (fichiers .eml archivés) avec l'extraction actuelle et remplace, sur place,
+    le texte de chaque document (même identifiant : liens, alertes et notes restent valides). Les positions sont
+    réextraites au passage suivant. Sert après une correction de l'extraction (texte complet, date, titre)."""
+    counts = {"relues": 0, "remplacees": 0, "inchangees": 0, "absentes": 0}
+    rows = conn.execute("""SELECT * FROM mail_inbox WHERE mailbox=? AND status='ingere' AND received_at>=?
+                           ORDER BY id""", (VEILLE, since or "")).fetchall()
+    for row in rows:
+        path = config.DATA_DIR / row["path"]
+        if not path.exists():
+            counts["absentes"] += 1
+            continue
+        msg = load(row["path"])
+        counts["relues"] += 1
+        ids = json.loads(row["doc_ids"] or "[]")
+        body_doc = next((d for d in (conn.execute("SELECT * FROM documents WHERE id=?", (i,)).fetchone() for i in ids)
+                         if d and Path(d["raw_path"] or "").suffix in (".txt", ".html")), None)
+        meta = newsletter_meta(msg)
+        body = newsletter_text(msg).encode("utf-8")
+        if body_doc is None:
+            if not dry_run and len(body) >= MIN_BODY:
+                new_ids = ingest_newsletter(conn, msg, row["path"])
+                conn.execute("UPDATE mail_inbox SET doc_ids=? WHERE id=?", (json.dumps(list(dict.fromkeys(ids + new_ids))), row["id"]))
+                conn.commit()
+                counts["remplacees"] += 1
+            continue
+        from . import fetch
+
+        digest = fetch.sha256(body)
+        if digest == body_doc["sha256"] and body_doc["title"] == meta["title"] and body_doc["published"] == meta["published"]:
+            counts["inchangees"] += 1
+            continue
+        if dry_run:
+            counts["remplacees"] += 1
+            continue
+        other = conn.execute("SELECT id FROM documents WHERE sha256=? AND id<>?", (digest, body_doc["id"])).fetchone()
+        if other:
+            counts["inchangees"] += 1  # ce texte est déjà au corpus sous un autre identifiant
+            continue
+        _digest, raw = fetch.store_raw(body, ".txt")
+        conn.execute("""UPDATE documents SET sha256=?, raw_path=?, mime='text/plain', size=?, title=?, published=?,
+                          doc_type=?, org=?, lineage_key=NULL, status='pending' WHERE id=?""",
+                     (digest, str(raw.relative_to(config.DATA_DIR)), len(body), meta["title"], meta["published"],
+                      meta["doc_type"], meta["org"], body_doc["id"]))
+        if _has_table(conn, "extraction_log"):
+            conn.execute("DELETE FROM extraction_log WHERE doc_id=?", (body_doc["id"],))
+        conn.commit()
+        ingest.index_document(conn, body_doc["id"])
+        counts["remplacees"] += 1
+    if not dry_run:
+        renumber_mail_versions(conn)
+    return counts
+
+
+def _has_table(conn, name: str) -> bool:
+    return bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone())
+
+
+def renumber_mail_versions(conn) -> int:
+    """Lettres reçues avant la correction : chacune redevient un document à part (version 1, lignée propre)."""
+    n = 0
+    for d in conn.execute("""SELECT id, sha256 FROM documents WHERE source_id='veille-mail'
+                             AND (lineage_key IS NULL OR lineage_key NOT LIKE 'mail:%' OR version<>1)""").fetchall():
+        conn.execute("UPDATE documents SET lineage_key=?, version=1 WHERE id=?", (f"mail:{d['sha256'][:24]}", d["id"]))
+        n += 1
+    conn.commit()
+    return n
 
 
 def _newsletter(conn, msg: EmailMessage, rel: str) -> None:

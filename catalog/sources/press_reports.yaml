@@ -1,11 +1,28 @@
 # Comptes rendus de référence et presse spécialisée — vérifié le 2026-11-06
 # (User-Agent "cop-corpus/0.1 (veille documentaire)").
-# BLOQUÉ : enb.iisd.org et www.iisd.org → HTTP 403 Cloudflare ("cf-mitigated: challenge") sur
-# toutes les URLs (pages, PDF, flux). Aucune alternative officielle accessible trouvée pour l'ENB.
+# BLOQUÉ : pages HTML et flux de enb.iisd.org et www.iisd.org → HTTP 403 Cloudflare ("cf-mitigated: challenge").
+# Les PDF des numéros quotidiens passent (vérifié le 18/11/2026) : source enb-daily-pdf ci-dessous.
 # Flux écartés car les articles pointés renvoient 403 : insideclimatenews.org, dialogue.earth,
 # euractiv (403 dès le flux) ; sdg.iisd.org/feed/ ne contient qu'un article factice.
 
 # --- Earth Negotiations Bulletin (IISD) --------------------------------------------------
+- id: enb-daily-pdf
+  type: enb
+  # Comptes rendus quotidiens en PDF (enb.py) : sites/default/files/<aaaa-mm>/enb<vol><nnn><e|f>.pdf.
+  # COP31 : volume 12, n° 902 = « COP 31 #1 » (paru le 10/11, journée du 9/11) ; n° 909 = #8 (18/11, journée du 17/11).
+  # Numéro, parution et journée couverte lus dans l'en-tête du PDF ; e = anglais, f = français.
+  vol: 12
+  first: 902
+  last: 925
+  langs: [e, f]
+  stop_after_misses: 2
+  level: 4
+  org: Earth Negotiations Bulletin
+  doc_type: compte_rendu
+  session: COP31
+  topics: [negotiations_summary]
+  watch_minutes: 60
+
 - id: enb-cop30-belem
   type: doc
   # à confirmer — bloqué anti-bot (Cloudflare 403) ; slug relevé par recherche, non vérifiable

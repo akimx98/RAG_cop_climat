@@ -257,6 +257,92 @@ def cmd_groupes(args) -> None:
         _print(groupes.query(conn, groupe=args.groupe, partie=args.partie))
 
 
+def cmd_lettres_relire(args) -> None:
+    from . import mailin
+
+    _print(mailin.reread_newsletters(db.get(), since=args.depuis, dry_run=args.essai))
+
+
+def cmd_enb(args) -> None:
+    from . import enb
+
+    conn = db.get()
+    if args.action == "annoter":
+        _print({"annotes": enb.annotate_all(conn)})
+    else:
+        _print(enb.coverage(conn, since=args.depuis or "2026-11-01"))
+
+
+def cmd_reextraire(args) -> None:
+    """Réextrait des documents déjà au corpus (même identifiant) : colonnes des PDF, encodage, lettres espacées."""
+    conn = db.get()
+    where, params = ["status IN ('indexed','empty','error')"], []
+    if args.source:
+        where.append("source_id LIKE ?")
+        params.append(args.source)
+    if args.org:
+        where.append("org LIKE ?")
+        params.append(f"%{args.org}%")
+    if args.url:
+        where.append("url LIKE ?")
+        params.append(f"%{args.url}%")
+    if args.doc:
+        where.append(f"id IN ({','.join('?' * len(args.doc))})")
+        params += args.doc
+    if len(where) == 1:
+        sys.exit("préciser --source, --org, --url ou --doc")
+    ids = [r["id"] for r in conn.execute(f"SELECT id FROM documents WHERE {' AND '.join(where)} ORDER BY id", params)]
+    if args.essai:
+        _print({"documents": len(ids), "ids": ids[:50]})
+        return
+    counts: dict[str, int] = {}
+    has_log = conn.execute("SELECT 1 FROM sqlite_master WHERE name='extraction_log'").fetchone()
+    for i in ids:
+        st = ingest.index_document(conn, i)
+        counts[st] = counts.get(st, 0) + 1
+        if has_log:
+            conn.execute("DELETE FROM extraction_log WHERE doc_id=?", (i,))  # positions réextraites au passage suivant
+    conn.commit()
+    from . import enb
+
+    counts["enb_annotes"] = enb.annotate_all(conn)
+    _print(counts)
+
+
+def cmd_recuperer(args) -> None:
+    """Retélécharge des documents entrés vides ou tronqués (même identifiant)."""
+    from . import fetch
+
+    conn = db.get()
+    where, params = [], []
+    if args.url:
+        where.append("url LIKE ?")
+        params.append(f"%{args.url}%")
+    if args.doc:
+        where.append(f"id IN ({','.join('?' * len(args.doc))})")
+        params += args.doc
+    if not where:
+        sys.exit("préciser --url ou --doc")
+    if args.vides:
+        where.append("(n_passages IS NULL OR n_passages<=2)")
+    ids = [r["id"] for r in conn.execute(f"SELECT id FROM documents WHERE {' AND '.join(where)} ORDER BY id", params)]
+    client = fetch.Client()
+    counts: dict[str, int] = {}
+    for i in ids:
+        st = ingest.refetch_in_place(conn, client, i)
+        counts[st] = counts.get(st, 0) + 1
+    _print(counts)
+
+
+def cmd_doublons(args) -> None:
+    from . import doublons
+
+    conn = db.get()
+    if args.calculer:
+        _print(doublons.backfill(conn, limit=args.limit, progress=lambda m: print(m, file=sys.stderr, flush=True)))
+    _print(doublons.listing(conn, limit=args.limit or 100))
+
+
 def cmd_mcp_stdio(args) -> None:
     from . import mcp_server
 
@@ -389,6 +475,31 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--groupe")
     s.add_argument("--partie")
     s.set_defaults(func=cmd_groupes)
+
+    s = sub.add_parser("lettres-relire", help="relire les lettres reçues sur veille@ (texte complet, date, un document par lettre)")
+    s.add_argument("--depuis", help="AAAA-MM-JJ (date de réception)")
+    s.add_argument("--essai", action="store_true", help="compter sans rien modifier")
+    s.set_defaults(func=cmd_lettres_relire)
+    s = sub.add_parser("enb", help="Earth Negotiations Bulletin : en-têtes des PDF, couverture des lettres")
+    s.add_argument("action", choices=["annoter", "couverture"])
+    s.add_argument("--depuis")
+    s.set_defaults(func=cmd_enb)
+    s = sub.add_parser("reextraire", help="réextraire des documents du corpus (même identifiant)")
+    s.add_argument("--source", help="identifiant de source (motif SQL LIKE, ex. twn-%%)")
+    s.add_argument("--org", help="organisation (contient)")
+    s.add_argument("--url", help="adresse (contient)")
+    s.add_argument("--doc", type=int, action="append")
+    s.add_argument("--essai", action="store_true")
+    s.set_defaults(func=cmd_reextraire)
+    s = sub.add_parser("recuperer", help="retélécharger des documents entrés vides ou tronqués (même identifiant)")
+    s.add_argument("--url", help="adresse (contient), ex. presscorner/detail")
+    s.add_argument("--doc", type=int, action="append")
+    s.add_argument("--vides", action="store_true", help="seulement les documents de 2 passages ou moins")
+    s.set_defaults(func=cmd_recuperer)
+    s = sub.add_parser("doublons", help="doublons de contenu (même texte, deux fichiers)")
+    s.add_argument("--calculer", action="store_true", help="empreintes manquantes puis recherche des doublons")
+    s.add_argument("--limit", type=int)
+    s.set_defaults(func=cmd_doublons)
 
     sub.add_parser("mcp-stdio", help="serveur MCP en stdio (usage local)").set_defaults(func=cmd_mcp_stdio)
 

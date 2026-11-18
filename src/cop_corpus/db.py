@@ -193,6 +193,9 @@ _COLUMNS = {
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
+    from . import doublons
+
+    doublons.ensure_schema(conn)  # documents.duplicate_of, doc_sketch
     for table, cols in _COLUMNS.items():
         have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         for name, decl in cols.items():

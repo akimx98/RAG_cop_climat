@@ -17,6 +17,7 @@ import csv
 import html
 import io
 import re
+import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -87,6 +88,10 @@ def ensure_schema(conn) -> None:
         conn.execute("ALTER TABLE live_texts ADD COLUMN diff_notified INTEGER DEFAULT 0")
         conn.execute("UPDATE live_texts SET diff_notified=1")  # ne pas ré-alerter l'historique déjà traité
     conn.commit()
+    try:
+        migrate_ace(conn)
+    except sqlite3.OperationalError:
+        pass  # table meta absente (base hors service) : migration au prochain démarrage
     _ready.add(key)
 
 
@@ -127,6 +132,64 @@ def dossier_from_alias(word: str) -> str | None:
         if w == d["slug"] or w in [a.lower() for a in d.get("alias", [])]:
             return d["slug"]
     return None
+
+
+def dossier_candidates(word: str) -> list[str]:
+    """Dossiers possibles pour un mot saisi : l'alias ou le slug exact s'il existe (un seul), sinon tous les dossiers
+    dont le nom, un alias ou la requête contient le mot (« fonds », « education », « technology »…), du plus au moins
+    probable. Liste vide : rien de proche."""
+    exact = dossier_from_alias(word)
+    if exact:
+        return [exact]
+    w = (word or "").strip().lower().rstrip(":,;")
+    if len(w) < 3:
+        return []
+    scored = []
+    for d in dossiers():
+        s = 3 * sum(1 for a in d.get("alias", []) if w in str(a).lower())
+        s += 2 * sum(1 for f in ("nom", "nom_en") if w in (d.get(f) or "").lower())
+        s += sum(1 for k in (d.get("requete") or "").split(",") if w in k.lower())
+        if s:
+            scored.append((-s, d["slug"]))
+    return [slug for _, slug in sorted(scored)]
+
+
+def resolve_dossier(word: str) -> tuple[str | None, list[str]]:
+    """(slug retenu, candidats) : un slug seulement si le mot désigne UN dossier sans ambiguïté ; sinon None et la
+    liste des candidats, à proposer à l'utilisateur plutôt que d'en choisir un en silence."""
+    cands = dossier_candidates(word)
+    return (cands[0], cands) if len(cands) == 1 else (None, cands)
+
+
+def ambiguity(word: str, cands: list[str]) -> dict[str, Any]:
+    """Réponse d'outil quand un dossier est inconnu ou ambigu : les candidats, jamais un choix silencieux."""
+    if cands:
+        return {"erreur": f"« {word} » est ambigu : préciser le dossier parmi les candidats",
+                "candidats": [{"slug": s, "nom": (dossier(s) or {}).get("nom")} for s in cands]}
+    return {"erreur": f"dossier inconnu : {word}", "dossiers": [d["slug"] for d in dossiers()],
+            "conseil": "voir l'outil `dossiers` (slugs et alias)"}
+
+
+ACE_PATTERN = r"action for climate empowerment|\bace\b|climate empowerment|climate education|public awareness|" \
+              r"public participation|glasgow work programme|article 6 of the convention|autonomisation"
+
+
+def migrate_ace(conn) -> None:
+    """Une fois : l'ACE avait été rangée dans « technologie-capacites ». Textes et états suivent le thème Carbon
+    Brief, positions selon leur enjeu ou leur citation, et qui suivait l'ancien dossier suit aussi le nouveau."""
+    if db.meta_get(conn, "migration_ace", "") == "1":
+        return
+    for table in ("live_texts", "dossier_status"):
+        conn.execute(f"UPDATE {table} SET dossier='ace' WHERE lower(COALESCE(cb_topic,'')) "
+                     "IN ('action for climate empowerment','ace')")
+    rx = re.compile(ACE_PATTERN, re.I)
+    for r in conn.execute("SELECT id, issue, summary, quote FROM positions WHERE dossier='technologie-capacites'").fetchall():
+        if rx.search(" ".join(str(r[k] or "") for k in ("issue", "summary", "quote"))):
+            conn.execute("UPDATE positions SET dossier='ace' WHERE id=?", (r["id"],))
+    conn.execute("""INSERT OR IGNORE INTO dossier_follows(user_id,dossier,created_at)
+                    SELECT user_id, 'ace', created_at FROM dossier_follows WHERE dossier='technologie-capacites'""")
+    db.meta_set(conn, "migration_ace", "1")
+    conn.commit()
 
 
 def guess_dossier(text: str) -> str | None:

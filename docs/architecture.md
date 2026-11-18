@@ -51,7 +51,7 @@ sa date et « non adopté » ; un niveau 5 ne dément pas un niveau 1–3 ; rien
 | Programme et pavillons | `agenda.py`, `pavillons.py`, `pavillons_ext.py` | `agenda_events`, `agenda_overview`, `pav_events` + `pav_fts` |
 | Courrier entrant | `mailin.py` | `mail_inbox` |
 
-Catalogues versionnés : `catalog/sources/*.yaml` (sources de la veille), `catalog/dossiers.yaml` (17 dossiers de
+Catalogues versionnés : `catalog/sources/*.yaml` (sources de la veille), `catalog/dossiers.yaml` (18 dossiers de
 négociation et leurs alias), `catalog/groupes.yaml`, `catalog/glossaire.yaml`, `catalog/bluesky.yaml`.
 
 ### Corpus
@@ -61,13 +61,47 @@ de l'ONU ou par un dépôt manuel), extraction PDF/HTML/Word, découpage par par
 lignées de versions et diff, recherche hybride (paliers lexicaux + sens, priorité au texte adopté à pertinence
 égale), liens directs vers chaque passage (`lien_source`, `lien_page`, `lien_passage`).
 
+Extraction (`extract.py`) : PDF à colonnes lus colonne par colonne (lignes classées gauche/droite, les lignes pleine
+largeur coupent la page en bandes ; les tableaux, aux cellules courtes, restent lus par ordonnée) ; réparation des
+artefacts (UTF-8 lu en Windows-1252 « TÃ¼rkiye », lettres espacées « S u b m i s s i o n ») ; pages HTML sans
+jeu de caractères déclaré décodées en Windows-1252 (TWN) ; texte brut de la page quand trafilatura n'en garde qu'un
+fragment (page sans `<article>`). Pages servies par une application JavaScript : texte par l'API publique du site
+(`ingest.resolve` : discours et déclarations de la Commission sur presscorner, dont ceux de la COP).
+
+Doublons de contenu (`doublons.py`) : empreinte de chaque texte (64 hachages de suites de 8 mots) ; deux documents qui
+en partagent 90 % sont le même texte (déclaration du G77 sur g77.org et sur le portail CCNUCC, texte sans cote en
+double de sa version renseignée). L'exemplaire de référence est le plus officiel (cote, vrai titre, niveau le plus
+fort) ; l'autre (`documents.duplicate_of`) sort des recherches, nouveautés et alertes. Jamais entre deux versions
+d'une lignée, deux cotes différentes, ni entre un document interne et un public.
+
+**Comptes rendus et lettres** (le cœur de la veille, niveau 4 sauf ECO, niveau 5) :
+
+| Source | Voie | Texte complet |
+|---|---|---|
+| ENB, comptes rendus quotidiens | `enb-daily-pdf` (`enb.py`) : PDF `sites/default/files/<aaaa-mm>/enb12<nnn><e\|f>.pdf`, numéros essayés à la suite, toutes les heures (pages HTML : Cloudflare, jamais contourné) | oui ; numéro, parution et journée couverte lus dans l'en-tête (n° 909 = « COP 31 #8 », paru le 18/11, journée du 17/11) |
+| ENB, lettre quotidienne | veille@ | chapeaux + liens ; le « daily report » d'une journée = PDF du lendemain ; side events : HTML seulement, bloqués (`cop enb couverture`) |
+| Carbon Brief, Daily Briefing | veille@ | oui (partie HTML : la partie texte n'est qu'un « can't display HTML ») ; pas d'archive web publique |
+| Carbon Brief, articles | flux RSS, page COP31 | oui |
+| Climate Home, « COP31 Bulletin Day N » | flux RSS | oui |
+| ECO (CAN) | flux de la catégorie → page de chaque numéro | oui |
+| TWN, Antalya Climate News Update | crawl de twn.my | oui (pages en Windows-1252) |
+
+Chaque lettre reçue est un document à part, daté de son envoi (fuseau de la COP), titre « expéditeur — objet
+(date) » : jamais une « version » de la lettre de la veille (avant le 18/11, les lettres de l'ENB en français et en
+espagnol, au même objet, s'empilaient en versions d'un seul document). Le texte retenu est la partie HTML dès qu'elle
+est plus riche que la partie texte, suivi des liens de contenu (sans pistage ni réseaux sociaux). Une cote citée dans
+une lettre n'en fait pas une version du texte cité.
+
 ### Négociations en direct
 
 Index public de Carbon Brief (textes de session, positions de référence « Who wants what », cité) ; récupération
 des textes par leur adresse puis par l'ODS, sinon « à récupérer » (dépôt manuel) ; positions extraites des sources
 publiques récentes — comptes rendus de négociation (TWN, Climate Home, Carbon Brief, ENB, ECO) et déclarations
 officielles (G77, AOSIS, présidence COP31, DG CLIMA), pas la presse généraliste (`positions.POSITION_SOURCES`) —,
-gardées seulement si la citation figure mot pour mot dans la source ; briefs IA par dossier à
+gardées seulement si la citation figure mot pour mot dans la source ; extraction section par section (lots de
+9 000 caractères) ; documents de l'ENB lus quelle que soit leur voie d'entrée (`positions.POSITION_ORGS`) : l'ENB
+attribue chaque intervention (« the EU, supported by NORWAY, opposed by SAUDI ARABIA ») et c'est la seule source
+publique des positions de l'UE par point de l'ordre du jour, qui ne publie pas ces interventions ; briefs IA par dossier à
 7 h et 19 h, désactivés par défaut (`COP_BRIEFS`) ; notes de terrain restreintes, jamais
 envoyées à un modèle.
 
@@ -108,6 +142,8 @@ africain de l'ONU, Ligue des États arabes, mêmes nombres que ceux de la CCNUCC
 vérifiés, aucun membre. Contrôle du nombre de membres (écart signalé), ISO3 de chaque membre (une parenthèse
 onusienne n'est jamais simplement retirée). Un groupe qui n'a pas soumis en son nom est comparé via les soumissions
 de ses membres, présentées comme telles avec la couverture.
+Sous-groupes (`soumissions.SUBGROUPS`) : un groupe sans soumission propre est comparé via ses sous-groupes (G77 → AGN,
+PMA, AOSIS, Groupe arabe, LMDC, AILAC…) puis ses membres, puis sa dernière soumission sur le dossier.
 
 ### Programme et pavillons
 
@@ -122,25 +158,26 @@ par famille d'outils ; le détail est dans la description de chaque outil. Un te
 
 | Outil | Rôle |
 |---|---|
-| `rechercher` | recherche hybride dans le corpus (filtres niveau, type, session, partie, groupe, dates) |
+| `rechercher` | recherche hybride dans le corpus (filtres niveau, type, session, partie, groupe, dates) ; seuil de pertinence (`faible_pertinence`, « rien de pertinent ») |
 | `lire_passage` | texte exact d'un passage et de ses voisins |
 | `document` | métadonnées et versions d'un document |
 | `comparer_versions` | ce qui a changé entre deux versions d'un texte (diff, crochets, options) |
+| `crochets` | formulations entre crochets d'un projet de texte sur un thème (genre, droits humains, désinformation…) et depuis quelle version |
 | `nouveautes` | documents entrés récemment |
 | `donnees` | chiffres d'émissions |
 | `glossaire` | sigles et notions |
 | `dossiers` | vue d'ensemble des dossiers ; `textes=true` : derniers textes annoncés |
 | `dossier` | un dossier : état, textes, brief, positions, positions écrites, soumissions liées, notes |
-| `positions` | qui veut quoi (acteur, dossier, période) |
+| `positions` | qui veut quoi (acteur, dossier, période) ; `divisions=true` : clivages internes d'un groupe (sous-groupes, membres) et alliés hors groupe |
 | `noter` | note de terrain (restreinte) |
 | `soumissions` | appels, qui a soumis quoi, par dossier ou par groupe ; `document=` : analyse |
-| `comparer_soumissions` | comparaison de deux acteurs, ou contre tout un appel ; `acteurs=` : matrice (cache) |
+| `comparer_soumissions` | comparaison de deux acteurs (repli : sous-groupes et membres, puis dernière soumission ; écart de dates signalé ; appels candidats listés), ou contre tout un appel ; `acteurs=` : matrice (cache) |
 | `groupes` | membres sourcés d'un groupe, groupes d'une Partie |
 | `programme` | où et quand aller (jour, sujets, sujets suivis) |
 | `pavillons` | contenu des programmes des pavillons, comptages, couverture |
 | `mes_sujets` | alertes et dossiers suivis |
 | `suivre` | créer une alerte (mots-clés ou dossier) ou l'arrêter |
-| `deposer_url` | ajouter une page publique au corpus |
+| `deposer_url` | ajouter une page publique au corpus (date et titre vérifiés dans le contenu) |
 | `etat_corpus` | statistiques du corpus |
 
 Méthodes (prompts MCP, FR/EN, étapes définies une fois dans `mcp_server.METHODES`) : `point_negociation`,
@@ -159,6 +196,7 @@ depuis la page « Claude / ChatGPT » du tableau de bord.
 | Tâche | Fil (conteneur `worker`) | Fréquence |
 |---|---|---|
 | Veille documentaire (sources du catalogue selon `watch_minutes`, indexation, embeddings, alertes) | `worker.watch_once` | boucle de 60 s ; un passage complet ≈ 20 min pendant la COP |
+| Comptes rendus quotidiens de l'ENB en PDF (`enb-daily-pdf`, numéros suivants) | `worker.watch_once` | 1 h |
 | Soumissions : index du portail + rattachement aux dossiers | fil dédié `worker.submissions_forever` | 30 min |
 | Soumissions : téléchargement (récentes d'abord, puis le stock) | idem | 60 fichiers par passage, un passage par minute, dès le démarrage |
 | Récapitulatif du matin (Telegram) | `worker.morning_digest` | 7 h, heure d'Antalya |

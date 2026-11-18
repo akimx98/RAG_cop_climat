@@ -234,7 +234,9 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
              int(bool(c.get("IsUpcomingSession"))), c.get("ModifiedDate")))
     parties = {(s.get("Entity") or "").strip().lower() for s in subs if (s.get("EntityType") or "").lower() == "party"}
     known = _known_actor_names(conn) | parties
-    known = {r[0] for r in conn.execute("SELECT id FROM sub_items")}
+    # Identifiants déjà connus (compte des nouvelles) : variable distincte — elle écrasait les NOMS connus, et
+    # co_submitters ne découpait plus « Arab Group and ALBA » ni « India and China (BASIC) ».
+    known_ids = {r[0] for r in conn.execute("SELECT id FROM sub_items")}
     for s in subs:
         entity = (s.get("Entity") or "").replace("\u200b", "").strip()
         conn.execute(
@@ -268,7 +270,7 @@ def sync_index(conn, client: fetch.Client) -> dict[str, int]:
     conn.commit()
     db.meta_set(conn, "soumissions_index", db.now())
     map_calls(conn)
-    return {"appels": len(calls), "soumissions": len(subs), "nouvelles": sum(1 for x in subs if x["Id"] not in known)}
+    return {"appels": len(calls), "soumissions": len(subs), "nouvelles": sum(1 for x in subs if x["Id"] not in known_ids)}
 
 
 def _known_actor_names(conn) -> set[str]:
@@ -883,11 +885,12 @@ def compare_in_call(conn, doc_id: int, *, max_n: int = 6, parties_only: bool = T
             "methode": "Détail point par point : comparer_soumissions(a, b)."}
 
 
-def resolve_pair(conn, a: str, b: str, appel: int | None = None,
-                 dossier: str | None = None) -> tuple[int, int, int | None]:
+def resolve_pair_info(conn, a: str, b: str, appel: int | None = None,
+                      dossier: str | None = None) -> dict[str, Any]:
     """Deux références (doc_id ou nom d'acteur : Partie ou groupe, « EU », « UE », « LDC »…) → deux documents,
     de préférence dans le même appel (le plus récent auquel les deux ont répondu, ou `appel`).
-    Renvoie (doc_a, doc_b, appel commun ou None). Nom inconnu → UnknownActor avec des noms proches."""
+    Renvoie {doc_a, doc_b, appel (commun ou None), appels_communs (tous, du plus récent au plus ancien)}.
+    Nom inconnu → UnknownActor avec des noms proches."""
     ensure_schema(conn)
 
     def items(ref: str) -> list:
@@ -906,10 +909,58 @@ def resolve_pair(conn, a: str, b: str, appel: int | None = None,
             raise UnknownActor(f"pas de soumission de « {a if not da2 else b} » sur un appel du dossier « {dossier} »")
         da, db_ = da2, db2
     calls_b = {x["call_id"]: x for x in db_}
+    common: list[int] = []
+    pick = None
     for x in da:  # du plus récent au plus ancien
-        if x["call_id"] in calls_b:
-            return x["doc_id"], calls_b[x["call_id"]]["doc_id"], x["call_id"]
-    return da[0]["doc_id"], db_[0]["doc_id"], None
+        if x["call_id"] in calls_b and x["call_id"] not in common:
+            common.append(x["call_id"])
+            if pick is None:
+                pick = (x["doc_id"], calls_b[x["call_id"]]["doc_id"], x["call_id"])
+    if pick is None:
+        pick = (da[0]["doc_id"], db_[0]["doc_id"], None)
+    return {"doc_a": pick[0], "doc_b": pick[1], "appel": pick[2], "appels_communs": common}
+
+
+def resolve_pair(conn, a: str, b: str, appel: int | None = None,
+                 dossier: str | None = None) -> tuple[int, int, int | None]:
+    info = resolve_pair_info(conn, a, b, appel, dossier)
+    return info["doc_a"], info["doc_b"], info["appel"]
+
+
+def calls_brief(conn, call_ids: list[int]) -> list[dict[str, Any]]:
+    """Appels candidats, en bref : à proposer quand plusieurs conviennent (jamais un choix silencieux)."""
+    out = []
+    for cid in call_ids:
+        c = conn.execute("""SELECT c.*, MAX(i.submitted) last FROM sub_calls c LEFT JOIN sub_items i ON i.call_id=c.id
+                            WHERE c.id=? GROUP BY c.id""", (cid,)).fetchone()
+        if c:
+            out.append({"appel": cid, "titre": c["title"], "session": c["session"], "derniere_soumission": c["last"]})
+    return out
+
+
+DATE_GAP_DAYS = 365
+
+
+def _submitted(conn, doc_id: int) -> str | None:
+    r = conn.execute("SELECT MAX(submitted) FROM sub_items WHERE doc_id=?", (doc_id,)).fetchone()
+    return r[0] if r else None
+
+
+def date_gap(conn, doc_a: int, doc_b: int) -> dict[str, Any] | None:
+    """Écart de dates entre deux soumissions ; avertissement au-delà d'un an (positions possiblement datées)."""
+    da, db_ = _submitted(conn, doc_a), _submitted(conn, doc_b)
+    if not da or not db_:
+        return None
+    try:
+        days = abs((datetime.strptime(da[:10], "%Y-%m-%d") - datetime.strptime(db_[:10], "%Y-%m-%d")).days)
+    except ValueError:
+        return None
+    out: dict[str, Any] = {"date_a": da[:10], "date_b": db_[:10], "ecart_jours": days}
+    if days > DATE_GAP_DAYS:
+        out["avertissement"] = (f"Soumissions éloignées de {round(days / 30.4)} mois ({da[:10]} / {db_[:10]}) : la plus "
+                                "ancienne peut ne plus refléter la position actuelle. Le dire, et chercher une position "
+                                "plus récente (positions, déclarations, comptes rendus).")
+    return out
 
 
 def latest_doc(conn, ref: str, appel: int | None = None) -> int:
@@ -924,7 +975,7 @@ def latest_doc(conn, ref: str, appel: int | None = None) -> int:
 # catalog/dossiers.yaml) ; 2) à défaut, dossier majoritaire parmi les points analysés de ses soumissions
 # (part ≥ POINTS_SHARE, au moins POINTS_MIN points) ; 3) un rattachement « manuel » (CLI) prime et n'est jamais écrasé.
 
-RULES_VERSION = "2"
+RULES_VERSION = "3"
 POINTS_SHARE = 0.4
 POINTS_MIN = 3
 CALL_RULES: list[tuple[str, str, float]] = [
@@ -942,7 +993,7 @@ CALL_RULES: list[tuple[str, str, float]] = [
     ("finance", r"\bclimate finance\b|\bfinance\b", 0.6),
     ("flux-financiers", r"article 2,? paragraph 1\(c\)|2\.1\s?\(c\)|finance flows", 1.0),
     ("pertes-prejudices", r"loss and damage|warsaw international mechanism|santiago network|\bfrld\b|\bwim\b", 1.0),
-    # Article 6 de l'ACCORD DE PARIS (marchés) ; l'article 6 de la CONVENTION, c'est l'ACE (technologie-capacites).
+    # Article 6 de l'ACCORD DE PARIS (marchés) ; l'article 6 de la CONVENTION, c'est l'ACE (dossier « ace »).
     ("article-6", r"article 6,? paragraphs? [248]|article 6\.[248]|article 6 of the paris agreement|"
                   r"non-market approach|crediting mechanism|\bitmos?\b|supervisory body|"
                   r"clean development mechanism|\bcdm\b|kyoto mechanism|joint implementation", 1.0),
@@ -956,9 +1007,13 @@ CALL_RULES: list[tuple[str, str, float]] = [
                      r"national communication|facilitative multilateral|methodological issues under the paris|"
                      r"article 13 of the paris agreement", 1.0),
     ("transparence", r"\breporting\b|inventor(y|ies)|compliance", 0.6),
+    # ACE avant la technologie : « Action for Climate Empowerment » est un dossier à part entière (art. 6 de la
+    # Convention, art. 12 de l'Accord de Paris), jamais rattaché à la technologie ni au renforcement des capacités.
+    ("ace", r"action for climate empowerment|\bace\b|climate empowerment|climate education|"
+            r"article 6 of the convention|article 12 of the paris agreement|glasgow work programme", 1.0),
+    ("ace", r"\beducation\b|public awareness|public participation|public access to information", 0.6),
     ("technologie-capacites", r"technology (mechanism|executive|implementation programme|needs|framework|transfer)|"
-                              r"\bctcn\b|\btec\b|capacity[- ]building|\bpccb\b|action for climate empowerment|"
-                              r"\bace\b|climate education|article 6 of the convention", 1.0),
+                              r"\bctcn\b|\btec\b|\bbtip\b|capacity[- ]building|\bpccb\b", 1.0),
     ("technologie-capacites", r"\btechnology\b", 0.6),
     ("agriculture", r"agricultur|food security|sharm el-sheikh joint work", 1.0),
     ("genre", r"gender", 1.0),
@@ -1165,8 +1220,28 @@ def group_member_items(conn, gid: str, call_ids: set[int] | None = None) -> tupl
     return [r for r in rows if call_ids is None or r["call_id"] in call_ids], len(isos)
 
 
+# Sous-groupes qui négocient au sein d'un groupe : quand le groupe ne soumet pas en son nom, ses sous-groupes le font
+# souvent (le Groupe africain, les PMA, l'AOSIS… au sein du G77). Noms canoniques (positions.normalize_actor).
+SUBGROUPS: dict[str, tuple[str, ...]] = {
+    "G77 and China": ("AGN", "LDC", "AOSIS", "Arab Group", "LMDC", "AILAC", "ALBA", "ABU", "LLDC", "BASIC", "CfRN"),
+}
+
+
+def subgroup_items(conn, gid: str, call_ids: set[int] | None = None) -> list[tuple[str, Any]]:
+    """Soumissions faites au nom d'un SOUS-GROUPE du groupe : [(sous-groupe, item)], du plus récent au plus ancien."""
+    out = []
+    for sg in SUBGROUPS.get(gid, ()):
+        try:
+            out += [(sg, x) for x in _actor_items(conn, sg, indexed_only=True)
+                    if call_ids is None or x["call_id"] in call_ids]
+        except UnknownActor:
+            continue
+    return sorted(out, key=lambda t: t[1]["submitted"] or "", reverse=True)
+
+
 def _side(conn, ref: str, call_ids: set[int] | None, force_members: bool = False) -> dict[str, Any]:
-    """Un côté d'une comparaison : soumission(s) propres de l'acteur, sinon soumissions des membres du groupe."""
+    """Un côté d'une comparaison : soumission(s) propres de l'acteur, sinon soumissions de ses SOUS-GROUPES (G77 →
+    Groupe africain, PMA, AOSIS…) et de ses MEMBRES (liste sourcée), présentées comme telles."""
     from . import groupes
 
     if str(ref).strip().isdigit():
@@ -1185,18 +1260,27 @@ def _side(conn, ref: str, call_ids: set[int] | None, force_members: bool = False
     if not gid:
         raise UnknownActor(f"aucune soumission pour « {ref} »" + (" dans ce périmètre" if call_ids else ""))
     items, n = group_member_items(conn, gid, call_ids)
-    if not n:
+    subs = subgroup_items(conn, gid, call_ids)
+    if not n and not subs:
         raise UnknownActor(f"« {gid} » n'a pas soumis en son nom dans ce périmètre et sa liste de membres n'est pas "
                            "vérifiée (voir groupes) : impossible de reconstituer sa position")
-    if not items:
-        raise UnknownActor(f"ni « {gid} » ni aucun de ses {n} membres listés n'a soumis dans ce périmètre")
-    return {"acteur": gid, "mode": "membres", "items": items, "membres_listes": n}
+    if not items and not subs:
+        raise UnknownActor(f"ni « {gid} », ni ses sous-groupes, ni aucun de ses {n} membres listés n'a soumis dans "
+                           "ce périmètre")
+    seen = {x["doc_id"] for x in items}
+    sg_docs = {x["doc_id"]: sg for sg, x in subs}
+    merged = list(items) + [x for _, x in subs if x["doc_id"] not in seen]
+    merged.sort(key=lambda x: x["submitted"] or "", reverse=True)
+    return {"acteur": gid, "mode": "membres", "items": merged, "membres_listes": n, "sous_groupes": sg_docs}
 
 
 def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: str | None = None,
                    max_new: int = MAX_NEW_COMPARISONS, max_total: int = 12, compute: bool = False) -> dict[str, Any]:
-    """Comparaison qui accepte des groupes sans soumission propre : on compare alors avec les soumissions de leurs
-    MEMBRES sur l'appel commun le plus récent (présentées comme telles, avec la couverture), en cache d'abord."""
+    """Comparaison qui accepte des groupes sans soumission propre. Ordre de repli, chaque étape dite dans la réponse :
+    1. soumissions propres sur un appel commun ;
+    2. pour un groupe : soumissions de ses SOUS-GROUPES (G77 → AGN, PMA, AOSIS…) et de ses MEMBRES sur un appel
+       commun, présentées comme telles avec la couverture ; sa dernière soumission propre sur le dossier est signalée ;
+    3. sans appel commun : dernière soumission de chacun dans le périmètre (appels différents), avec l'écart de dates."""
     call_ids: set[int] | None = None
     if appel:
         call_ids = {appel}
@@ -1205,13 +1289,14 @@ def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: s
     from . import groupes
 
     sa, sb = _side(conn, a, call_ids), _side(conn, b, call_ids)
-    note = None
+    notes: list[str] = []
+    own_kept: dict[str, Any] = {}
 
     def calls(side):
         return {x["call_id"] for x in side["items"]}
 
     if not calls(sa) & calls(sb):
-        # Un groupe a soumis en son nom, mais pas sur un appel commun : repli sur les soumissions de ses membres.
+        # Un groupe a soumis en son nom, mais pas sur un appel commun : repli sur ses sous-groupes et ses membres.
         for ref, side_name in ((b, "sb"), (a, "sa")):
             side = sb if side_name == "sb" else sa
             if side["mode"] == "propre" and groupes.group_id(ref):
@@ -1221,32 +1306,38 @@ def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: s
                     continue
                 other = sa if side_name == "sb" else sb
                 if calls(alt) & calls(other):
+                    own_kept[side_name] = side["items"][0]
                     if side_name == "sb":
                         sb = alt
                     else:
                         sa = alt
-                    note = (f"« {alt['acteur']} » n'a pas soumis en son nom sur un appel commun : comparaison avec les "
-                            "soumissions de ses membres.")
+                    notes.append(f"« {alt['acteur']} » n'a pas soumis en son nom sur un appel commun : comparaison avec "
+                                 "les soumissions de ses sous-groupes et de ses membres.")
                     break
     common = sorted({x["call_id"] for x in sa["items"]} & {x["call_id"] for x in sb["items"]},
                     key=lambda c: max(x["submitted"] or "" for x in sa["items"] + sb["items"] if x["call_id"] == c),
                     reverse=True)
-    if not common:
-        raise UnknownActor(f"pas d'appel auquel « {sa['acteur']} » et « {sb['acteur']} » ont tous deux répondu"
-                           + (" dans ce périmètre" if call_ids else ""))
-    call = common[0]
+    if common:
+        call_a = call_b = common[0]
+    else:
+        # Aucun appel commun : dernière soumission de chacun (appels différents), signalé avec l'écart de dates.
+        call_a, call_b = sa["items"][0]["call_id"], sb["items"][0]["call_id"]
+        notes.append("Aucun appel commun dans ce périmètre : comparaison de la DERNIÈRE soumission de chacun, sur des "
+                     "appels différents (questions différentes) ; comparaison indicative.")
 
-    def docs(side):
+    def docs(side, call):
         ds = list(dict.fromkeys(x["doc_id"] for x in side["items"] if x["call_id"] == call))
         return ds[:1] if side["mode"] == "propre" else ds
 
-    pairs = [(x, y) for x in docs(sa) for y in docs(sb) if x != y]
+    pairs = [(x, y) for x in docs(sa, call_a) for y in docs(sb, call_b) if x != y]
     pairs.sort(key=lambda p: not _cached_pair(conn, *p))
     results, skipped, new, todo = [], [], 0, []
     for x, y in pairs:
         cached = _cached_pair(conn, x, y)
+        gap = date_gap(conn, x, y)
         if not cached and not compute:
-            todo.append({"a": x, "b": y, "a_auteur": _who(conn, x), "b_auteur": _who(conn, y)})
+            todo.append({"a": x, "b": y, "a_auteur": _who(conn, x), "b_auteur": _who(conn, y),
+                         **({"ecart_dates": gap} if gap and gap.get("avertissement") else {})})
             continue
         if len(results) >= max_total or (not cached and new >= max_new):
             skipped.append(f"{_who(conn, x)} / {_who(conn, y)}")
@@ -1255,29 +1346,49 @@ def compare_actors(conn, a: str, b: str, *, appel: int | None = None, dossier: s
         c = compare(conn, x, y)
         results.append({"a": c["a"], "b": c["b"], "indication": c["indication"],
                         "indication_libelle": c["indication_libelle"], "regle": c["decompte"].get("regle"),
-                        "conflits": [p["point"] for p in c["points"] if p["relation"] == "conflit"][:5]})
+                        "conflits": [p["point"] for p in c["points"] if p["relation"] == "conflit"][:5],
+                        **({"ecart_dates": gap} if gap and gap.get("avertissement") else {})})
     counts: dict[str, int] = {}
     for r in results:
         counts[r["indication_libelle"]] = counts.get(r["indication_libelle"], 0) + 1
-    row = conn.execute("SELECT * FROM sub_calls WHERE id=?", (call,)).fetchone()
 
-    def side_out(side):
-        o = {"acteur": side["acteur"], "mode": side["mode"]}
+    def side_out(side, call, key):
+        o: dict[str, Any] = {"acteur": side["acteur"], "mode": side["mode"]}
         if side["mode"] == "membres":
-            members = sorted({x["entity"] for x in side["items"] if x["call_id"] == call})
+            in_call = [x for x in side["items"] if x["call_id"] == call]
+            sg = side.get("sous_groupes") or {}
+            subs = sorted({sg[x["doc_id"]] for x in in_call if x["doc_id"] in sg})
+            members = sorted({x["entity"] for x in in_call if x["doc_id"] not in sg})
             o.update({"membres_ayant_soumis": members,
                       "couverture": f"{len(members)} membre(s) sur {side['membres_listes']} listés"})
+            if subs:
+                o["sous_groupes_ayant_soumis"] = subs
+        if key in own_kept:
+            it = own_kept[key]
+            o["derniere_soumission_propre"] = {"doc_id": it["doc_id"], "appel": it["call_id"], "date": it["submitted"],
+                                               "note": "soumission du groupe en son nom, sur un appel plus ancien : "
+                                                       "comparable avec comparer_soumissions(a=<doc_id>, b=<doc_id>)"}
         return o
 
-    out = {"appel": _call_public(row) if row else call, "a": side_out(sa), "b": side_out(sb), "repli": note,
+    row = conn.execute("SELECT * FROM sub_calls WHERE id=?", (call_a,)).fetchone()
+    out = {"appel": _call_public(row) if row else call_a, "a": side_out(sa, call_a, "sa"), "b": side_out(sb, call_b, "sb"),
+           "repli": " ".join(notes) or None,
            "comparaisons": results, "repartition": counts, "non_comparees": skipped or None,
            "a_comparer": todo or None,
            "suite": ("Paires de `a_comparer` : comparer_soumissions(a=<doc_id>, b=<doc_id>) pour chacune (texte + "
                      "consigne), puis renvoyer les qualifications.") if todo else None,
            "methode": "Chaque comparaison : comparer_soumissions(doc_a, doc_b) pour le détail point par point."}
+    if not common:
+        rb = conn.execute("SELECT * FROM sub_calls WHERE id=?", (call_b,)).fetchone()
+        out["appel"] = None
+        out["appels"] = {"a": _call_public(row) if row else call_a, "b": _call_public(rb) if rb else call_b}
+    elif len(common) > 1 and not appel:
+        out["autres_appels_communs"] = calls_brief(conn, common[1:6])
+        out["choix_appel"] = "appel commun le plus récent retenu ; préciser appel=… pour un autre"
     if "membres" in (sa["mode"], sb["mode"]):
-        out["avertissement"] = ("Soumissions de MEMBRES du groupe, pas une position de groupe : le groupe n'a pas soumis "
-                                "en son nom sur cet appel. Ne pas présenter la répartition comme l'avis du groupe.")
+        out["avertissement"] = ("Soumissions de SOUS-GROUPES ou de MEMBRES du groupe, pas une position de groupe : le "
+                                "groupe n'a pas soumis en son nom sur cet appel. Ne pas présenter la répartition comme "
+                                "l'avis du groupe.")
     return {k: v for k, v in out.items() if v is not None}
 
 

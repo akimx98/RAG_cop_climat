@@ -45,6 +45,11 @@ cop programme --jour demain --sujet "water, indigenous"         # où aller (sid
 cop programme-sync                                               # relève le planner (fait toutes les 6 h par le worker)
 cop programme-seors releve.tsv                                   # importe un relevé SEORS (voir plus bas)
 cop mail-allow iisd.org carbonbrief.org                          # expéditeurs de lettres admis sur veille@
+cop lettres-relire [--essai]       # relit les lettres archivées (texte complet, date) et remplace leur texte sur place
+cop enb annoter|couverture         # en-têtes des PDF de l'ENB ; liens de chaque lettre ENB couverts ou non par un PDF
+cop reextraire --source twn-%      # réextrait des documents (colonnes des PDF, encodage), même identifiant
+cop recuperer --url presscorner/detail --vides   # retélécharge des documents entrés vides (discours de la Commission)
+cop doublons --calculer            # empreintes manquantes et doublons de contenu (même texte, deux fichiers)
 cop ingest-file note.pdf --title "Note de coordination UE"       # dépôt local (restreint par défaut)
 cop serve --port 8000 --with-worker                              # tout en un, en local
 cop worker                                                       # veilleur + bot Telegram + digest 7 h
@@ -70,7 +75,8 @@ titre ni un extrait (`COP_TELEGRAM_RESTRICTED_SNIPPETS=0`).
 
 Jamais contournées (`unfccc.int`, SEORS, page « Party groupings » de la CCNUCC). Les documents à cote FCCC passent
 par l'ODS de l'ONU ; le reste se dépose à la main (Telegram ou tableau de bord) ; `cop log --outcome antibot` liste
-ce qui a été bloqué. Relevé SEORS des salles des side events : ouvrir SEORS dans un navigateur, coller
+ce qui a été bloqué. ENB : les pages HTML sont bloquées mais les PDF quotidiens passent (source `enb-daily-pdf`).
+Mode dégradé : version PDF de la même page, `deposer_url` d'une autre adresse publique, sinon dépôt manuel. Relevé SEORS des salles des side events : ouvrir SEORS dans un navigateur, coller
 `agenda.SEORS_SNIPPET` dans la console, enregistrer le presse-papiers dans `releve.tsv`, puis
 `cop programme-seors releve.tsv` (dans le conteneur).
 

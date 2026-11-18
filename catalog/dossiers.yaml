@@ -94,13 +94,21 @@
   nom_en: "Transparency (ETF, BTR) and compliance"
   enjeu_en: "How each country reports its emissions and actions, and how that is checked."
 - slug: technologie-capacites
-  nom: "Technologie, capacités et éducation (ACE)"
-  alias: [tech, technologie, ctcn, capacites, capacités, ace]
-  cb: [Climate Technology Centre host, Climate Technology Centre review, Report of technology bodies, Capacity building, Action for climate empowerment]
-  requete: "technology mechanism, Climate Technology Centre and Network, capacity-building, renforcement des capacités, Action for Climate Empowerment"
-  enjeu: "Les transferts de technologie et le renforcement des capacités des pays en développement, et l'éducation au climat et la participation du public (ACE)."
-  nom_en: "Technology, capacity-building and education (ACE)"
-  enjeu_en: "Technology transfer, capacity-building for developing countries, and climate education and public participation (Action for Climate Empowerment)."
+  nom: "Technologie et renforcement des capacités"
+  alias: [tech, technologie, ctcn, capacites, capacités, technology, pccb, btip]
+  cb: [Climate Technology Centre host, Climate Technology Centre review, Report of technology bodies, Capacity building]
+  requete: "technology mechanism, Climate Technology Centre and Network, technology implementation programme, capacity-building, renforcement des capacités"
+  enjeu: "Les transferts de technologie et le renforcement des capacités des pays en développement."
+  nom_en: "Technology and capacity-building"
+  enjeu_en: "Technology transfer and capacity-building for developing countries."
+- slug: ace
+  nom: "Action pour l'autonomisation climatique (ACE : éducation, sensibilisation, participation)"
+  alias: [ace, afce, "action for climate empowerment", "action pour l'autonomisation climatique", "autonomisation climatique", "climate empowerment", education, éducation, "glasgow work programme", "article 12", "article 6 de la convention"]
+  cb: [Action for climate empowerment, ACE]
+  requete: "Action for Climate Empowerment, Glasgow work programme on Action for Climate Empowerment, climate education, public awareness, public participation, public access to information, Article 6 of the Convention, Article 12 of the Paris Agreement"
+  enjeu: "L'éducation au climat, la sensibilisation, la participation du public et l'accès à l'information (article 6 de la Convention, article 12 de l'Accord de Paris) : le programme de travail de Glasgow et son plan d'action."
+  nom_en: "Action for Climate Empowerment (ACE: education, awareness, participation)"
+  enjeu_en: "Climate education, public awareness, public participation and access to information (Convention Article 6, Paris Agreement Article 12): the Glasgow work programme and its action plan."
 - slug: agriculture
   nom: "Agriculture et sécurité alimentaire"
   alias: [agri, agriculture, alimentation, sharm]

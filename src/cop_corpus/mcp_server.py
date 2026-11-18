@@ -26,20 +26,23 @@ RÈGLES
 1. Rien de factuel sans un passage renvoyé par un outil. Rien trouvé → « non trouvé dans le corpus » ; jamais de mémoire.
 2. Citer le texte exact entre guillemets + référence (cote, décision et §, page) + lien (lien_source, sinon lien_passage).
 3. Donner le NIVEAU : 1 adopté ; 2 officiel non adopté (projet, NDC, soumission d'une Partie) ; 3 science, données ;
-4 compte rendu ; 5 acteur (jamais une preuve, ne dément pas 1–3) ; R interne (ne pas recopier hors contributeurs).
+4 compte rendu (l'ENB attribue les positions) ; 5 acteur (jamais une preuve) ; R interne (ne pas recopier).
 4. Projet de texte : toujours sa version, sa date et « non adopté ».
 5. Distinguer ce que dit le texte (1–2) de ce qu'en disent les acteurs (4–5). Brief ou analyse IA : le dire.
 6. shall = obligation ; should = recommandation ; urges/encourages/invites = incitation ; notes = constat.
-7. Requêtes en anglais onusien, 2–3 formulations si c'est maigre.
+7. Requêtes en anglais onusien, 2–3 formulations si maigre.
 8. Court, l'essentiel d'abord, dans la langue de l'utilisateur (citer dans la langue d'origine).
+9. Un groupe soumet souvent via ses sous-groupes ou membres : le dire ; signaler les dates éloignées.
+10. Source bloquée : sa version PDF, deposer_url, ou dépôt manuel.
 
 OUTILS
-- Corpus : rechercher → lire_passage ; document ; comparer_versions ; nouveautes ; donnees ; glossaire.
-- Négociations : dossiers (textes annoncés) → dossier (état, textes, positions, soumissions) ; positions ; noter.
-- Positions écrites : soumissions (appels, auteurs, analyse) ; comparer_soumissions (et matrice) ; groupes.
-- Événements : programme (où et quand) ; pavillons (contenu des événements, comptages).
-- Alertes et ajout : mes_sujets ; suivre (mots-clés, dossier, arrêt) ; deposer_url ; etat_corpus.
-Méthodes : point_negociation, position_pays, preparer_rencontre, plaidoyer, decouvrir_sujet, quoi_de_neuf."""
+- Corpus : rechercher → lire_passage ; document ; comparer_versions ; crochets (par thème) ; nouveautes ; donnees ; glossaire.
+- Négociations : dossiers (alias) → dossier ; positions (divisions=true : clivages) ; noter.
+- Positions écrites : soumissions ; comparer_soumissions ; groupes.
+- Événements : programme (où, quand) ; pavillons (contenus).
+- Alertes, ajout : mes_sujets ; suivre ; deposer_url ; etat_corpus.
+Méthodes (prompts MCP, pas des outils) : point_negociation, position_pays, preparer_rencontre, plaidoyer,
+decouvrir_sujet, quoi_de_neuf."""
 
 # Outils retirés ou renommés : ne doivent plus apparaître nulle part (test). textes_en_cours → dossiers(textes=…) ;
 # suivre_dossier / arreter_suivi → suivre(dossier=… | arreter=…) ; analyser_soumission → soumissions(document=…) ;
@@ -105,6 +108,16 @@ def _since(value: str | None) -> str | None:
     return value.strip()
 
 
+def _resolve_dossier(word: str | None) -> tuple[str | None, dict[str, Any] | None]:
+    """(slug, None) si le mot désigne un seul dossier ; sinon (None, réponse d'erreur avec les candidats)."""
+    from . import live
+
+    if not word:
+        return None, None
+    slug, cands = live.resolve_dossier(word)
+    return (slug, None) if slug else (None, live.ambiguity(word, cands))
+
+
 @mcp.tool(annotations=READ)
 def rechercher(
     requete: str,
@@ -139,14 +152,28 @@ def rechercher(
     - groupe : LDC, AOSIS, G77, EU, Umbrella… : documents (NDC, soumissions) de ses membres (liste sourcée, voir groupes)
     - depuis / jusqu_a : date ISO (AAAA-MM-JJ) sur la date de publication (ou de récupération).
     Renvoie des passages avec niveau, cote, paragraphe, page, extrait et liens. Utiliser lire_passage pour le texte complet.
+    Seuil de pertinence : les passages qui ne contiennent ni l'expression ni tous les termes et restent loin par le
+    sens vont dans `faible_pertinence` ; si rien n'est pertinent, `verdict` = « rien de pertinent » (à dire tel quel).
     """
     user = _user(ctx)
     filters = {"levels": niveaux, "doc_types": types, "session": session, "org": organisation, "party": partie,
                "group": groupe,
                "since": depuis, "until": jusqu_a, "lang": langue, "access": acces}
-    hits = search.search(db.get(), requete, {k: v for k, v in filters.items() if v}, user, limit=min(limite, 30))
-    return {"requete": requete, "nb": len(hits), "resultats": hits,
-            "rappel": "Citer le texte exact, la référence et le niveau. Rien de pertinent → le dire."}
+    signals: dict[int, dict[str, Any]] = {}
+    hits = search.search(db.get(), requete, {k: v for k, v in filters.items() if v}, user, limit=min(limite, 30),
+                         signals=signals)
+    n = search.n_terms(requete)
+    strong = [h for h in hits if search.is_relevant(signals.get(h["passage_id"]), n)]
+    weak = [h for h in hits if not search.is_relevant(signals.get(h["passage_id"]), n)]
+    out: dict[str, Any] = {"requete": requete, "nb": len(strong), "resultats": strong}
+    if weak:
+        out["faible_pertinence"] = [{**h, "pertinence": signals.get(h["passage_id"])} for h in weak[:5]]
+    if not strong:
+        out["verdict"] = ("rien de pertinent : aucun passage ne contient l'expression ni tous les termes, ni n'est proche "
+                          "par le sens. Le dire (« non trouvé dans le corpus ») ; essayer 2–3 autres formulations ou "
+                          "retirer des filtres ; ne pas présenter `faible_pertinence` comme une réponse.")
+    out["rappel"] = "Citer le texte exact, la référence et le niveau. Rien de pertinent → le dire."
+    return out
 
 
 @mcp.tool(annotations=READ)
@@ -196,6 +223,47 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
     out = diff.compare(conn, old["id"], new["id"])
     out["ancien"] = search.doc_public(old)
     out["nouveau"] = search.doc_public(new)
+    return out
+
+
+@mcp.tool(annotations=READ)
+def crochets(theme: str, texte: str | None = None, dossier: str | None = None, limite: int = 40,
+             ctx: Context | None = None) -> dict[str, Any]:
+    """Crochets par thème dans un projet de texte : quelles formulations sur un thème restent ENTRE CROCHETS (non
+    agréées), et depuis quelle version. `theme` : genre, droits humains (défenseurs des droits), désinformation,
+    peuples autochtones, jeunesse, transition juste, fossiles, finance, mesures unilatérales — ou des mots anglais
+    séparés par des virgules (« civic space, human rights defenders »). `texte` : cote (FCCC/…/L.x), doc_id ou URL ;
+    sinon `dossier` (slug ou alias) : dernier texte récupéré du dossier (les autres sont listés). Pour chaque crochet :
+    paragraphe, formulation, contexte, `entre_crochets_depuis` (version, date), historique version par version.
+    Toujours dire la version, la date et « non adopté »."""
+    from . import crochets as cr
+
+    conn = db.get()
+    user = _user(ctx)
+    others = None
+    if texte:
+        row = search.find_doc(conn, texte, user)
+        if not row:
+            return {"erreur": f"document introuvable : {texte}"}
+    elif dossier:
+        slug, err = _resolve_dossier(dossier)
+        if err:
+            return err
+        live, _, _ = _live()
+        got = [t for t in live.texts(conn, slug, limit=40) if t["doc_id"]]
+        if not got:
+            return {"erreur": f"aucun texte du dossier « {slug} » récupéré dans le corpus", "conseil": "dossiers(a_recuperer=true)"}
+        row = search.find_doc(conn, str(got[0]["doc_id"]), user)
+        if not row:
+            return {"erreur": "texte non accessible"}
+        others = [{"cote": t["symbol"], "titre": t["title"], "date": t["published"], "doc_id": t["doc_id"]}
+                  for t in got[1:8]] or None
+    else:
+        return {"erreur": "préciser texte=<cote ou doc_id> ou dossier=<slug ou alias>"}
+    out = cr.by_theme(conn, row, theme, user, limit=max(1, min(limite, 100)))
+    if others:
+        out["autres_textes_du_dossier"] = others
+        out["choix_texte"] = "texte le plus récent du dossier retenu ; préciser texte=<cote> pour un autre"
     return out
 
 
@@ -349,10 +417,11 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
       existe, doc_id).
     - auteur=« EU » / « UE » / « European Union », « LDC », « Brazil »… : soumissions de cet acteur, auteur ou
       co-auteur (nom exact après normalisation ; un nom inconnu renvoie les noms proches, jamais un autre pays).
-    - dossier=<slug ou alias : GGA, finance, JTWP, art6…> : appels rattachés au dossier (les plus récents), qui a
+    - dossier=<slug ou alias : GGA, finance, JTWP, art6, ACE…> : appels rattachés au dossier (les plus récents), qui a
       soumis (acteurs canoniques ; groupe quand une Partie soumet en son nom), alignements déjà calculés.
-    - groupe=« LDC », « AOSIS », « G77 »… : soumissions du groupe en son nom ET de ses membres (liste sourcée),
-      avec dossier= pour se limiter à un dossier.
+    - groupe=« LDC », « AOSIS », « G77 »… : soumissions du groupe en son nom, de ses SOUS-GROUPES (G77 → AGN, PMA,
+      AOSIS, Groupe arabe, LMDC…) et de ses membres (liste sourcée), avec dossier= pour se limiter à un dossier.
+      Un groupe ne soumet souvent pas en son nom : chercher alors ses sous-groupes, puis une soumission plus ancienne.
     - document=<doc_id> : TEXTE de la soumission (passages, liens) et consigne d'analyse, à faire par toi : résumé,
       points soulevés, force du langage (1 constate, 2 suggère, 3 demande, 4 exige), citations mot pour mot. Si une
       analyse existe déjà en cache, elle est jointe.
@@ -379,29 +448,34 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
             return out
         if appel:
             return sm.call_detail(conn, appel, parties_only=parties_seulement) or {"erreur": f"appel {appel} inconnu"}
+        slug = None
+        if dossier:
+            slug, err = _resolve_dossier(dossier)
+            if err:
+                return err
         if groupe:
             from . import groupes as grp
 
             gid = grp.group_id(groupe)
             if not gid:
                 return {"erreur": f"groupe inconnu : {groupe}"}
-            calls = set(sm.dossier_call_ids(conn, dossier)) if dossier else None
+            calls = set(sm.dossier_call_ids(conn, slug)) if slug else None
             own = []
             try:
                 own = [x for x in sm._actor_items(conn, gid) if calls is None or x["call_id"] in calls]
             except sm.UnknownActor:
                 pass
             mem, n = sm.group_member_items(conn, gid, calls)
-            return {"groupe": grp.group_info(conn, gid),
-                    "soumissions_du_groupe": [sm._item_public(conn, x, with_analysis=True) for x in own[:limite]],
-                    "soumissions_des_membres": [{**sm._item_public(conn, x), "appel": x["call_id"]} for x in mem[:limite]],
-                    "note": "Soumissions des membres : positions de chaque Partie, pas du groupe."}
-        if dossier:
-            from . import live
-
-            slug = live.dossier_from_alias(dossier) or dossier
-            if not live.dossier(slug):
-                return {"erreur": f"dossier inconnu : {dossier}", "dossiers": [d["slug"] for d in live.dossiers()]}
+            subs = sm.subgroup_items(conn, gid, calls)
+            out = {"groupe": grp.group_info(conn, gid),
+                   "soumissions_du_groupe": [sm._item_public(conn, x, with_analysis=True) for x in own[:limite]],
+                   "soumissions_des_sous_groupes": [{**sm._item_public(conn, x), "sous_groupe": sg, "appel": x["call_id"]}
+                                                    for sg, x in subs[:limite]] or None,
+                   "soumissions_des_membres": [{**sm._item_public(conn, x), "appel": x["call_id"]} for x in mem[:limite]],
+                   "note": "Un groupe soumet souvent par ses sous-groupes ou ses membres : ce sont alors leurs positions, "
+                           "pas celle du groupe."}
+            return {k: v for k, v in out.items() if v is not None}
+        if slug:
             return {"dossier": slug, **sm.dossier_section(conn, slug, limit=min(limite, 25))}
         if auteur:
             return {"auteur": auteur, "soumissions": sm.by_entity(conn, auteur, limite)}
@@ -424,11 +498,15 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
        b_force, relation, a_citation, b_citation, explication}]) : le serveur vérifie chaque citation dans le
        document (force ramenée à 2 si elle n'y est pas) et calcule l'indication d'ensemble par règles fixes
        (alignées, partiellement, non alignées, pas de position commune ; decompte.regle).
-    - a, b : nom d'acteur (« EU », « LMDC », « Saudi Arabia », « AOSIS » ; un groupe qui a soumis en son nom
-      compte ; un groupe qui n'a pas soumis : comparaison avec les soumissions de ses MEMBRES, présentée comme
-      telle, avec la couverture) ou doc_id. On prend l'appel le plus récent auquel les deux ont répondu (ou `appel`, ou le plus récent
-      des appels du `dossier` : GGA, finance, JTWP…) ; sans appel commun, on compare leurs dernières soumissions et
-      on le signale.
+    - a, b : nom d'acteur (« EU », « LMDC », « Saudi Arabia », « AOSIS ») ou doc_id. On prend l'appel le plus récent
+      auquel les deux ont répondu (ou `appel`, ou le plus récent des appels du `dossier` : GGA, finance, ACE…) ;
+      s'il y en a plusieurs, les autres sont listés (`autres_appels_communs`) : le dire, ne pas choisir en silence.
+      Dossier ambigu → `candidats`, à faire préciser.
+    - Groupe qui n'a pas soumis en son nom (fréquent : le G77 répond par ses sous-groupes) : repli, chaque étape dite
+      dans `repli` — 1) soumissions de ses SOUS-GROUPES (G77 → Groupe africain, PMA, AOSIS, Groupe arabe, LMDC…) et
+      de ses MEMBRES sur l'appel commun, avec la couverture ; sa dernière soumission propre sur le dossier est donnée
+      (`derniere_soumission_propre`) ; 2) sans appel commun : dernière soumission de chacun (appels différents).
+    - `ecart_dates` : écart entre les deux soumissions ; au-delà d'un an, avertissement à reprendre tel quel.
     - b absent : compare la soumission de `a` avec les autres Parties du même appel (comparaisons en cache
       d'abord, quelques nouvelles par requête ; relancer pour la suite).
     - acteurs=["EU","LMDC","AOSIS",…] + dossier=… : matrice d'alignement LUE DANS LE CACHE (paires déjà comparées,
@@ -438,11 +516,13 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
 
     conn = db.get()
     try:
+        slug = None
+        if dossier:
+            slug, err = _resolve_dossier(dossier)
+            if err:
+                return err
         if acteurs:
-            from . import live
-
-            slug = live.dossier_from_alias(dossier or "") or dossier
-            if not slug or not live.dossier(slug):
+            if not slug:
                 return {"erreur": "acteurs=[…] demande dossier=… (slug ou alias)"}
             return sm.alignment_matrix(conn, slug, acteurs)
         if not a:
@@ -454,15 +534,20 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
             return sm.score_client(conn, int(a), int(b), qualifications)
         if not b:
             return sm.compare_in_call(conn, sm.latest_doc(conn, a, appel), max_n=max(1, min(max_comparaisons, 10)))
-        try:
-            da, dbb, common = sm.resolve_pair(conn, a, b, appel, dossier=dossier)
-        except sm.UnknownActor:
-            from . import groupes as grp
+        from . import groupes as grp
 
-            if not (grp.group_id(a) or grp.group_id(b)):
+        is_group = bool(grp.group_id(a) or grp.group_id(b))
+        try:
+            info = sm.resolve_pair_info(conn, a, b, appel, dossier=slug)
+        except sm.UnknownActor:
+            if not is_group:
                 raise
-            # Groupe sans soumission propre : comparaison avec les soumissions de ses membres.
-            return sm.compare_actors(conn, a, b, appel=appel, dossier=dossier)
+            # Groupe sans soumission propre : sous-groupes, membres, puis dernière soumission de chacun.
+            return sm.compare_actors(conn, a, b, appel=appel, dossier=slug)
+        if not info["appel"] and is_group:
+            # Le groupe a soumis, mais pas sur un appel commun : ses sous-groupes ou ses membres ont peut-être répondu.
+            return sm.compare_actors(conn, a, b, appel=appel, dossier=slug)
+        da, dbb, common = info["doc_a"], info["doc_b"], info["appel"]
         out = sm.cached_comparison(conn, da, dbb) or {
             "a": {"doc_id": da, "auteur": sm._who(conn, da), **sm.client_text(conn, da, 20000)},
             "b": {"doc_id": dbb, "auteur": sm._who(conn, dbb), **sm.client_text(conn, dbb, 20000)},
@@ -472,6 +557,12 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
         if not common:
             out["attention"] = ("Pas d'appel commun : les deux soumissions répondent à des questions différentes ; "
                                 "la comparaison est indicative.")
+        elif len(info["appels_communs"]) > 1 and not appel:
+            out["autres_appels_communs"] = sm.calls_brief(conn, info["appels_communs"][1:6])
+            out["choix_appel"] = "appel commun le plus récent retenu ; préciser appel=… pour un autre"
+        gap = sm.date_gap(conn, da, dbb)
+        if gap:
+            out["ecart_dates"] = gap
         return out
     except Exception as exc:
         return {"erreur": str(exc)}
@@ -538,11 +629,72 @@ def suivre(mots_cles: str | None = None, dossier: str | None = None, arreter: in
     return {"ok": True, "id": sid, "apercu_7_jours": alerts.preview(conn, mots_cles, niveaux, types, user, days=7, limit=5)}
 
 
+_DATE_IN_TEXT = re.compile(
+    r"\b\d{1,2}(?:er|st|nd|rd|th)?\s+[A-Za-zéûè]{3,9}\.?,?\s+20\d\d\b|\b[A-Z][a-z]{2,8}\.?\s+\d{1,2},\s+20\d\d\b|"
+    r"\b20\d\d-\d{2}-\d{2}\b")
+
+
+def _parse_date(text: str) -> str | None:
+    from . import extract
+
+    fn = getattr(extract, "parse_date", None)
+    if fn:
+        return fn(text or "")
+    m = re.search(r"\b(20\d\d)-(\d{2})-(\d{2})\b", text or "")
+    return m.group(0) if m else None
+
+
+def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
+    """Date et titre LUS DANS LE CONTENU d'un document déposé, comparés à ce que l'utilisateur a saisi. La date lue
+    devient la date de publication ; une date du titre saisi qui contredit le document y est remplacée."""
+    from . import extract
+
+    doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    out: dict[str, Any] = {"ecarts": []}
+    try:
+        found_title, pages = extract.extract(config.DATA_DIR / doc["raw_path"], doc["mime"] or "")
+    except Exception as exc:
+        return {"ecarts": [f"contenu illisible pour la vérification : {type(exc).__name__}"]}
+    detect = getattr(extract, "detect_date", None)
+    date_read = detect(pages) if detect else _parse_date(pages[0].text[:1500] if pages else "")
+    title_read = extract.guess_title(pages, found_title)
+    out["date_lue_dans_le_document"] = date_read
+    out["titre_lu_dans_le_document"] = title_read
+    if date_read:
+        if doc["published"] and str(doc["published"])[:10] != date_read:
+            out["ecarts"].append(f"date de publication {doc['published']} remplacée par la date du document {date_read}")
+        conn.execute("UPDATE documents SET published=? WHERE id=?", (date_read, doc_id))
+    else:
+        out["ecarts"].append("aucune date lisible dans l'en-tête du document : date de publication non renseignée "
+                             "(ne pas la déduire du numéro ou du jour de récupération)")
+    title = doc["title"] or ""
+    if titre:
+        typed = _parse_date(titre)
+        if typed and date_read and typed != date_read:
+            fixed = " ".join(_DATE_IN_TEXT.sub(date_read, titre).split())
+            out["ecarts"].append(f"le titre saisi porte la date {typed}, le document est daté du {date_read} : titre corrigé")
+            ingest._set_title(conn, doc_id, fixed[:250])
+            title = fixed
+        words = {w for w in re.findall(r"[a-zà-ÿ0-9]{4,}", titre.lower())}
+        read = {w for w in re.findall(r"[a-zà-ÿ0-9]{4,}", (title_read or "").lower())}
+        if title_read and words and read and not words & read:
+            out["ecarts"].append(f"le titre saisi ne ressemble pas au titre lu dans le document (« {title_read[:120]} ») : "
+                                 "vérifier qu'il s'agit du bon document")
+    conn.commit()
+    out["titre_retenu"] = title
+    if not out["ecarts"]:
+        out["ecarts"] = None
+    return out
+
+
 @mcp.tool(annotations=WRITE)
 def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, type: str | None = None,
                 organisation: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
     """Ajouter au corpus (public) une page ou un PDF accessible en ligne : communiqué, déclaration,
-    analyse… Préciser le niveau (2 officiel, 4 compte rendu, 5 position d'un acteur)."""
+    analyse… Préciser le niveau (2 officiel, 4 compte rendu, 5 position d'un acteur). La date de publication et le
+    titre sont LUS DANS LE DOCUMENT et comparés à la saisie : `verification.ecarts` dit ce qui a été corrigé (date
+    du titre saisi contredite par l'en-tête, titre sans rapport). Page bloquée (anti-bot) : chercher la version PDF
+    du même document, sinon déposer le fichier via le tableau de bord ou Telegram."""
     from . import fetch
 
     user = _need_user(ctx)
@@ -550,13 +702,19 @@ def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, t
         return {"erreur": "reserved for contributors: guest accounts can search the corpus but not add documents / réservé aux contributeurs : les comptes invités consultent le corpus sans y ajouter de documents"}
     res = fetch.Client().get(url)
     if not res.ok or fetch.is_antibot(res):
-        return {"erreur": f"inaccessible ({res.status}{', anti-bot' if res.ok else ''}) : déposer le fichier via le tableau de bord ou Telegram"}
+        return {"erreur": f"inaccessible ({res.status}{', anti-bot' if res.ok else ''}) : chercher la version PDF du même "
+                          "document (ex. ENB : /sites/default/files/AAAA-MM/enbNNNNNe.pdf), sinon déposer le fichier "
+                          "via le tableau de bord ou Telegram"}
     meta = {k: v for k, v in {"title": titre, "level": niveau, "doc_type": type, "org": organisation}.items() if v}
     conn = db.get()
     doc_id, new, status = ingest.ingest_bytes(conn, res.content, url=res.url, mime=res.mime, meta=meta,
                                               source_id="depot-mcp", uploaded_by=user.get("id") or None)
+    check = verify_deposit(conn, doc_id, titre) if status == "indexed" else None
     alerts.run(conn)
-    return {"doc_id": doc_id, "nouveau": new, "statut": status, "lien": f"{config.PUBLIC_BASE}/doc/{doc_id}"}
+    out = {"doc_id": doc_id, "nouveau": new, "statut": status, "lien": f"{config.PUBLIC_BASE}/doc/{doc_id}"}
+    if check:
+        out["verification"] = check
+    return out
 
 
 @mcp.tool(annotations=READ)
@@ -604,16 +762,18 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
     """Tout un dossier : état, textes de négociation successifs (crochets, options, lien vers le document et
     le diff), brief IA s'il est activé, positions relevées pendant la COP (citation exacte et source),
     positions écrites et appels à soumissions liés (qui a soumis, alignements déjà calculés),
-    positions de référence (Carbon Brief) et, pour les contributeurs, notes de terrain. `slug` ou alias (ex. GGA, finance, MWP).
+    positions de référence (Carbon Brief) et, pour les contributeurs, notes de terrain. `slug` ou alias (ex. GGA, finance,
+    MWP, ACE ; table des alias : outil `dossiers`). Mot ambigu → `candidats` : faire préciser, ne pas choisir.
     Index des textes et positions de référence : citer « selon le suivi de Carbon Brief ». Un brief éventuel est rédigé par IA :
     le présenter comme tel et s'appuyer sur ses sources numérotées."""
     live, positions, briefs = _live()
     conn = db.get()
     user = _user(ctx)
-    slug = live.dossier_from_alias(slug) or slug
+    word = slug
+    slug, err = _resolve_dossier(word)
+    if err:
+        return err
     d = live.dossier(slug)
-    if not d:
-        return {"erreur": "dossier inconnu", "dossiers": [x["slug"] for x in live.dossiers()]}
     pos = positions.for_dossier(conn, slug, limit=300)
     out = {
         "dossier": {k: d[k] for k in ("slug", "nom", "enjeu", "alias")},
@@ -655,13 +815,30 @@ def _sub_section(conn, slug: str) -> dict[str, Any] | None:
 
 @mcp.tool(annotations=READ)
 def positions(acteur: str | None = None, dossier: str | None = None, depuis: str | None = None,
-              limite: int = 80, ctx: Context | None = None) -> dict[str, Any]:
+              limite: int = 80, divisions: bool = False, groupe: str | None = None,
+              ctx: Context | None = None) -> dict[str, Any]:
     """Qui veut quoi : positions d'un acteur (EU, G77 and China, LMDC, AOSIS, LDC, AGN, Arab Group, China,
     Saudi Arabia…) et/ou sur un dossier, avec attitude, enjeu, citation exacte, date et source. `depuis` :
-    « 24h », « 3j » ou date ISO (positions relevées depuis)."""
+    « 24h », « 3j » ou date ISO (positions relevées depuis). Sources : comptes rendus de négociation (l'ENB, niveau 4,
+    attribue les interventions en salle : « X, supported by Y, opposed by Z »), déclarations officielles, soumissions.
+    divisions=true (+ groupe=« G77 » par défaut, « AOSIS », « AGN »… ; dossier= facultatif) : DIVISIONS INTERNES du
+    groupe — enjeux où des sous-groupes ou membres soutiennent pendant que d'autres s'opposent, avec les alliés hors
+    groupe de chaque camp (ex. AOSIS et PMA avec l'UE, contre le Groupe arabe et l'Inde)."""
     live, pos, _ = _live()
     conn = db.get()
     live.ensure_schema(conn)
+    slug = None
+    if dossier:
+        slug, err = _resolve_dossier(dossier)
+        if err:
+            return err
+    if divisions:
+        from . import groupes as grp
+
+        gid = grp.group_id(groupe or acteur or "G77")
+        if not gid:
+            return {"erreur": f"groupe inconnu : {groupe or acteur} (voir l'outil `groupes`)"}
+        return pos.divisions(conn, gid, dossier=slug, since=_since(depuis))
     where, params = ["access='public'"], []
     if acteur:
         # Nom canonique exact (« UE » → « EU ») ; jamais de correspondance partielle (« Mali » ≠ « Somalia ») :
@@ -678,9 +855,9 @@ def positions(acteur: str | None = None, dossier: str | None = None, depuis: str
                                + (f" ; noms proches : {', '.join(near)}" if near else "")}
         where.append("actor=?")
         params.append(exact)
-    if dossier:
+    if slug:
         where.append("dossier=?")
-        params.append(live.dossier_from_alias(dossier) or dossier)
+        params.append(slug)
     if depuis:
         where.append("created_at>=?")
         params.append(_since(depuis))
@@ -740,15 +917,19 @@ METHODES: dict[str, dict[str, list[str]]] = {
         "fr": ["`dossier` (slug ou alias) : état, textes successifs, crochets et options, rubrique "
                "« soumissions » (appels liés, qui a soumis, alignements connus).",
                "`comparer_versions` sur la dernière version : paragraphes ajoutés, supprimés, options tranchées, crochets "
-               "levés — citer les paragraphes avant/après.",
-               "`positions(dossier=…, depuis=…)` : qui pousse quoi, qui bloque ; positions écrites : "
+               "levés — citer les paragraphes avant/après ; `crochets(theme=…, texte=…)` : ce qui reste entre crochets "
+               "sur un thème (genre, droits humains, désinformation…) et depuis quelle version.",
+               "`positions(dossier=…, depuis=…)` : qui pousse quoi, qui bloque (l'ENB attribue les interventions) ; "
+               "clivages internes d'un groupe : `positions(divisions=true, groupe=…)` ; positions écrites : "
                "`comparer_soumissions(<acteur>, <acteur>, dossier=…)` (aide à l'analyse).",
                "`nouveautes(depuis=…)` et `rechercher` (termes onusiens en anglais) pour les comptes rendus (ENB, Carbon Brief)."],
         "en": ["`dossier` (slug or alias): status, successive texts, brackets and options, “soumissions” "
                "section (linked calls, who submitted, known alignment).",
                "`comparer_versions` on the latest version: paragraphs added or deleted, options settled, brackets removed "
-               "— quote paragraphs before/after.",
-               "`positions(dossier=…, depuis=…)`: who pushes what, who blocks; written positions: "
+               "— quote paragraphs before/after; `crochets(theme=…, texte=…)`: what stays in brackets on a theme "
+               "(gender, human rights, disinformation…) and since which version.",
+               "`positions(dossier=…, depuis=…)`: who pushes what, who blocks (ENB attributes interventions); "
+               "a group's internal splits: `positions(divisions=true, groupe=…)`; written positions: "
                "`comparer_soumissions(<actor>, <actor>, dossier=…)` (an analytical aid).",
                "`nouveautes(depuis=…)` and `rechercher` (UN terms in English) for daily reports (ENB, Carbon Brief)."],
     },

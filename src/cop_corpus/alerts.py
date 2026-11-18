@@ -73,6 +73,7 @@ def matches(conn, sub: sqlite3.Row, user: dict, min_doc_id: int, max_doc_id: int
                # Soumissions CCNUCC : alerte seulement pour un dépôt récent (le stock historique arrive en continu
                # pendant des heures et ne doit pas déclencher des milliers d'alertes).
                "NOT (COALESCE(d.source_id,'')='unfccc-submissions' AND COALESCE(d.published,'') < date('now','-14 days'))"]
+    clauses.append("d.duplicate_of IS NULL")  # même texte déjà au corpus sous un exemplaire plus officiel
     params: list[Any] = [min_doc_id]
     if max_doc_id is not None:
         clauses.append("d.id <= ?")

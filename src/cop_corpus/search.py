@@ -73,6 +73,10 @@ def _quote(term: str) -> str:
     return '"' + term.replace('"', "") + '"'
 
 
+def n_terms(query: str) -> int:
+    return len(_term_groups(query))
+
+
 def _term_groups(query: str) -> list[list[str]]:
     groups: list[list[str]] = []
     seen: set[str] = set()
@@ -145,6 +149,9 @@ def _filters_sql(f: dict[str, Any], user: dict | None) -> tuple[str, list[Any]]:
     if not wants_subs:
         clauses.append(f"NOT (COALESCE(d.source_id,'')='{SUBMISSIONS_SOURCE}' "
                        "AND COALESCE(d.published,'') < date('now','-14 days'))")
+    if not f.get("include_duplicates"):
+        # Doublon de contenu (même texte entré deux fois, cf. doublons.py) : seul l'exemplaire le plus officiel.
+        clauses.append("d.duplicate_of IS NULL")
     if not auth.can_restricted(user):
         clauses.append("d.access='public'")
     elif f.get("access") in ("public", "restreint"):
@@ -279,9 +286,30 @@ def _hits(conn, ids: list[int], query: str) -> list[dict[str, Any]]:
     return out
 
 
+# Seuil de pertinence (prudent) : un passage est « pertinent » s'il contient l'expression exacte ou TOUS les mots
+# cherchés (palier lexical), ou s'il est proche par le sens (cosinus ≥ STRONG_COS). Les passages qui ne
+# correspondent qu'à un mot sur plusieurs ET restent loin par le sens sont de « faible pertinence ».
+STRONG_TIERS = {"explicite", "phrase", "tous"}
+STRONG_COS = 0.40
+
+
+def is_relevant(signal: dict[str, Any] | None, n_terms: int) -> bool:
+    if not signal:
+        return True
+    tier, cos = signal.get("lexical"), signal.get("sens")
+    if tier in STRONG_TIERS or (tier == "un" and n_terms <= 1):
+        return True
+    return cos is not None and cos >= STRONG_COS
+
+
 def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict | None = None,
-           limit: int = 10, per_doc: int = 3, semantic: bool = True) -> list[dict[str, Any]]:
+           limit: int = 10, per_doc: int = 3, semantic: bool = True,
+           signals: dict[int, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """`signals` (dict fourni par l'appelant) reçoit, pour chaque passage renvoyé, le palier lexical atteint
+    (explicite, phrase, tous, un, ou None) et le cosinus sémantique : de quoi juger la pertinence (is_relevant)."""
     f = filters or {}
+    tier_of: dict[int, str] = {}
+    cos_of: dict[int, float] = {}
     where, params = _filters_sql(f, user)
     ranked: dict[int, float] = {}
     # Recherche lexicale par paliers : expression exacte, puis tous les mots, puis n'importe lequel.
@@ -307,6 +335,7 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
             if r["id"] in seen:
                 continue
             seen.add(r["id"])
+            tier_of[r["id"]] = tier
             # L'expression exacte compte double : c'est le signal le plus sûr pour vérifier une citation.
             # « N'importe quel mot » d'une question longue est surtout du bruit : poids réduit.
             bonus = 2.0 if tier == "phrase" else 0.5 if (tier == "un" and n_groups > 3) else 1.0
@@ -334,6 +363,7 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
             rank = 0
             for pid, _score in cands:
                 if pid in ok:
+                    cos_of[pid] = _score
                     ranked[pid] = ranked.get(pid, 0) + 1 / (60 + rank)
                     rank += 1
     # À pertinence comparable, priorité au texte qui fait foi (adopté > officiel > reste).
@@ -364,6 +394,10 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
         picked.append(pid)
         if len(picked) >= limit:
             break
+    if signals is not None:
+        for pid in picked:
+            signals[pid] = {"lexical": tier_of.get(pid),
+                            "sens": round(cos_of[pid], 3) if pid in cos_of else None}
     return _hits(conn, picked, query)
 
 
