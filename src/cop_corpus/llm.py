@@ -33,7 +33,8 @@ def spent(conn) -> float:
     """Dépense des usages internes (positions, briefs, analyses). La démo publique a ses propres plafonds
     (demo.py, purpose='demo') : elle ne doit jamais épuiser ce budget-ci."""
     live.ensure_schema(conn)
-    return conn.execute("SELECT COALESCE(SUM(cost),0) FROM llm_usage WHERE purpose<>'demo'").fetchone()[0]
+    return conn.execute("SELECT COALESCE(SUM(cost),0) FROM llm_usage WHERE purpose NOT IN ('demo', 'demo-admin')"
+                        ).fetchone()[0]
 
 
 def _record(conn, model: str, purpose: str, usage) -> float:

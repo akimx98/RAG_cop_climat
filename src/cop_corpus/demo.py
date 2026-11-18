@@ -161,12 +161,24 @@ def over_budget(conn) -> bool:
     return _spent(conn, day) >= DAILY_USD or _spent(conn) >= TOTAL_USD
 
 
+def unlimited(user: dict | None) -> bool:
+    """Administrateurs : démos en public sans plafond de questions ; leur coût est compté à part ('demo-admin'),
+    hors budget de la démo publique et hors budget interne."""
+    return bool(user and user.get("is_admin") and user.get("active", 1))
+
+
+def purpose_for(user: dict | None) -> str:
+    return "demo-admin" if unlimited(user) else "demo"
+
+
 def quota(conn, session: str | None, ip: str, user: dict | None) -> dict[str, Any]:
     """Questions restantes pour ce visiteur, et raison du refus éventuel."""
     ensure_schema(conn)
     day = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
     if not enabled():
         return {"remaining": 0, "limit": PER_SESSION, "reason": "disabled"}
+    if unlimited(user):
+        return {"remaining": 999, "limit": PER_SESSION, "reason": None, "unlimited": True}
     if over_budget(conn):
         return {"remaining": 0, "limit": PER_SESSION, "reason": "budget"}
     if user:   # connecté : la limite du compte s'ajoute à celle de la session (vider ses cookies n'y change rien)
@@ -546,7 +558,7 @@ def _summary(args: dict[str, Any]) -> str:
 
 
 def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
-           follow: dict[str, Any] | None = None) -> dict[str, Any]:
+           follow: dict[str, Any] | None = None, purpose: str = "demo") -> dict[str, Any]:
     """Répond à une question ; `emit` reçoit les étapes au fil de l'eau. Renvoie le contenu final et le coût."""
     from openai import OpenAI
 
@@ -580,7 +592,7 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
             kwargs["reasoning"] = {"effort": EFFORT}
         resp = client.responses.create(**kwargs)
         u = resp.usage
-        cost += llm._record(conn, MODEL, "demo", SimpleNamespace(prompt_tokens=getattr(u, "input_tokens", 0),
+        cost += llm._record(conn, MODEL, purpose, SimpleNamespace(prompt_tokens=getattr(u, "input_tokens", 0),
                                                                   completion_tokens=getattr(u, "output_tokens", 0)))
         previous = resp.id
         calls = [o for o in resp.output if getattr(o, "type", "") == "function_call"]
@@ -588,7 +600,7 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
             final = resp.output_text or ""
             break
         # Coût borné : plafond rechecké entre deux tours, appels d'outils limités par tour et par question.
-        stop = over_budget(conn)
+        stop = purpose == "demo" and over_budget(conn)
         pending = []
         for i, c in enumerate(calls):
             if stop or i >= MAX_CALLS_PER_ROUND or n_calls >= MAX_CALLS:

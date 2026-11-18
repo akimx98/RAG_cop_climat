@@ -174,3 +174,26 @@ def test_follow_up_only_from_own_session(env):
     assert demo.follow_context(conn, aid, "n" * 20) is None        # lien partagé : pas de reprise par un autre
     nxt = demo.Refs(ctx["state"])
     assert nxt.add_source({"passage_id": 7, "texte": "y"}) == "S2"   # la numérotation continue
+
+
+def test_admins_have_no_demo_limit_and_separate_spend(env, monkeypatch):
+    """Administrateurs : démos sans plafond (questions, IP, budget) ; leur coût ne touche ni le budget de la démo
+    publique ni le budget interne."""
+    from types import SimpleNamespace
+
+    from cop_corpus import demo, live, llm
+
+    conn = env
+    live.ensure_schema(conn)
+    admin = {"id": 7, "is_admin": 1, "active": 1}
+    for _ in range(demo.PER_SESSION + demo.PER_IP_DAY + 2):
+        demo.save(conn, question="q?", lang="fr", session="a" * 20, ip="4.4.4.4", user=admin, payload={"cost": 0})
+    monkeypatch.setattr(demo, "DAILY_USD", 0.0)
+    q = demo.quota(conn, "a" * 20, "4.4.4.4", admin)
+    assert q["unlimited"] and q["remaining"] > 0 and q["reason"] is None
+    assert demo.quota(conn, "b" * 20, "4.4.4.4", {"id": 8})["reason"] == "budget"     # les autres restent bornés
+    assert demo.purpose_for(admin) == "demo-admin" and demo.purpose_for({"id": 8}) == "demo"
+    monkeypatch.setattr(demo, "DAILY_USD", 8.0)
+    llm._record(conn, "gpt-5.6-terra", "demo-admin", SimpleNamespace(prompt_tokens=10_000_000, completion_tokens=0))
+    assert llm.spent(conn) == 0 and demo._spent(conn) == 0
+    assert not demo.unlimited({"id": 9, "is_admin": 1, "active": 0})
