@@ -245,6 +245,8 @@ tableau couvre toutes les variables lues.
 | `COP_EMBED_PROVIDER`, `COP_EMBED_MODEL`, `COP_EMBED_DIM` | `openai` si clé, `text-embedding-3-small`, 512 | embeddings |
 | `COP_EMBED_RESTRICTED` | 0 | 1 = envoyer aussi les documents internes à l'API d'embeddings |
 | `COP_LLM` | 1 | 0 = aucun appel au modèle de langage |
+| `COP_USAGE_TEXT_DAYS`, `COP_USAGE_KEEP_DAYS` | 30, 395 | statistiques d'usage : jours de conservation du texte des recherches sans résultat (comptes invités seulement), puis des événements |
+| `COP_DEMO_KEEP_DAYS` | 90 | jours de conservation des questions de la démo « Essayer » |
 | `COP_DEMO` | 1 | 0 = démo publique « Essayer » (/try) désactivée ; active seulement si une clé OpenAI est posée |
 | `COP_DEMO_MODEL`, `COP_DEMO_EFFORT` | `gpt-5.6-terra`, `low` | modèle de la démo (API Responses, outils MCP en lecture seule, documents publics seulement) |
 | `COP_DEMO_PER_SESSION`, `COP_DEMO_PER_IP_DAY`, `COP_DEMO_PER_ACCOUNT_DAY` | 3, 20, 3 | questions de la démo par visiteur, par adresse IP et par jour, par compte et par jour |

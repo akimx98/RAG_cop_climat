@@ -83,6 +83,12 @@ DEMO_PER_ACCOUNT_DAY = int(os.environ.get("COP_DEMO_PER_ACCOUNT_DAY", "3"))  # p
 DEMO_DAILY_USD = float(os.environ.get("COP_DEMO_DAILY_USD", "8"))            # plafond de dépense quotidien
 DEMO_BUDGET_USD = float(os.environ.get("COP_DEMO_BUDGET_USD", "40"))         # plafond de dépense total
 
+DEMO_KEEP_DAYS = int(os.environ.get("COP_DEMO_KEEP_DAYS", "90"))             # questions de la démo gardées (lien de partage)
+
+# --- Statistiques d'usage (src/cop_corpus/usage.py, page /confidentialite) -------------------------------------------
+USAGE_TEXT_DAYS = int(os.environ.get("COP_USAGE_TEXT_DAYS", "30"))   # texte des recherches sans résultat (invités)
+USAGE_KEEP_DAYS = int(os.environ.get("COP_USAGE_KEEP_DAYS", "395"))  # événements d'usage
+
 
 def demo_enabled() -> bool:
     return llm_enabled() and os.environ.get("COP_DEMO", "1") != "0"

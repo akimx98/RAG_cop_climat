@@ -1,0 +1,90 @@
+{% extends "base.html" %}{% block title %}Usage · COP Tracker{% endblock %}{% block body %}
+<style>
+.ubar{display:inline-block;height:8px;border-radius:2px;background:var(--accent);vertical-align:middle;margin-right:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px}
+.kpi b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--muted)}
+td.mono{white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.hours{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;align-items:end;height:90px}
+.hours div{background:var(--accent);border-radius:2px 2px 0 0;min-height:1px}
+.hours-l{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;font-size:10px;color:var(--muted);text-align:center}
+</style>
+<h1>Usage</h1>
+<p><a href="/admin">← Administration</a> · Période :
+{% for d in [1, 7, 14, 30, 90] %}<a href="?jours={{ d }}{{ '&admins=1' if s.admins_inclus }}" class="{{ 'muted' if d != s.jours }}">{{ d }} j</a>{{ ' · ' if not loop.last }}{% endfor %}
+· <a href="?jours={{ s.jours }}{{ '' if s.admins_inclus else '&admins=1' }}">{{ 'exclure' if s.admins_inclus else 'inclure' }} les administrateurs</a></p>
+<p class="small muted">Journal ouvert le {{ (s.journal_depuis or '—')[:10] }}. Comptes pseudonymisés ; texte des recherches sans résultat gardé {{ s.texte_jours }} jours, comptes invités seulement ; événements supprimés après {{ s.garde_jours }} jours. Via MCP, on voit les appels d'outils du LLM, jamais la question posée au LLM ni sa réponse.</p>
+
+<div class="kpis">
+<div class="kpi"><b>{{ s.canaux.mcp.comptes }}</b><span>comptes actifs via MCP · {{ s.canaux.mcp.appels }} appels</span></div>
+<div class="kpi"><b>{{ s.canaux.telegram.comptes }}</b><span>comptes actifs sur Telegram · {{ s.canaux.telegram.appels }} commandes</span></div>
+<div class="kpi"><b>{{ s.canaux.web.appels }}</b><span>pages suivies sur le site · {{ s.canaux.web.comptes }} comptes</span></div>
+<div class="kpi"><b>{{ s.conversations.nombre }}</b><span>conversations MCP · {{ s.conversations.appels_median }} appels en médiane</span></div>
+<div class="kpi"><b>{{ s.demo.questions }}</b><span>questions dans la démo publique</span></div>
+</div>
+
+<div class="grid">
+<div class="card"><h2>Typologie déclarée × usage observé</h2>
+<div class="table-wrap"><table><tr><th>Profil déclaré</th><th class="n">comptes</th><th class="n">actifs</th><th class="n">appels</th><th>usage dominant des actifs</th></tr>
+{% for k, t in s.typologie.items() if t.comptes %}<tr><td>{{ t.label }}</td><td class="n">{{ t.comptes }}</td><td class="n">{{ t.actifs }}</td><td class="n">{{ t.appels }}</td>
+<td class="small">{% for f, c in t.familles.items() %}{{ f }} {{ c }}{{ ' · ' if not loop.last }}{% endfor %}</td></tr>{% endfor %}</table></div>
+<p class="small muted">Usage dominant : famille d'outils qui fait au moins la moitié des appels d'un compte (sinon « mixte »).
+Ensemble : {% for f, c in s.familles %}{{ f }} {{ c }}{{ ' · ' if not loop.last }}{% endfor %}</p></div>
+
+<div class="card"><h2>Parcours (depuis l'ouverture du journal)</h2>
+{% set top = s.entonnoir[0][1] or 1 %}
+<div class="table-wrap"><table>{% for label, n in s.entonnoir %}<tr><td>{{ label }}</td><td class="n">{{ n }}</td>
+<td style="width:45%"><span class="ubar" style="width:{{ (100 * n / top)|round|int }}%"></span></td></tr>{% endfor %}</table></div></div>
+</div>
+
+<div class="grid">
+<div class="card"><h2>Clients LLM</h2>
+<div class="table-wrap"><table><tr><th>client</th><th class="n">comptes</th><th class="n">connexions</th></tr>
+{% for c in s.clients %}<tr><td>{{ c.client }}</td><td class="n">{{ c.comptes }}</td><td class="n">{{ c.connexions }}</td></tr>{% else %}<tr><td class="muted">aucun appel MCP sur la période</td></tr>{% endfor %}</table></div></div>
+
+<div class="card"><h2>Actifs par jour</h2>
+<div class="table-wrap"><table><tr><th>jour</th><th class="n">MCP</th><th class="n">Telegram</th><th class="n">total</th></tr>
+{% for d in s.par_jour|reverse %}<tr><td>{{ d.jour }}</td><td class="n">{{ d.mcp }}</td><td class="n">{{ d.telegram }}</td><td class="n">{{ d.total }}</td></tr>{% endfor %}</table></div></div>
+</div>
+
+<div class="card"><h2>Outils, prompts et commandes</h2>
+<div class="table-wrap"><table><tr><th>canal</th><th>nom</th><th>famille</th><th class="n">appels</th><th class="n">comptes</th><th class="n">sans résultat</th><th class="n">refus</th><th class="n">erreurs</th><th class="n">ms (médiane)</th></tr>
+{% for t in s.outils %}<tr><td>{{ t.canal }}{% if t.type == 'prompt' %} <span class="pill">prompt</span>{% endif %}</td><td class="mono">{{ t.nom }}</td><td class="small">{{ t.famille }}</td>
+<td class="n">{{ t.appels }}</td><td class="n">{{ t.comptes }}</td><td class="n">{{ t.vide or '' }}</td><td class="n">{{ t.refus or '' }}</td><td class="n">{{ t.erreur or '' }}</td><td class="n">{{ t.ms_median or '' }}</td></tr>{% endfor %}</table></div></div>
+
+<div class="grid">
+<div class="card"><h2>Dossiers de négociation</h2>
+<div class="table-wrap"><table><tr><th>dossier</th><th class="n">appels</th><th class="n">comptes</th></tr>
+{% for d in s.dossiers %}<tr><td>{{ d.nom }}</td><td class="n">{{ d.appels }}</td><td class="n">{{ d.comptes }}</td></tr>{% endfor %}</table></div>
+<p class="small muted">Détecté d'après le paramètre « dossier » ou les alias et expressions du dossier dans la requête.</p></div>
+
+<div class="card"><h2>Conversations MCP</h2>
+<p class="small muted" style="margin-top:0">Suite d'appels d'un même compte à moins de 15 minutes d'intervalle. Max : {{ s.conversations.appels_max }} appels.</p>
+<h3>Premier outil appelé</h3>
+<p class="small">{% for n, c in s.conversations.premier_outil %}<span class="mono">{{ n }}</span> {{ c }}{{ ' · ' if not loop.last }}{% endfor %}</p>
+<h3>Enchaînements fréquents</h3>
+<div class="table-wrap"><table>{% for p, c in s.conversations.enchainements %}<tr><td class="mono small">{{ p }}</td><td class="n">{{ c }}</td></tr>{% endfor %}</table></div></div>
+</div>
+
+<div class="card"><h2>Heures d'usage (heure d'Antalya)</h2>
+{% set hmax = (s.heures|map(attribute='n')|max) or 1 %}
+<div class="hours">{% for h in s.heures %}<div style="height:{{ (100 * h.n / hmax)|round|int }}%" title="{{ h.h }} h : {{ h.n }}"></div>{% endfor %}</div>
+<div class="hours-l">{% for h in s.heures %}<span>{{ h.h if h.h % 3 == 0 else '' }}</span>{% endfor %}</div></div>
+
+<div class="card"><h2>Recherches sans résultat pleinement pertinent</h2>
+<p class="small muted" style="margin-top:0">Les trous du corpus : à compléter, ou synonymes à ajouter. Comptes invités seulement (le texte des comptes à accès restreint n'est jamais gardé).</p>
+<div class="table-wrap"><table><tr><th>quand</th><th>outil</th><th>issue</th><th>texte</th><th>filtres</th></tr>
+{% for m in s.sans_resultat %}<tr><td class="small">{{ m.at[5:16]|replace('T', ' ') }}</td><td class="mono small">{{ m.nom }}</td><td>{{ m.issue }}</td><td>{{ m.texte }}</td><td class="mono small">{{ m.params }}</td></tr>{% else %}<tr><td class="muted">rien sur la période</td></tr>{% endfor %}</table></div></div>
+
+<div class="grid">
+<div class="card"><h2>Refus et erreurs</h2>
+<div class="table-wrap"><table>{% for e in s.erreurs %}<tr><td class="small">{{ e.at[5:16]|replace('T', ' ') }}</td><td class="mono small">{{ e.nom }}</td><td>{{ e.issue }}</td><td class="small">{{ e.detail }}</td></tr>{% else %}<tr><td class="muted">aucun</td></tr>{% endfor %}</table></div></div>
+
+<div class="card"><h2>Démo publique</h2>
+<p>{{ s.demo.questions }} questions{% if s.demo.erreurs %}, {{ s.demo.erreurs }} en erreur{% endif %}.</p>
+<p class="small">Langues : {% for l, c in s.demo.langues %}{{ l }} {{ c }}{{ ' · ' if not loop.last }}{% endfor %}</p>
+<p class="small">Dossiers : {% for d, c in s.demo.dossiers %}{{ d }} {{ c }}{{ ' · ' if not loop.last }}{% endfor %}</p></div>
+</div>
+{% endblock %}

@@ -9,8 +9,27 @@ __DOMAIN__ {
 		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
 	}
+	# Journal d'accès sans secrets ni IP complètes (même règle que src/cop_corpus/logs.py) : jeton MCP, lien de
+	# connexion et codes d'invitation masqués dans le chemin ; IP tronquée ; cookies et en-têtes d'auth retirés.
 	log {
 		output stdout
-		format console
+		format filter {
+			wrap console
+			fields {
+				request>uri regexp "^/(u|entrer|login|join|rejoindre)/[^/?]+" "/$1/***"
+				request>remote_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+				request>client_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>X-Forwarded-For delete
+				resp_headers>Set-Cookie delete
+			}
+		}
 	}
 }

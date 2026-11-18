@@ -92,6 +92,7 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
     conn = db.connect()
     client = fetch.Client()
     alerts.run(conn, notify=False)  # initialise le curseur sans alerter sur l'existant
+    last_purge = 0.0
     while True:
         try:
             if watch:
@@ -99,6 +100,13 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
             else:
                 alerts.run(conn)
             digest(conn)
+            if time.time() - last_purge > 3600:  # rétention des journaux d'usage et de la démo
+                from . import usage
+
+                last_purge = time.time()
+                out = usage.purge(conn)
+                if any(out.values()):
+                    print(f"[usage] purge {out}", file=sys.stderr, flush=True)
         except Exception:
             traceback.print_exc()
         time.sleep(interval)

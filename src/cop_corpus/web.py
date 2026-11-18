@@ -14,7 +14,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
 
-from . import alerts, auth, config, db, diff, i18n, mailin, qr, search
+from . import alerts, auth, config, db, diff, i18n, mailin, qr, search, usage
 
 TEMPLATES = Environment(
     loader=FileSystemLoader(str(Path(__file__).parent / "templates")),
@@ -91,6 +91,7 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx["path"] = request.url.path
     ctx["here"] = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     ctx["SOURCE_URL"] = config.SOURCE_URL
+    ctx["PROFILES"] = usage.PROFILES
     if not ctx["user"] and "open_signup" not in ctx:
         try:
             o = auth.open_signup_settings(db.get())
@@ -315,7 +316,8 @@ async def join(request: Request):
     if not code and form.get("password") != form.get("password2"):
         return await fail("mismatch")
     user, token, error = auth.signup(conn, code, form.get("email") or "", form.get("organisation") or "",
-                                     "" if code else (form.get("password") or ""), _client(request), lang=lang)
+                                     "" if code else (form.get("password") or ""), _client(request), lang=lang,
+                                     profil=form.get("profil") or "")
     if error:
         return await fail(error)
     nxt = _safe_next(form.get("next"))
@@ -579,6 +581,8 @@ async def database_page(request: Request):
     ctx: dict = {"tab": tab, "q": q, "levels": levels, "types": types}
     if tab == "search" and q:
         ctx["hits"] = search.search(conn, q, {"levels": levels, "doc_types": types}, user, limit=25)
+        usage.record("web", "page", "recherche", user, args={"q": q, "niveaux": levels, "types": types},
+                     lang=lang_of(request, user), n=len(ctx["hits"]), outcome="ok" if ctx["hits"] else "vide")
     elif tab == "negotiations":
         ctx["rows"] = live.overview(conn, user)
     elif tab == "texts":
@@ -610,9 +614,12 @@ async def account_page(request: Request):
         form = await request.form()
         action = form.get("action") or "password"
         if action == "profile":
-            conn.execute("UPDATE users SET name=?, organisation=? WHERE id=?",
+            profil = form.get("profil") if form.get("profil") in usage.PROFILE_KEYS else None
+            conn.execute("UPDATE users SET name=?, organisation=?, profil=?, usage_optout=? WHERE id=?",
                          ((form.get("name") or "").strip()[:80] or None, (form.get("organisation") or "").strip()[:120] or None,
-                          user["id"]))
+                          profil, 1 if form.get("usage_optout") else None, user["id"]))
+            if form.get("usage_optout"):
+                usage.forget_user(conn, user["id"], demo=False)
             conn.commit()
             done = "profile"
         elif action == "telegram_unlink":
@@ -677,6 +684,10 @@ async def doc_page(request: Request):
     per = 40
     hl = request.query_params.get("passage")
     hl = int(hl) if hl and hl.isdigit() else None
+    # Ni le document ni le passage : seulement son niveau, son type et si l'on arrive sur un passage cité
+    # (lien de citation d'une réponse de LLM ou du bot).
+    usage.record("web", "page", "document", user, lang=lang_of(request, user),
+                 args={"niveau": info.get("niveau"), "type_doc": info.get("type"), "passage_cite": bool(hl)})
     if "p" in request.query_params:
         page = max(1, int(request.query_params.get("p") or 1))
     elif hl:  # ouvrir la tranche qui contient le passage visé
@@ -870,6 +881,20 @@ async def admin_page(request: Request):
     return render(request, "admin.html", users=users, created=created, link=link, sources=sources, errors=errors,
                   stats=search.stats(conn), invite=auth.invite_settings(conn),
                   open_signup=auth.open_signup_settings(conn))
+
+
+@admin_required
+async def usage_page(request: Request):
+    """Statistiques d'usage agrégées (MCP, Telegram, site, démo)."""
+    qp = request.query_params
+    days = int(qp.get("jours")) if (qp.get("jours") or "").isdigit() else 7
+    s = usage.stats(db.get(), days=max(1, min(days, 400)), include_admins=qp.get("admins") == "1")
+    return render(request, "usage.html", s=s)
+
+
+async def privacy_page(request: Request):
+    return render(request, "privacy.html", user=current_user(request), contact=bool(config.CONTACT_EMAIL),
+                  text_days=usage.TEXT_DAYS, keep_days=usage.KEEP_DAYS, demo_days=usage.DEMO_KEEP_DAYS)
 
 
 @admin_required
@@ -1178,6 +1203,9 @@ routes = [
     Route("/fichier/{doc_id:int}", file_page),
     Route("/telechargements/{name}", download_page),
     Route("/admin", admin_page, methods=["GET", "POST"]),
+    Route("/admin/usage", usage_page),
+    Route("/confidentialite", privacy_page),
+    Route("/privacy", privacy_page),
     Route("/admin/utilisateur/{uid:int}/basculer", admin_toggle, methods=["POST"]),
     Route("/admin/utilisateur/{uid:int}/supprimer", admin_delete, methods=["POST"]),
     Route("/admin/courrier", mail_page, methods=["GET", "POST"]),
