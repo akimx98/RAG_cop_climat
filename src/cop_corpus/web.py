@@ -1082,7 +1082,7 @@ async def demo_ask(request: Request):
 
     def work():
         try:
-            res = demo.answer(question, lang, emit, follow=follow)
+            res = demo.answer(question, lang, emit, follow=follow, purpose=demo.purpose_for(user))
             aid = demo.save(db.get(), question=question, lang=lang, session=session, ip=ip, user=user, payload=res)
             left = demo.quota(db.get(), session, ip, user)
             pub = _demo_public(res)

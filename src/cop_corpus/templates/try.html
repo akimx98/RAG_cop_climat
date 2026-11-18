@@ -115,7 +115,7 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 <li>{{ L('Positions, soumissions, comptes rendus, programme', 'Positions, submissions, reports, programme') }}</li>
 <li>{{ L('Code ouvert', 'Open source') }}</li>
 </ul>
-<span class="left" id="left" data-fr="questions restantes" data-en="questions left">{{ quota.remaining }} {{ L('questions restantes', 'questions left') }}</span>
+{% if quota.unlimited %}<span class="left">{{ L('Admin : questions illimitées', 'Admin: unlimited questions') }}</span>{% else %}<span class="left" id="left" data-fr="questions restantes" data-en="questions left">{{ quota.remaining }} {{ L('questions restantes', 'questions left') }}</span>{% endif %}
 </div>
 
 <div id="intro" {% if shared %}hidden{% endif %}>
@@ -194,7 +194,7 @@ qEl.addEventListener('input',autosize);
 qEl.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
 form.addEventListener('submit',e=>{e.preventDefault();const q=qEl.value.trim();if(q)ask(q);});
 
-function setLeft(n){const el=$('#left');el.textContent=n+' '+(LANG==='fr'?el.dataset.fr:el.dataset.en);}
+function setLeft(n){const el=$('#left');if(!el)return;el.textContent=n+' '+(LANG==='fr'?el.dataset.fr:el.dataset.en);}
 
 function turnShell(question){
   const t=document.createElement('section');t.className='turn';

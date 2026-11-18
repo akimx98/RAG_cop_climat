@@ -541,7 +541,9 @@ def stats(conn, days: int = 7, include_admins: bool = False) -> dict[str, Any]:
     # Démo publique (table propre)
     demo = {"questions": 0, "langues": [], "dossiers": []}
     if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_answers'").fetchone():
-        qs = conn.execute("SELECT lang, question, error FROM demo_answers WHERE created_at>=?", (since,)).fetchall()
+        admin_ids = {u["id"] for u in users if u["is_admin"]}
+        qs = [q for q in conn.execute("SELECT lang, question, error, user_id FROM demo_answers WHERE created_at>=?",
+                                      (since,)).fetchall() if include_admins or q["user_id"] not in admin_ids]
         demo["questions"] = len(qs)
         demo["erreurs"] = sum(1 for q in qs if q["error"])
         demo["langues"] = Counter(q["lang"] or "?" for q in qs).most_common()
