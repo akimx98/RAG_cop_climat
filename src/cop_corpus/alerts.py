@@ -39,7 +39,7 @@ def fragments(query: str) -> list[str]:
 
 def generic_fragments(query: str) -> list[str]:
     """Fragments trop vagues pour une alerte (« paragraph 8 », « 11(b) », « item 4 ») : à signaler à l'utilisateur."""
-    return [p for p in fragments(query) if p != "*" and _GENERIC.fullmatch(p)]
+    return [p for p in fragments(query) if p != "*" and re.search(r"\d", p) and _GENERIC.fullmatch(p)]
 
 
 def sub_to_fts(query: str) -> str | None:
@@ -94,7 +94,7 @@ def _terms(query: str) -> set[str]:
 
 
 def overlaps(subs: list[dict[str, Any]], new_query: str | None = None) -> list[dict[str, Any]]:
-    """Sujets qui se recoupent (même libellé, ou au moins la moitié des termes du plus petit en commun) : deux
+    """Sujets qui se recoupent (même libellé, ou au moins deux termes et le tiers des termes du plus petit) : deux
     alertes « Peuples autochtones », « Amazonie » et « Amazonie et orpaillage ». Avec `new_query` : recoupements de
     ce nouveau sujet avec les existants."""
     out = []
@@ -106,7 +106,7 @@ def overlaps(subs: list[dict[str, Any]], new_query: str | None = None) -> list[d
         idb, lb, tb = b
         common = ta & tb
         same_label = la.strip().lower() == lb.strip().lower()
-        if same_label or (common and len(common) >= max(1, min(len(ta), len(tb)) / 2)):
+        if same_label or (len(common) >= 2 and len(common) >= min(len(ta), len(tb)) / 3):
             out.append({"ids": [x for x in (ida, idb) if x is not None], "libelles": [la, lb],
                         "termes_communs": sorted(common)[:10],
                         "conseil": "overlapping topics: merge them (keep one, add the missing terms, "

@@ -113,7 +113,7 @@ def test_article_paragraph_is_one_phrase():
     assert alerts.fragments(q) == ["non-market approaches", "Article 6, paragraph 8", "art. 6.8"]
     fts = alerts.sub_to_fts(q)
     assert '"Article 6 paragraph 8"' in fts and '"paragraph 8"' not in fts.replace('"Article 6 paragraph 8"', "")
-    assert alerts.generic_fragments("paragraph 8, fossil fuels, 11(b)") == ["paragraph 8", "11(b)"]
+    assert alerts.generic_fragments("paragraph 8, fossil fuels, 11(b), LCIPP, YOUNGO") == ["paragraph 8", "11(b)"]
 
 
 def test_overlapping_topics():
@@ -122,9 +122,13 @@ def test_overlapping_topics():
     subs = [{"id": 9, "libelle": "Peuples autochtones", "requete": '"indigenous peoples", LCIPP'},
             {"id": 11, "libelle": "Peuples autochtones", "requete": "Indigenous Peoples, LCIPP, land rights"},
             {"id": 5, "libelle": "Tout", "requete": "*"},
-            {"id": 12, "libelle": "Eau", "requete": "freshwater, water security"}]
+            {"id": 12, "libelle": "Eau", "requete": "freshwater, water security"},
+            {"id": 8, "libelle": "Amazonie", "requete": 'Amazon, Amazonia, "Amazon rainforest", "Amazon basin", ACTO, '
+                                                         'TFFF, Amazonie, "forêt amazonienne", "Tropical Forests Forever"'},
+            {"id": 10, "libelle": "Amazonie et orpaillage", "requete": "Amazon, Amazonia, Amazonie, gold mining, "
+                                                                       "mercury, orpaillage, Tropical Forests Forever"}]
     over = alerts.overlaps(subs)
-    assert [o["ids"] for o in over] == [[9, 11]]
+    assert [o["ids"] for o in over] == [[9, 11], [8, 10]]
 
 
 def test_partial_relevance_is_not_nothing(env):
@@ -158,6 +162,7 @@ def test_positions_dedupe_and_actor_names(env):
     assert conn.execute("SELECT actor FROM positions").fetchone()[0] == "Arab Group"
     assert positions.normalize_actor("Presidence COP31") == "Présidence COP31"
     assert positions.normalize_actor("G-77/China") == "G77 and China"
+    assert positions._past("2099-11-22") == "2098-11-22" and positions._past("2026-11-10") == "2026-11-10"
 
 
 def test_test_party_is_not_an_author():

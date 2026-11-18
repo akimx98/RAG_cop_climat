@@ -53,12 +53,16 @@ def _pdf(data: bytes) -> tuple[str | None, list[Page]]:
     pages = []
     with pymupdf.open(stream=data, filetype="pdf") as doc:
         title = (doc.metadata or {}).get("title") or None
+        tables = doc.page_count <= TABLE_MAX_PAGES  # notes et projets courts ; jamais les gros rapports à graphiques
         for i, page in enumerate(doc, start=1):
-            text = _table_text(page)
+            text = _table_text(page) if tables else None
             if text is None:
                 text = _columns_text(page)
             pages.append(Page(i, fix_text(text if text is not None else page.get_text("text", sort=True))))
     return title, pages
+
+
+TABLE_MAX_PAGES = 80
 
 
 def _table_text(page) -> str | None:
@@ -69,7 +73,8 @@ def _table_text(page) -> str | None:
     import pymupdf
 
     try:
-        if len(page.get_drawings()) < 8:  # pas de filets : pas de tableau tracé (évite un find_tables coûteux)
+        n = len(page.get_drawings())
+        if n < 8 or n > 800:  # pas de filets : pas de tableau ; des milliers de tracés : un graphique
             return None
         tables = [t for t in page.find_tables(strategy="lines").tables if t.col_count >= 3 and t.row_count >= 2]
     except Exception:

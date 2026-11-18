@@ -345,6 +345,14 @@ def _fold(text: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", (text or "").lower()) if not unicodedata.combining(c))
 
 
+def _stem(term: str) -> str:
+    """Racine grossière pour la couverture des termes : « transitioning » trouve « transition », « fuels » « fuel »."""
+    for suffix in ("ing", "ed", "es", "s"):
+        if term.endswith(suffix) and len(term) - len(suffix) >= 4:
+            return term[: -len(suffix)]
+    return term
+
+
 def term_coverage(conn, pids: list[int], query: str) -> dict[int, tuple[list[str], list[str], float]]:
     """Pour chaque passage : (termes présents, termes absents, part pondérée par la rareté des termes présents),
     synonymes compris, dans le texte et le titre."""
@@ -353,7 +361,7 @@ def term_coverage(conn, pids: list[int], query: str) -> dict[int, tuple[list[str
         return {}
     labels = [g[0].strip('"') for g in groups]
     weights = [_idf(conn, g) for g in groups]
-    pats = [re.compile("|".join(rf"(?<!\w){re.escape(_fold(t.strip('"')))}" for t in g)) for g in groups]
+    pats = [re.compile("|".join(rf"(?<!\w){re.escape(_stem(_fold(t.strip('"'))))}" for t in g)) for g in groups]
     out = {}
     for r in conn.execute(
             f"""SELECT p.id, p.text, d.title FROM passages p JOIN documents d ON d.id=p.doc_id

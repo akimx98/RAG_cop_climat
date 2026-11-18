@@ -118,6 +118,18 @@ def _dossier_list() -> str:
     return "\n".join(f"- {d['slug']} : {d['nom']}" for d in live.dossiers())
 
 
+def _past(day: str | None) -> str | None:
+    """Une date de prise de position dans le futur est fausse : bulletin non daté de la COP précédente (TWN, Belém,
+    22 novembre 2025) daté par le modèle de l'année en cours. Ramenée à l'année précédente."""
+    from datetime import date, timedelta
+
+    if not day or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day[:10]):
+        return day
+    if day[:10] > (date.today() + timedelta(days=1)).isoformat():
+        return f"{int(day[:4]) - 1}{day[4:]}"
+    return day
+
+
 def _quote_key(quote: str) -> str:
     return re.sub(r"[^\w]+", " ", _norm(quote or "")).strip()[:200]
 
@@ -138,6 +150,9 @@ def tidy(conn) -> dict[str, int]:
         canon = normalize_actor(r["actor"])
         if canon and canon != r["actor"]:
             renamed += conn.execute("UPDATE positions SET actor=? WHERE actor=?", (canon, r["actor"])).rowcount
+    future = 0
+    for r in conn.execute("SELECT id, said_on FROM positions WHERE said_on > date('now', '+1 day')").fetchall():
+        future += conn.execute("UPDATE positions SET said_on=? WHERE id=?", (_past(r["said_on"]), r["id"])).rowcount
     seen: set[tuple[str, str, str]] = set()
     dupes = []
     for r in conn.execute("SELECT id, actor, quote, source_kind FROM positions ORDER BY id"):
@@ -150,7 +165,7 @@ def tidy(conn) -> dict[str, int]:
             seen.add(k)
     conn.executemany("DELETE FROM positions WHERE id=?", dupes)
     conn.commit()
-    return {"renommees": renamed, "doublons": len(dupes)}
+    return {"renommees": renamed, "doublons": len(dupes), "dates_futures": future}
 
 
 def _store(conn, items: list[dict], source_text: str, *, kind: str, label: str, url: str | None,
@@ -171,7 +186,7 @@ def _store(conn, items: list[dict], source_text: str, *, kind: str, label: str, 
             """INSERT OR IGNORE INTO positions(key,dossier,actor,issue,stance,summary,quote,source_kind,source_label,
                  source_url,doc_id,said_on,created_at,access) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'public')""",
             (key, dossier, actor, p["issue"].strip()[:200], p["stance"], p["summary"].strip()[:500],
-             quote[:400], kind, label[:200], url, doc_id, p.get("said_on") or default_date, live.now_iso()))
+             quote[:400], kind, label[:200], url, doc_id, _past(p.get("said_on") or default_date), live.now_iso()))
         n += cur.rowcount
     conn.commit()
     return n
