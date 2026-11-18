@@ -18,7 +18,7 @@ WRITE_MODEL = config.LLM_WRITE_MODEL
 BUDGET_USD = config.LLM_BUDGET_USD
 # Prix publics (USD par million de tokens, entrée / sortie), pour le suivi du plafond.
 PRICES = {"gpt-5.4-mini": (0.75, 4.50), "gpt-5.6-luna": (1.00, 6.00), "gpt-5.4-nano": (0.20, 1.25),
-          "gpt-5.5": (5.00, 30.00), "gpt-4.1-mini": (0.40, 1.60)}
+          "gpt-5.5": (5.00, 30.00), "gpt-4.1-mini": (0.40, 1.60), "gpt-5.6-terra": (2.00, 12.00)}
 
 
 class BudgetExceeded(RuntimeError):
@@ -30,8 +30,10 @@ def enabled() -> bool:
 
 
 def spent(conn) -> float:
+    """Dépense des usages internes (positions, briefs, analyses). La démo publique a ses propres plafonds
+    (demo.py, purpose='demo') : elle ne doit jamais épuiser ce budget-ci."""
     live.ensure_schema(conn)
-    return conn.execute("SELECT COALESCE(SUM(cost),0) FROM llm_usage").fetchone()[0]
+    return conn.execute("SELECT COALESCE(SUM(cost),0) FROM llm_usage WHERE purpose<>'demo'").fetchone()[0]
 
 
 def _record(conn, model: str, purpose: str, usage) -> float:

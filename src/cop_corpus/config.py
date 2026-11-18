@@ -74,6 +74,20 @@ LLM_WRITE_MODEL = os.environ.get("COP_LLM_WRITE_MODEL", "gpt-5.6-luna")
 LLM_BUDGET_USD = float(os.environ.get("COP_LLM_BUDGET_USD", "30"))
 
 
+# --- Démo publique « Essayer » (questions sans compte ; documents publics seulement) -----------------------------
+DEMO_MODEL = os.environ.get("COP_DEMO_MODEL", "gpt-5.6-terra")
+DEMO_EFFORT = os.environ.get("COP_DEMO_EFFORT", "low")                       # effort de raisonnement ; vide = défaut
+DEMO_PER_SESSION = int(os.environ.get("COP_DEMO_PER_SESSION", "3"))          # questions par visiteur (cookie)
+DEMO_PER_IP_DAY = int(os.environ.get("COP_DEMO_PER_IP_DAY", "20"))            # par adresse IP et par jour
+DEMO_PER_ACCOUNT_DAY = int(os.environ.get("COP_DEMO_PER_ACCOUNT_DAY", "3"))  # par compte connecté et par jour
+DEMO_DAILY_USD = float(os.environ.get("COP_DEMO_DAILY_USD", "8"))            # plafond de dépense quotidien
+DEMO_BUDGET_USD = float(os.environ.get("COP_DEMO_BUDGET_USD", "40"))         # plafond de dépense total
+
+
+def demo_enabled() -> bool:
+    return llm_enabled() and os.environ.get("COP_DEMO", "1") != "0"
+
+
 def llm_enabled() -> bool:
     """Lu à chaque appel (la clé peut être posée ou retirée sans redémarrer, et les tests la changent)."""
     return bool(os.environ.get("OPENAI_API_KEY")) and os.environ.get("COP_LLM", "1") != "0"

@@ -354,7 +354,10 @@ async def _landing(request: Request, user: dict | None, invite_code: str = "", o
             open_modal = "signin"
         elif request.query_params.get("signup"):
             open_modal = "signup"
+    from . import demo
+
     return render(request, "home.html", user=user, stats=search.stats(conn),
+                  counts=None if user else _corpus_counts(conn), demo_on=demo.enabled(),
                   steps=_onboarding(conn, user) if user else None, welcome=bool(request.query_params.get("welcome")),
                   invite_code=invite_code, open_modal=open_modal, signup_error=signup_error, form=form or {},
                   open_signup=open_["open"] and open_["used"] < open_["max"],
@@ -917,6 +920,231 @@ async def admin_delete(request: Request):
     return RedirectResponse("/admin#utilisateurs", status_code=303)
 
 
+# --- démo publique « Essayer » et pages par public -----------------------------------------------------------------
+
+DEMO_COOKIE = "cop_demo"
+_demo_busy: set[str] = set()
+
+
+DEMO_MAX_CONCURRENT = 4   # questions traitées en même temps, tous visiteurs confondus (coût, API)
+
+
+def _demo_token_ok(value: str) -> bool:
+    """Cookie de démo signé par le serveur : un cookie fabriqué ne remet pas le compteur à zéro."""
+    import hmac
+
+    token, _, sig = (value or "").partition(".")
+    return bool(re.fullmatch(r"[A-Za-z0-9_-]{16,40}", token)) and hmac.compare_digest(auth._sign(f"demo:{token}")[:16], sig)
+
+
+def _demo_session(request: Request) -> tuple[str, bool]:
+    import secrets
+
+    value = request.cookies.get(DEMO_COOKIE) or ""
+    if _demo_token_ok(value):
+        return value, False
+    token = secrets.token_urlsafe(18)
+    return f"{token}.{auth._sign(f'demo:{token}')[:16]}", True
+
+
+def _set_demo_cookie(resp: Response, session: str) -> Response:
+    resp.set_cookie(DEMO_COOKIE, session, max_age=30 * 86400, httponly=True,
+                    secure=config.PUBLIC_BASE.startswith("https"), samesite="lax")
+    return resp
+
+
+DEMO_REFUSALS = {
+    "disabled": ("La démo est momentanément indisponible.", "The demo is temporarily unavailable."),
+    "budget": ("La démo a atteint son plafond du jour : revenez demain, ou connectez l'outil à votre LLM (gratuit, sans limite).",
+               "The demo has reached today's limit: come back tomorrow, or connect the tool to your LLM (free, no limit)."),
+    "session": ("Vous avez utilisé vos 3 questions d'essai. Pour continuer sans limite : connectez l'outil à votre LLM (gratuit).",
+                "You have used your 3 trial questions. To keep going without limits: connect the tool to your LLM (free)."),
+    "ip": ("Limite quotidienne atteinte depuis cette connexion : connectez l'outil à votre LLM pour continuer (gratuit).",
+           "Daily limit reached from this connection: connect the tool to your LLM to keep going (free)."),
+    "account": ("Vous avez utilisé vos 3 questions d'essai. Pour continuer sans limite : connectez l'outil à votre LLM.",
+                "You have used your 3 trial questions. To keep going without limits: connect the tool to your LLM."),
+    "busy": ("Une question est déjà en cours : attendez sa réponse.", "A question is already running: wait for its answer."),
+    "crowded": ("Beaucoup de questions en même temps : réessayez dans une minute.", "Many questions at once: please try again in a minute."),
+    "short": ("Posez une question un peu plus précise.", "Please ask a slightly more specific question."),
+}
+
+
+def _demo_public(payload: dict) -> dict:
+    return {k: payload.get(k) for k in ("html", "sources", "events", "checks", "trace", "model")}
+
+
+async def demo_page(request: Request):
+    """Essayer : quelques questions sans compte, avec exemples par public, réponse sourcée et vérifiée."""
+    from . import demo
+
+    conn = db.get()
+    user = current_user(request)
+    if user:
+        request.state.user = user
+    session, new = _demo_session(request)
+    who = request.query_params.get("pour") or request.query_params.get("for") or ""
+    who = who if who in demo.EXAMPLES else "delegations"
+    resp = render(request, "try.html", user=user, quota=demo.quota(conn, session, _client(request), user),
+                  examples=demo.EXAMPLES, who=who, prefill=(request.query_params.get("q") or "")[:demo.MAX_QUESTION],
+                  shared=None, as_of=demo.corpus_as_of(conn), refusals=DEMO_REFUSALS)
+    return _set_demo_cookie(resp, session) if new else resp
+
+
+async def demo_answer_page(request: Request):
+    """Lien permanent d'une réponse de la démo (à partager, à citer)."""
+    from . import demo
+
+    conn = db.get()
+    row = demo.load(conn, request.path_params["aid"])
+    if not row:
+        return Response("Réponse introuvable / answer not found", status_code=404)
+    user = current_user(request)
+    session, new = _demo_session(request)
+    payload = _demo_public(row["payload"])
+    payload["html"] = str(payload["html"])
+    payload["sources"] = demo.sign_links(conn, payload["sources"])
+    resp = render(request, "try.html", user=user, quota=demo.quota(conn, session, _client(request), user),
+                  examples=demo.EXAMPLES, who="delegations", prefill="",
+                  shared={"id": row["id"], "question": row["question"], "created_at": row["created_at"], **payload},
+                  as_of=demo.corpus_as_of(conn), refusals=DEMO_REFUSALS)
+    return _set_demo_cookie(resp, session) if new else resp
+
+
+async def demo_ask(request: Request):
+    """Question de la démo → flux SSE : étapes (outils appelés), puis la réponse rendue et vérifiée."""
+    import asyncio
+    import threading
+
+    from starlette.responses import StreamingResponse
+
+    from . import demo
+
+    origin = request.headers.get("origin")
+    if origin and origin.rstrip("/") not in (config.PUBLIC_BASE, f"{request.url.scheme}://{request.url.netloc}"):
+        return JSONResponse({"error": "origin"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "bad request"}, status_code=400)
+    user = current_user(request)
+    lang = body.get("lang") if body.get("lang") in i18n.LANGS else lang_of(request, user)
+    T = lambda key: i18n.pick(lang, *DEMO_REFUSALS[key])  # noqa: E731
+    session = request.cookies.get(DEMO_COOKIE) or ""
+    if body.get("website") or not _demo_token_ok(session):  # robot : piège, ou cookie absent ou fabriqué
+        return JSONResponse({"error": T("disabled"), "reason": "session"}, status_code=403)
+    question = re.sub(r"\s+", " ", str(body.get("question") or "")).strip()[:demo.MAX_QUESTION]
+    if len(question) < 6:
+        return JSONResponse({"error": T("short"), "reason": "short"}, status_code=400)
+    ip = _client(request)
+    conn = db.get()
+    q = demo.quota(conn, session, ip, user)
+    if q["remaining"] <= 0:
+        return JSONResponse({"error": T(q["reason"]), "reason": q["reason"]}, status_code=429)
+    follow = None
+    if re.fullmatch(r"[A-Za-z0-9_-]{6,20}", str(body.get("follow") or "")):
+        follow = demo.follow_context(conn, body["follow"], session)
+    keys = {f"s:{session}", f"ip:{demo.ip_hash(ip)}"}
+    if keys & _demo_busy:
+        return JSONResponse({"error": T("busy"), "reason": "busy"}, status_code=429)
+    if len(_demo_busy) >= 2 * DEMO_MAX_CONCURRENT:
+        return JSONResponse({"error": T("crowded"), "reason": "crowded"}, status_code=429)
+    _demo_busy.update(keys)
+    queue: asyncio.Queue = asyncio.Queue()
+    loop = asyncio.get_running_loop()
+
+    def emit(ev):
+        loop.call_soon_threadsafe(queue.put_nowait, ev)
+
+    def work():
+        try:
+            res = demo.answer(question, lang, emit, follow=follow)
+            aid = demo.save(db.get(), question=question, lang=lang, session=session, ip=ip, user=user, payload=res)
+            left = demo.quota(db.get(), session, ip, user)
+            pub = _demo_public(res)
+            pub["sources"] = demo.sign_links(db.get(), pub["sources"])
+            emit({"type": "done", "id": aid, "url": f"/try/r/{aid}", **pub,
+                  "remaining": left["remaining"], "reason": left["reason"]})
+        except Exception as exc:  # API indisponible, quota OpenAI…
+            try:
+                demo.save(db.get(), question=question, lang=lang, session=session, ip=ip, user=user, payload=None,
+                          error=f"{type(exc).__name__}: {exc}"[:500])
+            except Exception:
+                pass
+            emit({"type": "error", "message": i18n.pick(lang, "La réponse n'a pas pu être produite : réessayez dans un moment.",
+                                                        "The answer could not be produced: please try again in a moment.")})
+        finally:
+            _demo_busy.difference_update(keys)
+            emit(None)
+
+    threading.Thread(target=work, daemon=True).start()
+
+    async def stream():
+        yield ": ok\n\n"
+        while True:
+            ev = await queue.get()
+            if ev is None:
+                break
+            yield f"data: {json.dumps(ev, ensure_ascii=False, default=str)}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+AUDIENCES = ("delegations", "presse", "militants")
+AUDIENCE_SLUGS = {"delegations": "delegations", "press": "presse", "presse": "presse", "activists": "militants",
+                  "militants": "militants"}
+
+
+async def audience_page(request: Request):
+    """Pages par public : petites délégations, presse indépendante, militants et ONG."""
+    from . import demo
+
+    who = AUDIENCE_SLUGS.get(request.path_params["who"])
+    if not who:
+        return Response("Inconnu", status_code=404)
+    user = current_user(request)
+    if user:
+        request.state.user = user
+    return render(request, "audience.html", user=user, who=who, examples=demo.EXAMPLES[who],
+                  counts=_corpus_counts(db.get()), demo_on=demo.enabled())
+
+
+_COUNTS: dict[str, object] = {"at": 0.0, "value": None}
+
+
+def _corpus_counts(conn) -> dict[str, int]:
+    """Chiffres de la vitrine (documents publics seulement), recalculés au plus toutes les 10 minutes."""
+    import time
+
+    if _COUNTS["value"] is None or time.time() - float(_COUNTS["at"]) > 600:
+        _COUNTS["value"] = _compute_counts(conn)
+        _COUNTS["at"] = time.time()
+    return _COUNTS["value"]  # type: ignore[return-value]
+
+
+def _compute_counts(conn) -> dict[str, int]:
+    def one(sql: str, *params) -> int:
+        try:
+            return int(conn.execute(sql, params).fetchone()[0] or 0)
+        except Exception:
+            return 0
+
+    texts = ("traite", "decision", "conclusions_sb", "ordre_du_jour", "projet_texte", "rapport_synthese", "btr", "ndc")
+    q = ",".join("?" * len(texts))
+    return {
+        "texts": one(f"SELECT COUNT(*) FROM documents WHERE access='public' AND doc_type IN ({q})", *texts),
+        "versions": one("SELECT COUNT(*) FROM documents WHERE access='public' AND COALESCE(version,1)>1"),
+        "drafts": one("SELECT COUNT(*) FROM live_texts WHERE doc_id IS NOT NULL"),
+        "positions": one("SELECT COUNT(*) FROM positions WHERE access='public'"),
+        "submissions": one("SELECT COUNT(*) FROM sub_items"),
+        "reports": one("SELECT COUNT(*) FROM documents WHERE access='public' AND doc_type IN "
+                       "('compte_rendu','communique','analyse')"),
+        "events": one("SELECT COUNT(*) FROM agenda_events") + one("SELECT COUNT(*) FROM pav_events WHERE cancelled=0"),
+        "documents": one("SELECT COUNT(*) FROM documents WHERE access='public'"),
+        "passages": one("SELECT COUNT(*) FROM passages p JOIN documents d ON d.id=p.doc_id WHERE d.access='public'"),
+    }
+
+
 async def health(request: Request):
     db.get().execute("SELECT 1").fetchone()
     return JSONResponse({"ok": True})
@@ -955,6 +1183,12 @@ routes = [
     Route("/admin/courrier", mail_page, methods=["GET", "POST"]),
     Route("/admin/programme", admin_programme, methods=["GET", "POST"]),
     Route("/admin/seors/import", seors_import, methods=["POST", "OPTIONS"]),
+    Route("/try", demo_page),
+    Route("/try/ask", demo_ask, methods=["POST"]),
+    Route("/try/r/{aid}", demo_answer_page),
+    Route("/essayer", _redirect("/try")),
+    Route("/for/{who}", audience_page),
+    Route("/pour/{who}", audience_page),
     Route("/healthz", health),
     # anciennes adresses (liens dans les alertes, favoris)
     Route("/compte", account_redirect),
