@@ -6,10 +6,9 @@ from __future__ import annotations
 import sys
 import threading
 import time
-import traceback
 from datetime import datetime, timedelta, timezone
 
-from . import alerts, catalog, config, db, embed, fetch, ingest, telegram
+from . import alerts, catalog, config, db, embed, fetch, ingest, monitor, telegram
 
 
 def _due(conn, source: catalog.Source) -> bool:
@@ -36,7 +35,7 @@ def watch_once(conn, client: fetch.Client) -> int:
         try:
             embed.embed_pending(conn, limit=5000)
         except Exception as exc:
-            print(f"[embeddings] {exc}", file=sys.stderr)
+            monitor.report("worker : embeddings", exc, conn=conn)
     created = alerts.run(conn)
     if created:
         print(f"[alertes] {created} notifications", file=sys.stderr, flush=True)
@@ -71,8 +70,8 @@ def submissions_forever(stop: threading.Event, interval: int = 60) -> None:
     while not stop.is_set():
         try:
             submissions_once(conn, client)
-        except Exception:
-            traceback.print_exc()
+        except Exception as exc:
+            monitor.report("worker : soumissions", exc, conn=conn)
         stop.wait(interval)
 
 
@@ -92,7 +91,7 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
     conn = db.connect()
     client = fetch.Client()
     alerts.run(conn, notify=False)  # initialise le curseur sans alerter sur l'existant
-    last_purge = 0.0
+    last_purge = last_check = 0.0
     while True:
         try:
             if watch:
@@ -107,6 +106,9 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
                 out = usage.purge(conn)
                 if any(out.values()):
                     print(f"[usage] purge {out}", file=sys.stderr, flush=True)
-        except Exception:
-            traceback.print_exc()
+            if time.time() - last_check > 900:  # les dernières questions du site ont-elles toutes échoué ?
+                last_check = time.time()
+                monitor.check_answers(conn)
+        except Exception as exc:
+            monitor.report("worker : veille", exc, conn=conn)
         time.sleep(interval)

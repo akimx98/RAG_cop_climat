@@ -512,7 +512,9 @@ def watch_forever(stop=None, interval: int = 10) -> None:
         try:
             process_spool(conn)
         except Exception as exc:
-            print(f"[mail] {exc!r}", file=sys.stderr, flush=True)
+            from . import monitor
+
+            monitor.report("worker : courrier entrant", exc, conn=conn)
         time.sleep(interval)
 
 

@@ -256,6 +256,9 @@ def poll_forever(stop=None) -> None:
             try:
                 handle(conn, upd)
             except Exception as exc:
+                from . import monitor
+
+                monitor.report("bot Telegram", exc, conn=conn)
                 chat = (upd.get("message") or {}).get("chat", {}).get("id")
                 if chat:
                     send(chat, f"Erreur : {html.escape(str(exc))[:300]}")

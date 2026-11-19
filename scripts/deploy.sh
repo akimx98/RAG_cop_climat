@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Déploiement du code sur le VPS (à lancer sur le VPS, dans /opt/RAG_cop_climat).
+# Déploiement du code sur le VPS (à lancer sur le VPS, dans /home/debian/RAG_cop_climat). Depuis le Mac, préférer scripts/ship.sh (tests, contrôles, retour arrière).
 #   sudo bash scripts/deploy.sh
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."

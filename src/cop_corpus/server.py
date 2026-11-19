@@ -86,6 +86,17 @@ class TokenPathMiddleware:
         await self.app(scope, receive, send)
 
 
+async def server_error(request, exc):
+    """Erreur 500 : alerte aux administrateurs (chemin masqué : il peut porter un jeton), page sobre."""
+    from starlette.responses import PlainTextResponse
+
+    from . import monitor
+    from .logs import redact
+
+    monitor.report(f"page {request.method} {redact(request.url.path)}", exc)
+    return PlainTextResponse("Erreur interne / Internal error", status_code=500)
+
+
 def build_app() -> Starlette:
     mcp_app = mcp.streamable_http_app()
 
@@ -94,7 +105,8 @@ def build_app() -> Starlette:
         async with mcp.session_manager.run():
             yield
 
-    app = Starlette(routes=[*web.routes, *web_live.routes, Mount("/", app=mcp_app)], lifespan=lifespan)
+    app = Starlette(routes=[*web.routes, *web_live.routes, Mount("/", app=mcp_app)], lifespan=lifespan,
+                    exception_handlers={Exception: server_error})
     app.add_middleware(TokenPathMiddleware)
     return app
 

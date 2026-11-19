@@ -175,6 +175,25 @@ def cmd_worker(args) -> None:
     worker.run_forever(bot=not args.no_bot, watch=not args.no_watch)
 
 
+def cmd_smoke(args) -> None:
+    """Contrôle après déploiement : une vraie question passe par tout le parcours du site (prompt, outils, corpus,
+    OpenAI, rendu). Sortie 1 si la réponse n'est pas produite ou ne cite aucune source."""
+    import time
+
+    from . import demo
+
+    t0 = time.time()
+    try:
+        res = demo.answer(args.question, "fr", lambda ev: None, purpose="demo-admin")
+    except Exception as exc:
+        print(f"ÉCHEC : la question n'a pas reçu de réponse ({type(exc).__name__}: {exc})", file=sys.stderr)
+        sys.exit(1)
+    if not res.get("html") or not res.get("sources"):
+        print("ÉCHEC : réponse vide ou sans source", file=sys.stderr)
+        sys.exit(1)
+    print(f"OK : réponse en {time.time() - t0:.0f} s, {len(res['sources'])} source(s), {res['cost']:.3f} $")
+
+
 def cmd_programme_sync(args) -> None:
     from . import agenda, fetch
 
@@ -432,6 +451,9 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("mail-allow", help="autoriser des expéditeurs (adresse ou domaine) sur veille@")
     s.add_argument("senders", nargs="*")
     s.set_defaults(func=cmd_mail_allow)
+    s = sub.add_parser("smoke", help="contrôle après déploiement : une vraie question de bout en bout")
+    s.add_argument("--question", default="Que dit l'Accord de Paris sur l'objectif de 1,5 °C ?")
+    s.set_defaults(func=cmd_smoke)
     s = sub.add_parser("worker", help="veilleur + alertes + bot Telegram")
     s.add_argument("--no-bot", action="store_true")
     s.add_argument("--no-watch", action="store_true")

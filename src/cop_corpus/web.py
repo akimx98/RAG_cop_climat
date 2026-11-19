@@ -1323,6 +1323,9 @@ async def demo_ask(request: Request):
 
     def failed(msg_fr: str, msg_en: str, error: str | None):
         if error:
+            from . import monitor
+
+            monitor.report("site : réponse à une question", error)
             try:
                 demo.save(db.get(), question=question, lang=lang, session=session, ip=ip, user=user, payload=None,
                           error=error[:500])

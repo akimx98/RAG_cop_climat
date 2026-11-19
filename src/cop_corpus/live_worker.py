@@ -112,6 +112,8 @@ def run_forever(stop=None, interval: int = 60) -> None:
     while not (stop and stop.is_set()):
         try:
             tick(conn, client, last)
-        except Exception:
-            traceback.print_exc()
+        except Exception as exc:
+            from . import monitor
+
+            monitor.report("worker : textes en direct", exc, conn=conn)
         time.sleep(interval)
