@@ -41,8 +41,8 @@
 <div class="pitch">
 
 <h2 class="big">{{ L('Pourquoi pas simplement ChatGPT ?', 'Why not just ChatGPT?') }}</h2>
-<p class="intro">{{ L('Un LLM seul répond de mémoire : des textes anciens, des citations approximatives, parfois inventées, et aucun moyen de vérifier. COP Tracker fait répondre le LLM à partir des documents eux-mêmes, et vérifie chaque citation.',
- 'An LLM on its own answers from memory: old texts, approximate quotes, sometimes invented ones, and no way to check. COP Tracker makes the LLM answer from the documents themselves, and checks every quote.') }}</p>
+<p class="intro">{{ L('Un LLM seul répond de mémoire, sans source. COP Tracker répond à partir des documents et vérifie chaque citation.',
+ 'An LLM on its own answers from memory, without sources. COP Tracker answers from the documents and checks every quote.') }}</p>
 <div class="vs">
 <div class="no"><p class="h">{{ L('Un LLM seul · exemple illustratif', 'An LLM on its own · illustrative example') }}</p>
 <p class="q">{{ L('« L\'Accord de Paris oblige-t-il les pays à atteindre leur NDC ? »', '“Does the Paris Agreement oblige countries to achieve their NDC?”') }}</p>
@@ -55,15 +55,12 @@
 <p class="a">{{ L('Non : l\'obligation porte sur l\'action, pas sur le résultat. Article 4.2 :', 'No: the obligation is one of conduct, not of result. Article 4.2:') }} <q>Parties shall pursue domestic mitigation measures, with the aim of achieving the objectives of such contributions.</q> <span class="n">1</span> ✓</p>
 <ul><li>{{ L('Citation exacte, vérifiée mot pour mot', 'Exact quote, checked word for word') }}</li>
 <li>{{ L('Un clic : le texte s\'ouvre à la bonne page', 'One click: the text opens at the right page') }}</li>
-<li>{{ L('Niveau de fiabilité : traité adopté, projet, déclaration…', 'Reliability level: adopted treaty, draft, statement…') }}</li>
 <li>{{ L('Rien trouvé ? Il le dit, au lieu d\'inventer', 'Nothing found? It says so instead of inventing') }}</li></ul></div>
 </div>
 {% if demo_on %}<p style="margin:14px 0 0">{% if user %}<a class="btn" href="/ask">{{ L('Poser ma question', 'Ask my question') }}</a>{% else %}<a class="btn" href="/try">{{ L('Essayer avec ma question', 'Try with my own question') }}</a>{% endif %}</p>{% endif %}
 
 {% if counts %}
 <h2 class="big">{{ L('Pas seulement les textes', 'Not just the texts') }}</h2>
-<p class="intro">{{ L('Tout ce qu\'il faut pour suivre une négociation, au même endroit, avec son historique : quand un texte change, l\'ancienne version reste et la différence est calculée.',
- 'Everything you need to follow a negotiation, in one place, with its history: when a text changes, the old version stays and the difference is computed.') }}</p>
 <div class="cover">
 {% if counts.texts %}<div><b>{{ fmt(counts.texts) }}</b><span>{{ L('textes officiels', 'official texts') }}</span><small>{{ L('Convention, Accord de Paris, décisions, NDC, conclusions', 'Convention, Paris Agreement, decisions, NDCs, conclusions') }}</small></div>{% endif %}
 {% if counts.drafts or counts.versions %}<div><b>{{ fmt(counts.drafts or counts.versions) }}</b><span>{{ L('projets de texte et versions', 'draft texts and versions') }}</span><small>{{ L('comparés paragraphe par paragraphe, crochets comptés', 'compared paragraph by paragraph, brackets counted') }}</small></div>{% endif %}
@@ -78,23 +75,21 @@
 <h2 class="big">{{ L('Pour qui ?', 'Who is it for?') }}</h2>
 <p class="intro">{{ L('Pour celles et ceux qui n\'ont pas une équipe de vingt juristes derrière eux.', 'For those who don\'t have a team of twenty lawyers behind them.') }}</p>
 <div class="who">
-<a href="/for/delegations"><b>{{ L('Petites délégations', 'Small delegations') }}</b><p>{{ L('Deux ou trois négociateurs pour vingt dossiers : l\'état de chaque texte, ce qui a bougé cette nuit, les positions des groupes.', 'Two or three negotiators for twenty items: where each text stands, what moved overnight, groups\' positions.') }}</p><span class="go">{{ L('Voir', 'See') }} →</span></a>
-<a href="/for/press"><b>{{ L('Presse indépendante', 'Independent press') }}</b><p>{{ L('Vérifier une affirmation en une minute, citer juste, comparer deux versions d\'un texte, avec un lien à donner au lecteur.', 'Fact-check a claim in a minute, quote accurately, compare two versions of a text, with a link to give readers.') }}</p><span class="go">{{ L('Voir', 'See') }} →</span></a>
+<a href="/for/delegations"><b>{{ L('Petites délégations', 'Small delegations') }}</b><p>{{ L('L\'état de chaque texte, ce qui a bougé cette nuit, les positions des groupes.', 'Where each text stands, what moved overnight, groups\' positions.') }}</p><span class="go">{{ L('Voir', 'See') }} →</span></a>
+<a href="/for/press"><b>{{ L('Presse indépendante', 'Independent press') }}</b><p>{{ L('Vérifier une affirmation en une minute et citer juste, avec un lien pour le lecteur.', 'Fact-check a claim in a minute and quote accurately, with a link for readers.') }}</p><span class="go">{{ L('Voir', 'See') }} →</span></a>
 <a href="/for/activists"><b>{{ L('Militants et ONG', 'Activists and NGOs') }}</b><p>{{ L('Savoir qui bloque et sur quoi, argumenter avec le texte exact, trouver les bons événements.', 'Know who is blocking what, argue with the exact text, find the right events.') }}</p><span class="go">{{ L('Voir', 'See') }} →</span></a>
 </div>
 
 <h2 class="big">{{ L('Libre, ouvert, vérifiable', 'Free, open, verifiable') }}</h2>
 <div class="oss">
-<div><p style="margin:0 0 10px;color:var(--ink-2)">{{ L('Un outil indépendant, gratuit et open source. Vous n\'avez pas à nous croire sur parole : le code qui collecte les documents, cherche les passages et vérifie les citations est public.',
- 'An independent, free and open-source tool. You don\'t have to take our word for it: the code that collects documents, searches passages and checks quotes is public.') }}</p>
-<ul><li>{{ L('Licence MIT : auditez, réutilisez, hébergez votre propre instance', 'MIT licence: audit it, reuse it, host your own instance') }}</li>
-<li>{{ L('Sources officielles et publiques, chacune avec son lien d\'origine', 'Official, public sources, each with its original link') }}</li>
-<li>{{ L('Sans lien avec la CCNUCC ni avec une délégation', 'Not affiliated with the UNFCCC or any delegation') }}</li>
-<li>{{ L('Fonctionne avec le LLM de votre choix : Claude, ChatGPT, Le Chat', 'Works with the LLM of your choice: Claude, ChatGPT, Le Chat') }}</li></ul></div>
+<div><p style="margin:0 0 10px;color:var(--ink-2)">{{ L('Pas besoin de nous croire sur parole : tout le code est public.',
+ 'No need to take our word for it: all the code is public.') }}</p>
+<ul><li>{{ L('Licence MIT : auditez, réutilisez, hébergez votre instance', 'MIT licence: audit, reuse, host your own instance') }}</li>
+<li>{{ L('Sources officielles, chacune avec son lien d\'origine', 'Official sources, each with its original link') }}</li>
+<li>{{ L('Sans lien avec la CCNUCC ni avec une délégation', 'Not affiliated with the UNFCCC or any delegation') }}</li></ul></div>
 <div class="row" style="flex-direction:column;align-items:stretch">
 {% if SOURCE_URL %}<a class="btn" href="{{ SOURCE_URL }}" rel="noopener">{{ L('Voir le code sur GitHub', 'See the code on GitHub') }} ↗</a>{% endif %}
 <a class="btn secondary" href="/how-it-works">{{ L('Comment ça marche', 'How it works') }}</a>
-<a class="btn secondary" href="/contact">{{ L('Nous écrire', 'Write to us') }}</a>
 </div>
 </div>
 </div>
