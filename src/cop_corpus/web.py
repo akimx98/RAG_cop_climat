@@ -66,6 +66,25 @@ DOC_TYPES = ["traite", "decision", "conclusions_sb", "ordre_du_jour", "projet_te
              "donnees", "compte_rendu", "communique", "analyse", "programme", "note_interne", "autre"]
 TEMPLATES.globals["DOC_TYPES"] = DOC_TYPES
 TEMPLATES.globals["can_contribute"] = auth.can_contribute
+LLM_ACTIVE_DAYS = 14
+
+
+def llm_last_call(user: dict | None) -> str | None:
+    """Dernier appel MCP s'il date de moins de LLM_ACTIVE_DAYS jours (« votre LLM utilise le corpus »), sinon None :
+    un connecteur essayé une fois puis retiré ne doit pas passer pour branché."""
+    from datetime import datetime, timedelta, timezone
+
+    seen = (user or {}).get("mcp_seen_at")
+    if not seen:
+        return None
+    try:
+        when = datetime.strptime(seen[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    return seen if datetime.now(timezone.utc) - when < timedelta(days=LLM_ACTIVE_DAYS) else None
+
+
+TEMPLATES.globals["llm_last_call"] = llm_last_call
 TEMPLATES.globals["QR"] = lambda text, scale=6: Markup(qr.svg(text, ecc="M", scale=scale, title=text))
 COOKIE = "cop_session"
 TOKEN_COOKIE = "cop_tok"
@@ -886,7 +905,7 @@ async def download_page(request: Request):
         if not skill.replace("-", "").isalnum() or not (folder / "SKILL.md").exists():
             return Response("Inconnu", status_code=404)
         data = _zip_dir(folder, skill)
-    elif name in ("chatgpt-instructions.txt", "mistral-instructions.txt"):
+    elif name in ("chatgpt-instructions.txt", "mistral-instructions.txt", "assistant-instructions.txt"):
         return Response((CLIENTS_DIR / name.replace(".txt", ".md")).read_text(encoding="utf-8"),
                         media_type="text/plain; charset=utf-8")
     else:

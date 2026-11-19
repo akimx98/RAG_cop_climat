@@ -87,7 +87,9 @@ def create_user(conn: sqlite3.Connection, email: str, name: str = "", admin: boo
 
 def reset_token(conn: sqlite3.Connection, user_id: int) -> str:
     token = secrets.token_urlsafe(24)
-    conn.execute("UPDATE users SET token_hash=?, token_enc=? WHERE id=?", (_hash(token), _enc(token), user_id))
+    # L'ancienne adresse ne marche plus : le LLM n'est plus connecté tant qu'il n'a pas appelé la nouvelle.
+    conn.execute("UPDATE users SET token_hash=?, token_enc=?, mcp_seen_at=NULL WHERE id=?",
+                 (_hash(token), _enc(token), user_id))
     conn.commit()
     return token
 

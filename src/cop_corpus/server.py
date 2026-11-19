@@ -69,7 +69,8 @@ class TokenPathMiddleware:
                     await JSONResponse({"error": "too many requests: try again in a minute"}, status_code=429,
                                        headers={"Retry-After": "60"})(scope, receive, send)
                     return
-                _seen(user)
+                if scope.get("method") == "POST":  # vrai appel JSON-RPC, pas une adresse ouverte dans un navigateur
+                    _seen(user)
                 scope = dict(scope)
                 scope["path"] = m.group(2).rstrip("/") or "/mcp"
                 scope["raw_path"] = scope["path"].encode()

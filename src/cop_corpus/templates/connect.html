@@ -27,12 +27,18 @@ details.llm ol{margin:0 0 12px;padding-left:20px;display:grid;gap:4px}
 .skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin:8px 0 0;padding:0;list-style:none}
 .skills li{border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px}
 .skills li a{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.checklist{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 14px;margin:8px 0 12px;font-size:14px}
+.checklist dt{font-weight:650}
+.checklist dd{margin:0}
+pre.cfg{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:12.5px;overflow-x:auto;margin:6px 0 12px;white-space:pre}
+h3.sub{font-size:15px;margin:18px 0 6px}
 </style>
+{% set addr = base ~ '/u/' ~ token ~ '/mcp' if (user and token) else base ~ '/u/' ~ L('VOTRE-JETON', 'YOUR-TOKEN') ~ '/mcp' %}
 <div class="narrow">
 <section class="hero">
 <div class="eyebrow">{{ L('Demander', 'Ask') }}</div>
 <h1>{{ L('Connecter un LLM', 'Connect an LLM') }}</h1>
-<p>{{ L('Branchez Claude, ChatGPT ou Le Chat sur le corpus de la COP31 : votre assistant cherche dans les textes à jour et cite le passage exact, au lieu de répondre de mémoire.', 'Plug Claude, ChatGPT or Le Chat into the COP31 corpus: your assistant searches the up-to-date texts and quotes the exact passage instead of answering from memory.') }}</p>
+<p>{{ L('Branchez votre assistant (Claude, ChatGPT, Le Chat, Copilot ou tout autre LLM qui accepte un connecteur MCP) sur le corpus de la COP31 : votre assistant cherche dans les textes à jour et cite le passage exact, au lieu de répondre de mémoire.', 'Plug your assistant (Claude, ChatGPT, Le Chat, Copilot or any LLM that accepts an MCP connector) into the COP31 corpus: your assistant searches the up-to-date texts and quotes the exact passage instead of answering from memory.') }}</p>
 {% if OFFER.on %}<p class="banner">{{ L('Pas d\'abonnement à un LLM qui accepte les connecteurs ? Posez vos questions directement sur le site', 'No LLM subscription that accepts connectors? Ask your questions right on the site') }}
 ({{ L('%d par jour avec le compte gratuit' % OFFER.account, '%d a day with the free account' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}) :
 <a href="{{ '/ask' if user else '/try' }}">{{ L('Mes questions', 'My questions') if user else L('Essayer sur le site', 'Try it on the site') }} →</a></p>{% endif %}
@@ -125,9 +131,48 @@ details.llm ol{margin:0 0 12px;padding-left:20px;display:grid;gap:4px}
 {% if shots.get('connect-lechat') %}<figure class="shot"><img src="{{ shots['connect-lechat'] }}" alt="Le Chat" loading="lazy"></figure>{% endif %}
 </div></details>
 
-<details class="llm"><summary>{{ L('Autres assistants', 'Other assistants') }}</summary><div class="in">
-<p style="margin:0">{{ L('Tout assistant qui accepte un connecteur MCP distant (« HTTP » ou « streamable HTTP ») : collez votre adresse personnelle, sans authentification, puis les', 'Any assistant that accepts a remote MCP connector (“HTTP” or “streamable HTTP”): paste your personal address, no authentication, then the') }} <a href="/telechargements/chatgpt-instructions.txt">instructions</a>.</p>
+<details class="llm"><summary>Microsoft Copilot <small>{{ L('Microsoft 365, Teams · via Copilot Studio', 'Microsoft 365, Teams · via Copilot Studio') }}</small></summary><div class="in">
+<p style="margin-top:0">{{ L('Le Copilot fourni par votre administration ou votre organisation n\'accepte pas de connecteur ajouté directement dans la conversation : on passe par un agent créé dans Copilot Studio. Selon votre organisation, vous pouvez le faire vous-même ou il faut le demander au service informatique (voir plus bas).', 'The Copilot provided by your administration or organisation does not take a connector added straight from the chat: you go through an agent built in Copilot Studio. Depending on your organisation, you can do it yourself or need to ask IT (see below).') }}</p>
+<ol>
+<li>{{ L('Copilot Studio (copilotstudio.microsoft.com) → Créer un agent, nommé par ex.', 'Copilot Studio (copilotstudio.microsoft.com) → Create an agent, named e.g.') }} <code>COP31</code>.</li>
+<li>{{ L('Instructions de l\'agent : collez', 'Agent instructions: paste') }} <a href="/telechargements/assistant-instructions.txt">{{ L('ces instructions', 'these instructions') }}</a>.</li>
+<li>{{ L('Outils → Ajouter un outil → Nouvel outil → Model Context Protocol. URL du serveur : votre adresse personnelle ; authentification : aucune.', 'Tools → Add a tool → New tool → Model Context Protocol. Server URL: your personal address; authentication: none.') }}</li>
+<li>{{ L('Testez dans le volet de test, puis Publier → canal Teams et Microsoft 365 Copilot : l\'agent apparaît dans Copilot et dans Teams.', 'Test it in the test pane, then Publish → Teams and Microsoft 365 Copilot channel: the agent shows up in Copilot and in Teams.') }}</li>
+</ol>
+<p class="small muted" style="margin:0">{{ L('Les intitulés des menus changent souvent chez Microsoft : cherchez « Model Context Protocol » ou « MCP » dans l\'ajout d\'outils.', 'Microsoft often renames its menus: look for “Model Context Protocol” or “MCP” when adding a tool.') }}</p>
 </div></details>
+
+<details class="llm"><summary>{{ L('Outils de développement', 'Developer tools') }} <small>VS Code (GitHub Copilot), Cursor, Claude Code, Gemini CLI…</small></summary><div class="in">
+<p style="margin-top:0">{{ L('Ajoutez un serveur MCP de type HTTP avec votre adresse. Par exemple :', 'Add an HTTP MCP server with your address. For example:') }}</p>
+<p class="small" style="margin:0"><b>Claude Code</b></p>
+<pre class="cfg">claude mcp add --transport http cop31 {{ addr }}</pre>
+<p class="small" style="margin:0"><b>VS Code</b> ({{ L('fichier', 'file') }} <code>.vscode/mcp.json</code>) · <b>Cursor</b> (<code>~/.cursor/mcp.json</code>, {{ L('clé', 'key') }} <code>mcpServers</code>)</p>
+<pre class="cfg">{"servers": {"cop31": {"type": "http", "url": "{{ addr }}"}}}</pre>
+<p class="small" style="margin:0"><b>Gemini CLI</b> (<code>~/.gemini/settings.json</code>)</p>
+<pre class="cfg">{"mcpServers": {"cop31": {"httpUrl": "{{ addr }}"}}}</pre>
+</div></details>
+
+<details class="llm"><summary>{{ L('Tout autre assistant', 'Any other assistant') }} <small>{{ L('la méthode générique', 'the generic method') }}</small></summary><div class="in">
+<p style="margin-top:0">{{ L('Gemini, Perplexity, un assistant d\'entreprise, une interface open source hébergée par votre organisation (Open WebUI, LibreChat, AnythingLLM…) : les noms changent, la démarche est toujours la même.', 'Gemini, Perplexity, a company assistant, an open-source interface hosted by your organisation (Open WebUI, LibreChat, AnythingLLM…): names change, the steps are always the same.') }}</p>
+<dl class="checklist">
+<dt>{{ L('Où chercher', 'Where to look') }}</dt><dd>{{ L('Dans les paramètres : « Connecteurs », « Outils », « Intégrations », « Extensions », « Serveurs MCP », souvent avec « personnalisé » ou « ajouter ».', 'In the settings: “Connectors”, “Tools”, “Integrations”, “Extensions”, “MCP servers”, often with “custom” or “add”.') }}</dd>
+<dt>{{ L('Type', 'Type') }}</dt><dd>{{ L('MCP distant : « Streamable HTTP » ou « HTTP ». Pas « SSE », pas « stdio » (voir ci-dessous).', 'Remote MCP: “Streamable HTTP” or “HTTP”. Not “SSE”, not “stdio” (see below).') }}</dd>
+<dt>URL</dt><dd>{{ L('Votre adresse personnelle, telle quelle.', 'Your personal address, as is.') }}</dd>
+<dt>{{ L('Authentification', 'Authentication') }}</dt><dd>{{ L('Aucune (ni OAuth, ni clé d\'API) : l\'adresse suffit.', 'None (no OAuth, no API key): the address is enough.') }}</dd>
+<dt>Instructions</dt><dd>{{ L('Collez', 'Paste') }} <a href="/telechargements/assistant-instructions.txt">{{ L('ces instructions', 'these instructions') }}</a> {{ L('dans les instructions personnalisées, le prompt système, l\'agent ou le projet.', 'into the custom instructions, system prompt, agent or project.') }}</dd>
+<dt>{{ L('Vérifier', 'Check') }}</dt><dd>{{ L('Demandez « Quels outils COP31 as-tu ? » puis une question sur vos sujets : la réponse doit citer un passage avec un lien. Le bandeau de « Mes questions » indique aussi le dernier appel reçu.', 'Ask “Which COP31 tools do you have?”, then a question on your topics: the answer must quote a passage with a link. The “My questions” sidebar also shows the last call received.') }}</dd>
+</dl>
+<h3 class="sub">{{ L('Votre assistant ne connaît que les serveurs locaux (« stdio »)', 'Your assistant only knows local servers (“stdio”)') }}</h3>
+<p class="small" style="margin:0">{{ L('Utilisez la passerelle', 'Use the') }} <code>mcp-remote</code> {{ L('(Node.js requis) comme commande du serveur :', 'bridge (Node.js required) as the server command:') }}</p>
+<pre class="cfg">{"mcpServers": {"cop31": {"command": "npx", "args": ["-y", "mcp-remote", "{{ addr }}"]}}}</pre>
+<h3 class="sub">{{ L('Votre assistant est géré par votre organisation', 'Your assistant is managed by your organisation') }}</h3>
+<p class="small" style="margin:0 0 6px">{{ L('Copilot, ChatGPT Enterprise, Claude for Work… : l\'ajout de connecteurs est souvent désactivé par défaut. Envoyez ce message à votre service informatique :', 'Copilot, ChatGPT Enterprise, Claude for Work…: adding connectors is often turned off by default. Send this message to your IT team:') }}</p>
+{% set it_msg = L("Bonjour, je souhaite connecter notre assistant IA à COP Tracker, un corpus gratuit et open source des textes de la COP31 (" ~ base ~ "). C'est un serveur MCP distant (Streamable HTTP), en lecture seule, sans authentification OAuth : l'adresse personnelle fait office d'identifiant. Seules les recherches de l'assistant dans le corpus sont envoyées au serveur, pas nos conversations ni nos fichiers. Pouvez-vous autoriser ce connecteur (ou l'ajouter dans Copilot Studio comme outil « Model Context Protocol ») ? Détails : " ~ base ~ "/connect", "Hello, I would like to connect our AI assistant to COP Tracker, a free, open-source corpus of the COP31 texts (" ~ base ~ "). It is a remote MCP server (Streamable HTTP), read-only, with no OAuth: the personal address acts as the credential. Only the assistant's searches in the corpus are sent to the server, not our conversations or files. Could you allow this connector (or add it in Copilot Studio as a “Model Context Protocol” tool)? Details: " ~ base ~ "/connect") %}
+<ul class="prompts"><li><span style="font-size:14px">{{ it_msg }}</span><button type="button" class="secondary" data-copy="{{ it_msg }}" data-done="✓">{{ L('Copier', 'Copy') }}</button></li></ul>
+<p class="small muted" style="margin:10px 0 0">{{ L('Une adresse = un compte (vos sujets, vos limites). Pour un agent partagé par toute une équipe, créez un compte dédié à l\'équipe plutôt que d\'y mettre votre adresse personnelle.', 'One address = one account (your topics, your limits). For an agent shared by a whole team, create a dedicated team account rather than using your personal address.') }}</p>
+</div></details>
+
+<p class="small" style="margin-top:14px">{{ L('Aucun de ces assistants, ou connecteurs bloqués ?', 'None of these assistants, or connectors blocked?') }} <a href="{{ '/ask' if user else '/try' }}">{{ L('Posez vos questions directement sur le site', 'Ask your questions right on the site') }} →</a></p>
 
 <p class="small muted" style="margin-top:20px">{{ L('Vos questions restent chez votre LLM : COP Tracker ne reçoit que ses recherches dans le corpus. Les réponses sont rédigées par une IA : ouvrez le passage cité avant de le reprendre.', 'Your questions stay with your LLM: COP Tracker only receives its searches in the corpus. Answers are written by AI: open the quoted passage before reusing it.') }}</p>
 </div>

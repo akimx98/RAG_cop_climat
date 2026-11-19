@@ -147,11 +147,13 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 {% for c in convs %}<a class="c{{ ' on' if conv and conv.id == c.id }}" href="/ask/c/{{ c.id }}">{{ c.title }}<small>{{ c.updated_at[:16].replace('T', ' ') }} UTC · {{ c.n }} {{ L('question' ~ ('s' if c.n > 1 else ''), 'question' ~ ('s' if c.n > 1 else '')) }}</small></a>
 {% else %}<p class="empty" id="convs-empty">{{ L('Vos conversations apparaîtront ici.', 'Your conversations will appear here.') }}</p>{% endfor %}
 <div class="byo">
-{% if user.mcp_seen_at %}<b>✓ {{ L('Votre LLM est connecté', 'Your LLM is connected') }}</b>
-<p>{{ L('Continuez-y sans limite de questions, dans votre propre compte Claude, ChatGPT ou Le Chat.', 'Keep going there with no question limit, in your own Claude, ChatGPT or Le Chat account.') }}</p>
+{% set llm_seen = llm_last_call(user) %}
+{% if llm_seen %}<b>✓ {{ L('Votre LLM utilise le corpus', 'Your LLM is using the corpus') }}</b>
+<small>{{ L('Dernier appel reçu', 'Last call received') }} : {{ llm_seen[:13]|replace('T', ' ') }}h UTC</small>
+<p>{{ L('Continuez-y sans limite de questions, dans votre propre assistant.', 'Keep going there with no question limit, in your own assistant.') }}</p>
 <a href="/connect">{{ L('Idées de questions à lui poser', 'Ideas of questions to ask it') }} →</a>
 {% else %}<b>{{ L('Sans limite : votre propre LLM', 'No limit: your own LLM') }}</b>
-<p>{{ L('Branchez le corpus sur Claude, ChatGPT ou Le Chat et travaillez dans votre propre compte : vos conversations, vos projets, vos fichiers, sans limite de questions de notre côté. Mêmes sources, mêmes citations vérifiables.', 'Plug the corpus into Claude, ChatGPT or Le Chat and work in your own account: your conversations, your projects, your files, with no question limit on our side. Same sources, same verifiable quotes.') }}</p>
+<p>{{ L('Branchez le corpus sur votre assistant (Claude, ChatGPT, Le Chat, Copilot…) et travaillez dans votre propre compte : vos conversations, vos projets, vos fichiers, sans limite de questions de notre côté. Mêmes sources, mêmes citations vérifiables.', 'Plug the corpus into your assistant (Claude, ChatGPT, Le Chat, Copilot…) and work in your own account: your conversations, your projects, your files, with no question limit on our side. Same sources, same verifiable quotes.') }}</p>
 <a class="btn secondary" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a>
 <small>{{ L('Les connecteurs sont souvent réservés aux abonnements payants.', 'Connectors are often limited to paid plans.') }}</small>{% endif %}
 </div>
@@ -163,13 +165,13 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 <span class="eyebrow">{{ L('Mes questions', 'My questions') }}</span>
 <div class="head-row"><h1 id="conv-title">{{ conv.title if conv else L('Nouvelle conversation', 'New conversation') }}</h1>
 {% if conv %}<form method="post" action="/ask/c/{{ conv.id }}/delete" onsubmit="return confirm({{ L('Supprimer cette conversation ? Elle disparaîtra de votre historique, et les liens de partage de ses réponses ne fonctionneront plus.', 'Delete this conversation? It will disappear from your history, and the share links of its answers will stop working.')|tojson|forceescape }})"><button class="del">{{ L('Supprimer', 'Delete') }}</button></form>{% endif %}</div>
-{% if not conv %}<p class="sub">{{ L('Posez vos questions sur la COP31 : chaque réponse cite le passage exact, vérifié mot pour mot. Les questions de suivi restent dans la même conversation ; tout est gardé dans votre historique.', 'Ask your questions about COP31: every answer quotes the exact passage, checked word for word. Follow-up questions stay in the same conversation; everything is kept in your history.') }}</p>{% endif %}
+{% if not conv %}<p class="sub">{{ L('Chaque réponse cite le passage exact, vérifié mot pour mot. Vos conversations sont gardées dans l\'historique.', 'Every answer quotes the exact passage, checked word for word. Your conversations are kept in your history.') }}</p>{% endif %}
 {% else %}
 <span class="eyebrow">{{ L('Démo · sans compte', 'Demo · no account needed') }}</span>
 <h1>{{ L('Posez votre question sur la COP31', 'Ask your question about COP31') }}</h1>
 {% endif %}
-{% if not ask_mode %}<p class="sub">{{ L('Comme un chatbot, à une différence près : chaque affirmation renvoie au passage exact du texte, et chaque citation est vérifiée mot pour mot avant de vous être montrée. Cliquez sur un numéro : le document s\'ouvre à la bonne page.',
- 'Like a chatbot, with one difference: every claim links to the exact passage, and every quote is checked word for word before you see it. Click a number: the document opens at the right page.') }}</p>
+{% if not ask_mode %}<p class="sub">{{ L('Chaque affirmation renvoie au passage exact, et chaque citation est vérifiée mot pour mot. Cliquez sur un numéro : le document s\'ouvre à la bonne page.',
+ 'Every claim links to the exact passage, and every quote is checked word for word. Click a number: the document opens at the right page.') }}</p>
 {% endif %}
 {% if not ask_mode %}<ul class="promise">
 <li>{{ L('Textes à jour, avec toutes leurs versions', 'Up-to-date texts, with every version') }}</li>
@@ -210,7 +212,7 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 <div class="way">
 <span class="k">{{ L('Ici, dans le navigateur', 'Here, in your browser') }}</span>
 <b>{{ L('Poser vos questions sur ce site', 'Ask your questions on this site') }}</b>
-<p>{{ L('Rien à installer ni à payer : l\'IA du site répond, avec les sources, et vos conversations sont gardées.', 'Nothing to install or pay: the site\'s AI answers, with sources, and your conversations are kept.') }}
+<p>{{ L('Rien à installer : l\'IA du site répond, avec les sources.', 'Nothing to install: the site\'s AI answers, with sources.') }}
 <strong>{{ L('%d questions par jour' % OFFER.account, '%d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}.</strong></p>
 <div class="row"><button type="button" data-auth="signup">{{ L('Créer mon compte gratuit', 'Create my free account') }}</button>
 <a href="#" data-auth="signin">{{ L('Déjà inscrit ? Se connecter', 'Already registered? Sign in') }}</a></div>
@@ -219,7 +221,7 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 <div class="way">
 <span class="k">{{ L('Dans votre propre assistant', 'In your own assistant') }}</span>
 <b>{{ L('Brancher le corpus sur votre LLM', 'Plug the corpus into your LLM') }}</b>
-<p>{{ L('Si vous utilisez déjà Claude, ChatGPT ou Le Chat (les connecteurs sont souvent réservés aux abonnements payants) : avec le même compte gratuit, votre assistant interroge le corpus. Pas de limite de notre côté, dans vos propres conversations.', 'If you already use Claude, ChatGPT or Le Chat (connectors are often limited to paid plans): with the same free account, your assistant queries the corpus. No limit on our side, in your own conversations.') }}</p>
+<p>{{ L('Si vous utilisez déjà Claude, ChatGPT, Le Chat, Copilot ou un autre assistant (les connecteurs sont souvent réservés aux abonnements payants) : avec le même compte gratuit, votre assistant interroge le corpus. Pas de limite de notre côté, dans vos propres conversations.', 'If you already use Claude, ChatGPT, Le Chat, Copilot or another assistant (connectors are often limited to paid plans): with the same free account, your assistant queries the corpus. No limit on our side, in your own conversations.') }}</p>
 <div class="row"><a class="btn {{ 'secondary' if not user }}" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a></div>
 </div>
 </div>
