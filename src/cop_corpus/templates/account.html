@@ -40,6 +40,7 @@
 <div>
 <div class="card">
 <h2>{{ L('Mon LLM', 'My LLM') }}</h2>
+<p class="small" style="margin-top:0">{{ L('Branchez le corpus sur Claude, ChatGPT ou Le Chat : vous travaillez dans votre propre compte (conversations, projets, fichiers), sans limite de questions de notre côté.', 'Plug the corpus into Claude, ChatGPT or Le Chat: you work in your own account (conversations, projects, files), with no question limit on our side.') }}</p>
 {% if token %}<p class="small" style="margin-top:0">{{ L('Adresse personnelle du connecteur', 'Personal connector address') }} :</p>
 <p><code id="mcp">{{ base }}/u/{{ token }}/mcp</code></p>{% endif %}
 <p class="small" style="margin:0">{% if user.mcp_seen_at %}✓ {{ L('Dernière utilisation', 'Last used') }} : {{ user.mcp_seen_at[:16]|replace('T', ' ') }} UTC · {% endif %}<a href="/connect">{{ L('Connecter un LLM, révoquer l\'adresse', 'Connect an LLM, revoke the address') }}</a></p>

@@ -61,7 +61,7 @@
 {% else %}<a class="btn secondary" href="/plan">{{ L('Planifier ma journée', 'Plan my day') }}</a>{% endif %}
 <a class="btn secondary" href="/topics">{{ L('Mes sujets', 'My topics') }}</a>
 </div>
-{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('Sur le site : %d questions par jour' % OFFER.account, 'On the site: %d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {{ L('Avec votre LLM (Claude, ChatGPT, Le Chat) : pas de limite de notre côté.', 'With your own LLM (Claude, ChatGPT, Le Chat): no limit on our side.') }}</p>{% endif %}
+{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('Sur le site : %d questions par jour' % OFFER.account, 'On the site: %d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {{ L('Avec votre propre LLM (Claude, ChatGPT, Le Chat) : pas de limite de notre côté, et vous travaillez dans votre propre compte.', 'With your own LLM (Claude, ChatGPT, Le Chat): no limit on our side, and you work in your own account.') }} <a href="/connect">{{ L('Connecter', 'Connect') }} →</a></p>{% endif %}
 {% else %}
 <h1>{{ L('Les négociations climat, sourcées à la ligne près', 'Climate negotiations, sourced line by line') }}</h1>
 <p class="sub">{{ L('Posez vos questions comme à ChatGPT, mais chaque réponse cite le passage exact du dernier texte en date, avec le lien pour le vérifier en un clic. Projets de texte et toutes leurs versions, positions des Parties, soumissions, comptes rendus, programme : tout le corpus de la COP, mis à jour en continu pendant les négociations.',
