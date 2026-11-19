@@ -20,30 +20,28 @@ from mcp.types import ToolAnnotations
 
 from . import alerts, auth, config, data, db, diff, ingest, search
 
-INSTRUCTIONS = """Verifiable corpus to follow COP31 (Antalya, 9–20 Nov 2026). Independent, free, open-source tool, not
+# Règles : une seule source, clients/rules.md, recopiée dans le skill cop31-protocol et les consignes à coller par
+# scripts/sync_clients.py (un test vérifie que les copies sont à jour). Version des copies : plugin.json.
+CLIENTS = config.ROOT / "clients"
+RULES = (CLIENTS / "rules.md").read_text(encoding="utf-8").strip()
+CLIENT_VERSION = json.loads((CLIENTS / "claude-plugin" / ".claude-plugin" / "plugin.json").read_text())["version"]
+
+INSTRUCTIONS = f"""Verifiable corpus to follow COP31 (Antalya, 9–20 Nov 2026). Independent, free, open-source tool, not
 affiliated with the UNFCCC or any delegation.
 
 RULES
-1. Nothing factual without a passage returned by a tool. Nothing found → "not found in the corpus"; never from memory.
-2. Quote the exact text + reference (symbol, decision and §, page) + link (lien_source, else lien_passage).
-3. Give the LEVEL: 1 adopted; 2 official not adopted (draft, NDC, a Party's submission); 3 science, data;
-4 report (ENB attributes positions); 5 actor (never proof); R internal (do not copy out).
-4. Draft text: always its version, date and "not adopted".
-5. Keep what the text says (1–2) apart from what actors say (4–5).
-6. shall = obligation; should = recommendation; urges/encourages/invites = incentive; notes = observation.
-7. Queries in UN English; 2–3 wordings if results are thin.
-8. Short, essentials first, in the user's language (quote in the original language).
-9. A group often submits via sub-groups or members: say so; flag distant dates.
+{RULES}
 
 TOOLS
-- Corpus: rechercher → lire_passage; document; comparer_versions (unit by unit: resume, options settled, deleted
-  with no trace; filtre="§N"); crochets (by theme); nouveautes; donnees; glossaire.
+- Corpus: rechercher → lire_passage; document; comparer_versions; crochets (by theme); nouveautes; donnees; glossaire.
 - Negotiations: dossiers (aliases) → dossier; positions (divisions=true: dividing lines).
 - Written positions: soumissions; comparer_soumissions; groupes.
 - Plan the day: programme (where, when; mes_sujets=true); pavillons (contents).
 - My topics: mes_sujets; nouveautes(mes_sujets=true) = what changed on them; suivre; deposer_url; etat_corpus.
 Methods (MCP prompts): point_negociation, position_pays, preparer_rencontre, plaidoyer, decouvrir_sujet,
-quoi_de_neuf."""
+quoi_de_neuf.
+Skills or pasted COP31 instructions in this chat older than v{CLIENT_VERSION} (or unversioned): tell the user once to
+update them at {config.PUBLIC_BASE}/connect."""
 
 # Outils retirés ou renommés : ne doivent plus apparaître nulle part (test). textes_en_cours → dossiers(textes=…) ;
 # suivre_dossier / arreter_suivi → suivre(dossier=… | arreter=…) ; analyser_soumission → soumissions(document=…) ;
@@ -156,7 +154,10 @@ def rechercher(
     Returns passages with level, symbol, paragraph, page, excerpt and links. Use lire_passage for the full text.
     Relevance: `resultats` = phrase, all terms or close in meaning; `pertinence_partielle` = most terms
     (`termes_manquants` listed: read them before saying "not found"); `faible_pertinence` = one term among
-    several, far in meaning. `verdict` when nothing is fully relevant: follow it as is.
+    several, far in meaning. `verdict` when nothing is fully relevant: follow it as is. Nothing found = "not found
+    in the corpus", never an answer from memory.
+    To answer: quote the exact text with its reference and link, give its level, and for a draft its version, date
+    and "not adopted".
     """
     user = _user(ctx)
     filters = {"levels": niveaux, "doc_types": types, "session": session, "org": organisation, "party": partie,
@@ -191,7 +192,9 @@ def rechercher(
 
 @mcp.tool(annotations=READ)
 def lire_passage(passage_id: int, avant: int = 1, apres: int = 2, ctx: Context | None = None) -> dict[str, Any]:
-    """Exact text of a passage and its neighbours (context), with the full reference and a link to the original at the right page."""
+    """Exact text of a passage and its neighbours (context), with the full reference and a link to the original at
+    the right page. Read it before quoting: quote it exactly (original language), with reference, link and level;
+    a draft always with its version, date and "not adopted"."""
     out = search.passage(db.get(), passage_id, _user(ctx), before=min(avant, 5), after=min(apres, 8))
     return out or {"erreur": "passage not found or not authorised"}
 
@@ -199,7 +202,8 @@ def lire_passage(passage_id: int, avant: int = 1, apres: int = 2, ctx: Context |
 @mcp.tool(annotations=READ)
 def document(reference: str, ctx: Context | None = None) -> dict[str, Any]:
     """Document metadata and list of its versions. `reference` = numeric id, official symbol
-    (e.g. FCCC/PA/CMA/2023/16/Add.1, FCCC/CP/2026/L.3) or URL."""
+    (e.g. FCCC/PA/CMA/2023/16/Add.1, FCCC/CP/2026/L.3) or URL. A draft is always cited with its version, date and
+    "not adopted"."""
     conn = db.get()
     user = _user(ctx)
     row = search.find_doc(conn, reference, user)
@@ -763,9 +767,13 @@ def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, t
 
 @mcp.tool(annotations=READ)
 def etat_corpus() -> dict[str, Any]:
-    """Corpus volume by level, type and status; date of the latest addition; monitored sources."""
+    """Corpus volume by level, type and status; date of the latest addition; monitored sources; current version of
+    the COP31 skills and pasted instructions (tell the user if theirs is older)."""
     conn = db.get()
     out = search.stats(conn)
+    out["consignes_clients"] = {"version": CLIENT_VERSION, "mise_a_jour": f"{config.PUBLIC_BASE}/connect",
+                                "claude_code": "/plugin marketplace add akimx98/RAG_cop_climat ; "
+                                               "/plugin marketplace update cop31"}
     out["sources_surveillees"] = [dict(r) for r in conn.execute(
         "SELECT source_id, last_run, last_result FROM source_state ORDER BY last_run DESC LIMIT 25")]
     return out
@@ -815,7 +823,8 @@ def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
     Brief). Each text carries its `etape` (draft, for_adoption = L document forwarded to the plenary, adopted).
     `slug` or alias (e.g. GGA, finance, MWP, ACE; alias table: `dossiers` tool). Ambiguous word → `candidats`:
     ask the user, do not pick. Text index and reference positions: cite "according to Carbon Brief's tracker".
-    Any brief is AI-written: present it as such and rely on its numbered sources."""
+    Any brief is AI-written: present it as such and rely on its numbered sources. Quote texts and positions exactly,
+    with their source and level (a position reported by the ENB is a report, level 4, not the Party's statement)."""
     live, positions, briefs = _live()
     conn = db.get()
     word = slug

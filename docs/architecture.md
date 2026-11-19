@@ -209,8 +209,12 @@ base), `fact-check`, `negotiation-update`, `eu-position`, `beginner-brief`, `dec
 `clients/chatgpt-instructions.md` ; Le Chat : `clients/mistral-instructions.md`. Le plugin et les skills se
 téléchargent depuis la page « Connect an LLM » du site ; Claude Code peut aussi les installer depuis le dépôt GitHub,
 qui sert de marketplace (`.claude-plugin/marketplace.json` → `clients/claude-plugin` ;
-`/plugin marketplace add akimx98/RAG_cop_climat` puis `/plugin install cop31@cop31`). Changer la version dans
-`plugin.json` et `marketplace.json` à chaque évolution des skills (un test vérifie qu'elles concordent).
+`/plugin marketplace add akimx98/RAG_cop_climat` puis `/plugin install cop31@cop31`). Règles communes : une seule source, `clients/rules.md`. Le serveur MCP les envoie dans ses instructions (avec la
+version courante des copies) ; `python scripts/sync_clients.py` les recopie dans le skill `cop31-protocol` et les
+consignes à coller (ChatGPT, Le Chat, autres), et passe la version suivante (`plugin.json`, `marketplace.json`)
+quand une copie a changé. Le LLM signale à l'utilisateur des skills ou consignes plus anciens ; `etat_corpus` donne
+la version. Un test échoue si une copie n'est pas à jour. Les skills décrivent des démarches, sans noms de champs
+de sortie (ceux-ci sont dans les descriptions d'outils, toujours à jour).
 
 ## 6. Tâches planifiées
 

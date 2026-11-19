@@ -1608,3 +1608,27 @@ def test_plugin_manifests_and_skill_frontmatter_parse():
     entry = market["plugins"][0]
     assert entry["name"] == plugin["name"] and entry["version"] == plugin["version"]
     assert (root / entry["source"] / ".claude-plugin/plugin.json").exists()
+
+
+def test_client_copies_carry_the_server_rules_and_version():
+    """Les règles ne vivent que dans clients/rules.md : le serveur les envoie, le skill et les consignes à coller en
+    portent une copie identique avec la version ; une copie périmée fait échouer le test (lancer sync_clients.py)."""
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from cop_corpus import mcp_server
+
+    root = Path(__file__).resolve().parents[1]
+    rules = (root / "clients/rules.md").read_text(encoding="utf-8").strip()
+    version = json.loads((root / "clients/claude-plugin/.claude-plugin/plugin.json").read_text())["version"]
+    assert rules in mcp_server.INSTRUCTIONS and f"v{version}" in mcp_server.INSTRUCTIONS
+    for f in ("clients/claude-plugin/skills/cop31-protocol/SKILL.md", "clients/chatgpt-instructions.md",
+              "clients/mistral-instructions.md", "clients/assistant-instructions.md"):
+        text = (root / f).read_text(encoding="utf-8")
+        assert rules in text and f"(COP31 instructions v{version})" in text, f
+    check = subprocess.run([sys.executable, str(root / "scripts/sync_clients.py"), "--check"], capture_output=True,
+                           text=True)
+    assert check.returncode == 0, check.stdout
+    assert mcp_server.etat_corpus()["consignes_clients"]["version"] == version

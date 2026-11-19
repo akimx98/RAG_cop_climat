@@ -11,13 +11,10 @@ Follow `cop31-protocol`. Answer in the user's language.
    item, successive texts with brackets and options, positions recorded during the COP (exact quote + source),
    reference positions (Carbon Brief).
 2. Latest text version: the most recent text in `dossier(...)`. If it is "to be retrieved" (`à récupérer`), say so
-   and give its unfccc.int link. Otherwise `comparer_versions(<link or symbol>)` → what changed, unit by unit
-   (`§4.opt2.b3` = 3rd bullet of Option 2 of §4). Read `resume` and `options` first (which option was retained,
-   in full or in part); `supprimé_sans_reprise` = nothing of that unit survives (often the most telling);
-   `repris_de` / `repris_dans` = split, moved or merged, with the source unit; each bracket's fate (lifted,
-   deleted, kept; for `[A][B]`, which wording won). Quote old wording with the `ancien` reference and new
-   wording with the `nouveau` reference (page + PDF link), never with the `[-…-]` `{+…+}` markers. One paragraph
-   only: `filtre="§12"`; a theme: `filtre="finance, grant"`; long text: `page=2`… `crochets(theme=…, dossier=…)` for what is still bracketed on a theme, and since
+   and give its unfccc.int link. Otherwise `comparer_versions(<link or symbol>)` → what changed since the previous
+   version: which options were settled, what was dropped with no trace (often the most telling), what was moved
+   or merged, which brackets were lifted. Quote the old and the new wording, each with its own page and link
+   (the tool's description says how to read its output, and how to narrow it to one paragraph or a theme). `crochets(theme=…, dossier=…)` for what is still bracketed on a theme, and since
    which version.
 3. Who is moving: `positions(dossier=..., depuis="48h")`; compare with pre-COP reference positions.
    WRITTEN positions (official submissions, level 2 for a Party): the `soumissions` and `positions_ecrites`
