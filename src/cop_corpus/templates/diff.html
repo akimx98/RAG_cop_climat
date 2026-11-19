@@ -24,11 +24,8 @@
 .dv-ver .arrow{align-self:center;color:var(--muted);font-size:20px}
 .dv-ver b{display:block}
 @media (max-width:640px){.dv-ver{grid-template-columns:1fr}.dv-ver .arrow{transform:rotate(90deg);justify-self:start}}
-.dv-sum li{margin:4px 0}
-.dv-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
-.dv-stats div{background:var(--surface-2);border-radius:6px;padding:8px 10px}
-.dv-stats .n{font:650 17px/1.2 var(--sans);font-variant-numeric:tabular-nums}
-.dv-stats .k{font-size:12px;color:var(--muted)}
+.dv-stats{display:flex;flex-wrap:wrap;gap:4px 18px;padding:10px 16px;font-size:14px;color:var(--ink-2)}
+.dv-stats b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .st{display:inline-block;font:650 11.5px/1 var(--sans);padding:4px 7px;border-radius:4px;color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent);--c:var(--muted)}
 .st.mod{--c:var(--accent)}.st.add{--c:var(--l1)}.st.gone{--c:var(--lR)}.st.mov{--c:var(--l4)}.st.minor{--c:var(--lG)}
 .dv-item{padding:16px 4px;border-top:1px solid var(--line);scroll-margin-top:90px}
@@ -73,14 +70,9 @@ b.br{color:var(--warm);font-weight:700}
 {% if versions|length > 2 %}<div class="dv-pickrow">{{ picker() }}</div>{% endif %}
 </div>
 
-<div class="card">
-<h2>{{ L("L'essentiel", 'Key points') }}</h2>
-<ul class="dv-sum">{% for line in result.resume %}<li>{{ line|diffhtml }}</li>{% endfor %}</ul>
-<div class="dv-stats">
-{% for k, label in [('paragraphes', L('paragraphes', 'paragraphs')), ('unites', L('unités', 'units')), ('crochets', L('crochets', 'brackets')), ('alternatives', L('alternatives', 'alternatives')), ('options', 'options'), ('notes', L('notes de bas de page', 'footnotes'))] %}
-<div><div class="n">{{ result.avant[k] }} → {{ result.apres[k] }}</div><div class="k">{{ label }}</div></div>{% endfor %}
-</div>
-<p class="small muted" style="margin:10px 0 0">{{ L('Projet de texte non adopté. Unités : §4.opt2.b3 = 3e puce de l’option 2 du §4. Notes de bas de page retirées du texte et comparées à part.', 'Draft text, not adopted. Units: §4.opt2.b3 = 3rd bullet of Option 2 of §4. Footnotes are removed from the text and compared separately.') }}</p>
+<div class="card dv-stats">
+{% for k, label in [('paragraphes', L('paragraphes', 'paragraphs')), ('unites', L('unités', 'units')), ('crochets', L('crochets', 'brackets')), ('alternatives', L('alternatives', 'alternatives')), ('options', 'options'), ('notes', L('notes', 'footnotes'))] if result.avant[k] or result.apres[k] %}
+<span><b>{{ result.avant[k] }}→{{ result.apres[k] }}</b> {{ label }}{% if k == 'crochets' and result.crochets and (result.crochets.leves or result.crochets.supprimes) %} <span class="muted">({{ result.crochets.leves }} {{ L('levés', 'lifted') }}, {{ result.crochets.supprimes }} {{ L('supprimés', 'deleted') }}{% if result.crochets.maintenus %}, {{ result.crochets.maintenus }} {{ L('maintenus', 'kept') }}{% endif %}{% if result.crochets.nouveaux %}, {{ result.crochets.nouveaux }} {{ L('nouveaux', 'new') }}{% endif %})</span>{% endif %}</span>{% endfor %}
 </div>
 
 {% if result.options %}
@@ -95,6 +87,7 @@ b.br{color:var(--warm);font-weight:700}
 
 <div class="card">
 <h2>{{ L('Unité par unité', 'Unit by unit') }} <span class="small muted">({{ result.nb_changements }})</span></h2>
+<p class="small muted" style="margin:-4px 0 10px">{{ L('Projet de texte non adopté. Unités : §4.opt2.b3 = 3e puce de l’option 2 du §4. Notes de bas de page retirées du texte et comparées à part.', 'Draft text, not adopted. Units: §4.opt2.b3 = 3rd bullet of Option 2 of §4. Footnotes are removed from the text and compared separately.') }}</p>
 {% set counts = result.par_statut %}
 <div class="dv-filter" role="group" aria-label="{{ L('Filtrer', 'Filter') }}">
 <button type="button" class="on" data-f="">{{ L('Tout', 'All') }} ({{ result.nb_changements }})</button>
