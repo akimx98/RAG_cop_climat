@@ -1,6 +1,6 @@
 ---
 name: cop31-protocol
-description: Base protocol for any question about COP31, the climate negotiations, the Paris Agreement, COP/CMA decisions, NDCs, or EU or national climate policy, using the COP31 connector. Use it whenever an answer must rest on official texts, emissions figures or internal documents (also for French questions: « COP31 », « Accord de Paris », « décision CMA », « que dit le texte »). Enforces exact citations, reliability levels and no guessing.
+description: "Base protocol for any question about COP31, the climate negotiations, the Paris Agreement, COP/CMA decisions, NDCs, or EU or national climate policy, using the COP31 connector. Use it whenever an answer must rest on official texts, emissions figures or internal documents (also for French questions: « COP31 », « Accord de Paris », « décision CMA », « que dit le texte »). Enforces exact citations, reliability levels and no guessing."
 ---
 
 # COP31 protocol

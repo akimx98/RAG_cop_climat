@@ -1,0 +1,20 @@
+{
+  "name": "cop31",
+  "owner": { "name": "akimx98" },
+  "metadata": {
+    "description": "Independent, open-source COP31 tracker (Antalya, 9–20 November 2026): skills that use the COP31 MCP connector."
+  },
+  "plugins": [
+    {
+      "name": "cop31",
+      "source": "./clients/claude-plugin",
+      "description": "COP31 skills: cop31-protocol, fact-check, negotiation-update, beginner-brief, decode-text, eu-position, daily-brief, find-your-way, plan-my-day. Requires the COP31 MCP connector (personal address on the site's “Connect an LLM” page).",
+      "version": "0.3.2",
+      "author": { "name": "akimx98" },
+      "homepage": "https://cop31.akimx.fr",
+      "repository": "https://github.com/akimx98/RAG_cop_climat",
+      "license": "MIT",
+      "keywords": ["COP31", "climate", "UNFCCC", "negotiations"]
+    }
+  ]
+}

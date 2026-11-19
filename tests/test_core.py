@@ -1588,3 +1588,23 @@ def test_review_fixes(env, monkeypatch):
     assert anon.get("/topics?x=1", follow_redirects=False).headers["location"] == "/?signin=1&next=/topics%3Fx%3D1"
     assert anon.post("/topics/1/delete", follow_redirects=False).headers["location"] == "/?signin=1&next=/"
     assert anon.get("/telegram?a=1", follow_redirects=False).headers["location"] == "/topics?a=1#telegram"
+
+
+def test_plugin_manifests_and_skill_frontmatter_parse():
+    """Un en-tête YAML invalide fait charger le skill sans nom ni description (sans erreur visible)."""
+    import json
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    skills = sorted(root.glob("clients/claude-plugin/skills/*/SKILL.md"))
+    assert skills
+    for f in skills:
+        meta = yaml.safe_load(f.read_text(encoding="utf-8").split("---")[1])
+        assert meta["name"] == f.parent.name and len(meta["description"]) > 40, f
+    plugin = json.loads((root / "clients/claude-plugin/.claude-plugin/plugin.json").read_text())
+    market = json.loads((root / ".claude-plugin/marketplace.json").read_text())
+    entry = market["plugins"][0]
+    assert entry["name"] == plugin["name"] and entry["version"] == plugin["version"]
+    assert (root / entry["source"] / ".claude-plugin/plugin.json").exists()

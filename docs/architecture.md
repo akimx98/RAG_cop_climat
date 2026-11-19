@@ -207,7 +207,10 @@ Méthodes (prompts MCP, FR/EN, étapes définies une fois dans `mcp_server.METHO
 base), `fact-check`, `negotiation-update`, `eu-position`, `beginner-brief`, `decode-text`, `daily-brief`,
 `find-your-way`, `plan-my-day`. Un test vérifie que chaque outil appelé par un skill existe. ChatGPT :
 `clients/chatgpt-instructions.md` ; Le Chat : `clients/mistral-instructions.md`. Le plugin et les skills se
-téléchargent depuis la page « Connect an LLM » du site.
+téléchargent depuis la page « Connect an LLM » du site ; Claude Code peut aussi les installer depuis le dépôt GitHub,
+qui sert de marketplace (`.claude-plugin/marketplace.json` → `clients/claude-plugin` ;
+`/plugin marketplace add akimx98/RAG_cop_climat` puis `/plugin install cop31@cop31`). Changer la version dans
+`plugin.json` et `marketplace.json` à chaque évolution des skills (un test vérifie qu'elles concordent).
 
 ## 6. Tâches planifiées
 
