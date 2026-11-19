@@ -111,6 +111,7 @@ h3.sub{font-size:15px;margin:18px 0 6px}
 {% for s in SKILLS() %}<li><a href="/telechargements/skill-{{ s }}.zip">{{ s }}</a><br><span class="muted">{{ about_skill.get(s, '') }}</span></li>{% endfor %}
 </ul>
 <p class="small" style="margin:10px 0 0"><a href="/telechargements/cop31-plugin.zip">{{ L('Plugin complet (tous les skills)', 'Full plugin (all skills)') }}</a></p>
+<p class="small" style="margin:6px 0 0">{{ L('Claude Code, avec mises à jour :', 'Claude Code, with updates:') }} <code>/plugin marketplace add akimx98/RAG_cop_climat</code> {{ L('puis', 'then') }} <code>/plugin install cop31@cop31</code></p>
 </div></details>
 
 <details class="llm"><summary>ChatGPT <small>{{ L('mode développeur', 'developer mode') }}</small></summary><div class="in">
