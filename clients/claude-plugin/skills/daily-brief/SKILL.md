@@ -11,8 +11,8 @@ Follow `cop31-protocol`. Answer in the user's language.
    the texts and recorded positions. `positions(depuis="18h")`: who said what since last night.
 1. `nouveautes(depuis="18h")` (or the requested period), then by type: draft texts and L documents
    (levels 1–2), internal documents (R), reports (4), press releases (5).
-2. For each draft text with a previous version: `comparer_versions` (1 line from its `resume`: options settled,
-   units deleted with no trace, brackets x → y). Always "version of …, not adopted".
+2. For each draft text with a previous version: `comparer_versions` (1 line: options settled, wording
+   dropped with no trace, brackets x → y). Always "version of …, not adopted".
 3. My topics: `nouveautes(depuis="18h", mes_sujets=true)` — what's new on followed items and keyword topics,
    grouped per topic, with new draft texts and their diffs. If nothing is followed, `mes_sujets` and offer
    `suivre`.

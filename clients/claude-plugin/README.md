@@ -15,6 +15,7 @@ Installation:
 - claude.ai / Claude app: download the skills from the site's "Connect an LLM" page (one zip per skill, or the full
   plugin) and upload them (Settings → Capabilities → Skills). An organisation admin can publish the plugin zip to the
   whole organisation; re-upload after each new version.
-When skills change, bump `version` in `.claude-plugin/plugin.json` AND in the repository's
-`.claude-plugin/marketplace.json` (a test checks they match).
+After editing a skill or the common rules (`clients/rules.md`, the only place where rules are written), run
+`python scripts/sync_clients.py`: it copies the rules into `cop31-protocol` and the pasted instructions, and bumps
+the version in `plugin.json` and `.claude-plugin/marketplace.json`. Tests fail if a copy is stale.
 For ChatGPT and Le Chat (Mistral), paste `clients/chatgpt-instructions.md` or `clients/mistral-instructions.md`.

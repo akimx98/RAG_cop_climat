@@ -45,6 +45,8 @@ def _diffhtml(text: str) -> Markup:
 
 
 TEMPLATES.filters["diffhtml"] = _diffhtml
+TEMPLATES.globals["CLIENT_VERSION"] = json.loads(
+    (Path(__file__).resolve().parents[2] / "clients/claude-plugin/.claude-plugin/plugin.json").read_text())["version"]
 
 _MARKER = re.compile(r"^\s*(\(?[0-9a-zivx]{1,4}[.)]|[•▪●\-–]|[A-Z][A-Z .'’-]{6,}$)")
 
