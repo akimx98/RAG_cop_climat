@@ -61,23 +61,22 @@
 {% else %}<a class="btn secondary" href="/plan">{{ L('Planifier ma journée', 'Plan my day') }}</a>{% endif %}
 <a class="btn secondary" href="/topics">{{ L('Mes sujets', 'My topics') }}</a>
 </div>
-{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('Sur le site : %d questions par jour' % OFFER.account, 'On the site: %d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {{ L('Avec votre propre LLM (Claude, ChatGPT, Le Chat) : pas de limite de notre côté, et vous travaillez dans votre propre compte.', 'With your own LLM (Claude, ChatGPT, Le Chat): no limit on our side, and you work in your own account.') }} <a href="/connect">{{ L('Connecter', 'Connect') }} →</a></p>{% endif %}
+{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('Ici : %d questions par jour' % OFFER.account, 'Here: %d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {{ L('Avec votre propre LLM : sans limite, dans votre propre compte.', 'With your own LLM: no limit, in your own account.') }} <a href="/connect">{{ L('Connecter', 'Connect') }} →</a></p>{% endif %}
 {% else %}
 <h1>{{ L('Les négociations climat, sourcées à la ligne près', 'Climate negotiations, sourced line by line') }}</h1>
-<p class="sub">{{ L('Posez vos questions comme à ChatGPT, mais chaque réponse cite le passage exact du dernier texte en date, avec le lien pour le vérifier en un clic. Projets de texte et toutes leurs versions, positions des Parties, soumissions, comptes rendus, programme : tout le corpus de la COP, mis à jour en continu pendant les négociations.',
- 'Ask your questions as you would ask ChatGPT, but every answer quotes the exact passage of the latest text, with a link to check it in one click. Draft texts and all their versions, Parties\' positions, submissions, daily reports, programme: the whole COP corpus, updated continuously during the negotiations.') }}</p>
+<p class="sub">{{ L('Posez vos questions comme à ChatGPT : chaque réponse cite le passage exact du dernier texte, avec le lien pour vérifier en un clic.',
+ 'Ask your questions as you would ask ChatGPT: every answer quotes the exact passage of the latest text, with a link to check it in one click.') }}</p>
 <div class="cta">
 {% if demo_on %}<a class="btn" href="/try">{{ L('Essayer maintenant', 'Try it now') }}</a>
 <a class="btn secondary" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
 {% else %}<a class="btn" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
 <button type="button" class="btn secondary" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</button>{% endif %}
 </div>
-{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('%d questions sans compte pour essayer. Compte gratuit : %d par jour' % (OFFER.guest, OFFER.account), '%d questions without an account to try. Free account: %d a day' % (OFFER.guest, OFFER.account)) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {% if open_signup %}<a href="#" data-auth="signup">{{ L('Créer un compte', 'Create an account') }}</a> · {% endif %}<a href="#" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</a></p>{% endif %}
+{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('%d questions sans compte. Compte gratuit : %d par jour' % (OFFER.guest, OFFER.account), '%d questions without an account. Free account: %d a day' % (OFFER.guest, OFFER.account)) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {% if open_signup %}<a href="#" data-auth="signup">{{ L('Créer un compte', 'Create an account') }}</a> · {% endif %}<a href="#" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</a></p>{% endif %}
 {% endif %}
-<p class="fine">{{ L('Gratuit, indépendant et open source. Sans lien avec la CCNUCC ni avec une délégation.', 'Free, independent and open source. Not affiliated with the UNFCCC or any delegation.') }}
-{% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ L('Code source', 'Source code') }}</a> ·{% endif %}
-{% if stats and stats.documents %}{{ '{:,}'.format(stats.documents).replace(',', ' ') }} {{ L('documents suivis', 'documents tracked') }}.{% endif %}
-<a href="/about">{{ L("Qu'est-ce que COP Tracker ?", 'What is COP Tracker?') }}</a></p>
+<p class="fine">{{ L('Gratuit, open source, sans lien avec la CCNUCC.', 'Free, open source, not affiliated with the UNFCCC.') }}
+{% if stats and stats.documents %}{{ '{:,}'.format(stats.documents).replace(',', ' ') }} {{ L('documents suivis', 'documents tracked') }} ·{% endif %}
+<a href="/about">{{ L('À propos', 'About') }}</a></p>
 </div>
 
 {% if user %}
@@ -99,9 +98,9 @@
 <figcaption class="reading">
 <p class="lbl">{{ L('Ce que COP Tracker en tire', 'What COP Tracker makes of it') }}</p>
 <dl>
-<dt><span class="k">[ ]</span></dt><dd>{{ L('Pas d\'accord sur ce passage : faut-il citer ici le programme de travail sur la transition juste ? Ce n\'est pas tranché.', 'No agreement on this passage: should it refer to the just transition work programme? Not settled yet.') }}</dd>
-<dt>{{ L('Le texte', 'The text') }}</dt><dd>{{ L('Version du 13 novembre, non adoptée : 44 crochets et 16 options encore ouverts. La prochaine version sera comparée paragraphe par paragraphe.', 'Version of 13 November, not adopted: 44 brackets and 16 options still open. The next version will be compared paragraph by paragraph.') }}</dd>
-<dt>{{ L('Le dossier', 'The negotiation') }}</dt><dd>{{ L('Transition juste : toutes les versions, qui défend quoi, et une alerte quand le texte est transmis pour adoption puis adopté.', 'Just transition: every version, who stands where, and an alert when the text is forwarded for adoption, then adopted.') }}</dd>
+<dt><span class="k">[ ]</span></dt><dd>{{ L('Passage non tranché : pas encore d\'accord.', 'Passage not settled: no agreement yet.') }}</dd>
+<dt>{{ L('Le texte', 'The text') }}</dt><dd>{{ L('Version du 13 novembre, non adoptée : 44 crochets ouverts.', 'Version of 13 November, not adopted: 44 brackets open.') }}</dd>
+<dt>{{ L('Le dossier', 'The negotiation') }}</dt><dd>{{ L('Toutes les versions, qui défend quoi, alerte à l\'adoption.', 'Every version, who stands where, alert on adoption.') }}</dd>
 </dl>
 </figcaption>
 </figure>
@@ -110,13 +109,13 @@
 
 <div class="pillars">
 <a href="/connect"><span class="k">{{ L('Demander', 'Ask') }}</span><b>{{ L('Décoder les négociations avec votre LLM', 'Decode the negotiations with your LLM') }}</b>
-<p>{{ L('Où en est le texte sur l\'adaptation ? Qu\'est-ce qui a changé depuis hier ? Qui défend quelle position ? Comparez les Parties, avec à chaque fois le passage cité.', 'Where does the adaptation text stand? What changed since yesterday? Who defends which position? Compare Parties, always with the quoted passage.') }}</p>
+<p>{{ L('Où en est le texte ? Qu\'est-ce qui a changé ? Qui défend quoi ? Toujours avec le passage cité.', 'Where does the text stand? What changed? Who stands where? Always with the quoted passage.') }}</p>
 <span class="go">{{ L('Connecter un LLM', 'Connect an LLM') }} →</span></a>
 <a href="/plan"><span class="k">{{ L('Planifier', 'Plan') }}</span><b>{{ L('Préparer sa journée selon ses sujets', 'Plan your day around your topics') }}</b>
-<p>{{ L('Side events, pavillons et réunions officielles croisés avec vos sujets : demandez à votre LLM deux événements cet après-midi, ou parcourez le calendrier complet.', 'Side events, pavilions and official meetings crossed with your topics: ask your LLM for two events this afternoon, or browse the full calendar.') }}</p>
+<p>{{ L('Side events, pavillons et réunions officielles, filtrés selon vos sujets.', 'Side events, pavilions and official meetings, filtered by your topics.') }}</p>
 <span class="go">{{ L('Planifier ma journée', 'Plan my day') }} →</span></a>
 <a href="/topics"><span class="k">{{ L('Être alerté', 'Get alerted') }}</span><b>{{ L('Suivre ses dossiers de près', 'Follow your negotiations closely') }}</b>
-<p>{{ L('Une alerte à chaque nouveau projet de texte, quand il part en adoption et quand il est adopté ; un récapitulatif matin et soir des textes et des lettres d\'information.', 'An alert for each new draft, when it is forwarded for adoption and when it is adopted; a morning and evening digest of texts and newsletters.') }}</p>
+<p>{{ L('Une alerte à chaque nouveau texte et à son adoption, un récapitulatif matin et soir.', 'An alert for each new text and its adoption, a morning and evening digest.') }}</p>
 <span class="go">{{ L('Mes sujets', 'My topics') }} →</span></a>
 </div>
 {% if not user %}{% include "_pitch.html" %}{% endif %}
