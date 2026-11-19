@@ -54,11 +54,14 @@
 <div class="eyebrow">COP31 · Antalya · 9–20 {{ L('novembre', 'November') }} 2026</div>
 {% if user %}
 <h1>{% if welcome %}{{ L('Bienvenue', 'Welcome') }}{% else %}{{ L('Bonjour', 'Hello') }}{% endif %}{% if user.name %} {{ user.name.split(' ')[0] }}{% endif %}</h1>
-<p class="sub">{{ L('Interrogez les textes avec votre LLM, préparez votre journée, et soyez prévenu dès que vos dossiers bougent.', 'Ask your LLM about the texts, plan your day, and get alerted as soon as your negotiations move.') }}</p>
+<p class="sub">{{ L('Posez vos questions sur les textes, ici ou depuis votre propre LLM, préparez votre journée, et soyez prévenu dès que vos dossiers bougent.', 'Ask about the texts, here or from your own LLM, plan your day, and get alerted as soon as your negotiations move.') }}</p>
 <div class="cta">
-{% if not steps.llm %}<a class="btn" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a><a class="btn secondary" href="/topics">{{ L('Choisir mes sujets', 'Choose my topics') }}</a>
-{% else %}<a class="btn" href="/plan">{{ L('Planifier ma journée', 'Plan my day') }}</a><a class="btn secondary" href="/topics">{{ L('Mes sujets', 'My topics') }}</a>{% endif %}
+{% if demo_on %}<a class="btn" href="/ask">{{ L('Poser une question', 'Ask a question') }}</a>{% endif %}
+{% if not steps.llm %}<a class="btn secondary" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a>
+{% else %}<a class="btn secondary" href="/plan">{{ L('Planifier ma journée', 'Plan my day') }}</a>{% endif %}
+<a class="btn secondary" href="/topics">{{ L('Mes sujets', 'My topics') }}</a>
 </div>
+{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('Sur le site : %d questions par jour' % OFFER.account, 'On the site: %d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {{ L('Avec votre LLM (Claude, ChatGPT, Le Chat) : pas de limite de notre côté.', 'With your own LLM (Claude, ChatGPT, Le Chat): no limit on our side.') }}</p>{% endif %}
 {% else %}
 <h1>{{ L('Les négociations climat, sourcées à la ligne près', 'Climate negotiations, sourced line by line') }}</h1>
 <p class="sub">{{ L('Posez vos questions comme à ChatGPT, mais chaque réponse cite le passage exact du dernier texte en date, avec le lien pour le vérifier en un clic. Projets de texte et toutes leurs versions, positions des Parties, soumissions, comptes rendus, programme : tout le corpus de la COP, mis à jour en continu pendant les négociations.',
@@ -69,7 +72,7 @@
 {% else %}<a class="btn" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
 <button type="button" class="btn secondary" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</button>{% endif %}
 </div>
-{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('3 questions sans compte, réponse en moins d\'une minute.', '3 questions, no account, answers in under a minute.') }} <a href="#" data-auth="signin">{{ L('Déjà inscrit ? Se connecter', 'Already registered? Sign in') }}</a></p>{% endif %}
+{% if demo_on %}<p class="fine" style="margin-top:8px">{{ L('%d questions sans compte pour essayer. Compte gratuit : %d par jour' % (OFFER.guest, OFFER.account), '%d questions without an account to try. Free account: %d a day' % (OFFER.guest, OFFER.account)) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {% if open_signup %}<a href="#" data-auth="signup">{{ L('Créer un compte', 'Create an account') }}</a> · {% endif %}<a href="#" data-auth="signin">{{ L('Se connecter', 'Sign in') }}</a></p>{% endif %}
 {% endif %}
 <p class="fine">{{ L('Gratuit, indépendant et open source. Sans lien avec la CCNUCC ni avec une délégation.', 'Free, independent and open source. Not affiliated with the UNFCCC or any delegation.') }}
 {% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ L('Code source', 'Source code') }}</a> ·{% endif %}

@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import re
+import threading
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -93,6 +94,8 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx["SOURCE_URL"] = config.SOURCE_URL
     ctx["PROFILES"] = usage.PROFILES
     ctx["PASSWORD_MIN"] = auth.PASSWORD_MIN
+    from . import demo as _demo
+    ctx["OFFER"] = _demo.offer()   # questions sur le site : invités, comptes gratuits, date de fin de l'offre
     if not ctx["user"] and "open_signup" not in ctx:
         try:
             o = auth.open_signup_settings(db.get())
@@ -1059,10 +1062,13 @@ async def admin_delete(request: Request):
 # --- démo publique « Essayer » et pages par public -----------------------------------------------------------------
 
 DEMO_COOKIE = "cop_demo"
-_demo_busy: set[str] = set()
+_demo_busy: set[str] = set()      # visiteur, adresse IP (invités) ou compte ayant une question en cours
+_demo_running = [0]               # questions en cours, tous visiteurs confondus
+_demo_net: dict[str, int] = {}    # questions de comptes en cours, par réseau
+_demo_lock = threading.Lock()     # ces compteurs changent depuis la boucle et depuis les fils de réponse
 
 
-DEMO_MAX_CONCURRENT = 4   # questions traitées en même temps, tous visiteurs confondus (coût, API)
+DEMO_MAX_CONCURRENT = 6   # questions traitées en même temps, tous visiteurs confondus (coût, API)
 
 
 def _demo_token_ok(value: str) -> bool:
@@ -1089,20 +1095,37 @@ def _set_demo_cookie(resp: Response, session: str) -> Response:
     return resp
 
 
-DEMO_REFUSALS = {
-    "disabled": ("La démo est momentanément indisponible.", "The demo is temporarily unavailable."),
-    "budget": ("La démo a atteint son plafond du jour : revenez demain, ou connectez l'outil à votre LLM (gratuit, sans limite).",
-               "The demo has reached today's limit: come back tomorrow, or connect the tool to your LLM (free, no limit)."),
-    "session": ("Vous avez utilisé vos 3 questions d'essai. Pour continuer sans limite : connectez l'outil à votre LLM (gratuit).",
-                "You have used your 3 trial questions. To keep going without limits: connect the tool to your LLM (free)."),
-    "ip": ("Limite quotidienne atteinte depuis cette connexion : connectez l'outil à votre LLM pour continuer (gratuit).",
-           "Daily limit reached from this connection: connect the tool to your LLM to keep going (free)."),
-    "account": ("Vous avez utilisé vos 3 questions d'essai. Pour continuer sans limite : connectez l'outil à votre LLM.",
-                "You have used your 3 trial questions. To keep going without limits: connect the tool to your LLM."),
-    "busy": ("Une question est déjà en cours : attendez sa réponse.", "A question is already running: wait for its answer."),
-    "crowded": ("Beaucoup de questions en même temps : réessayez dans une minute.", "Many questions at once: please try again in a minute."),
-    "short": ("Posez une question un peu plus précise.", "Please ask a slightly more specific question."),
-}
+def demo_refusals() -> dict[str, tuple[str, str]]:
+    """Messages de refus de la démo : la raison, courte. Les deux façons de continuer (questions sur le site avec
+    un compte gratuit, ou corpus branché sur son propre LLM) sont présentées juste en dessous, dans la page."""
+    from . import demo
+
+    o = demo.offer()
+    after_fr = (f" Après le {o['until_fr']}, la limite repasse à {o['after']} questions par jour." if o["boost"] else "")
+    after_en = (f" After {o['until_en']}, the limit goes back to {o['after']} questions a day." if o["boost"] else "")
+    return {
+        "disabled": ("La démo est momentanément indisponible.", "The demo is temporarily unavailable."),
+        "budget": ("Les questions sans compte ont atteint leur plafond du jour.",
+                   "Questions without an account have reached today's limit."),
+        "session": (f"Vous avez utilisé vos {o['guest']} questions d'essai sans compte.",
+                    f"You have used your {o['guest']} trial questions without an account."),
+        "ip": ("Les questions d'essai sans compte sont épuisées pour aujourd'hui sur ce réseau (souvent partagé).",
+               "Trial questions without an account are used up for today on this network (often shared)."),
+        "account": ("Vous avez atteint votre limite de questions du jour sur le site ; elle se renouvelle à minuit "
+                    "(heure d'Antalya)." + after_fr,
+                    "You have reached today's question limit on the site; it renews at midnight (Antalya time)."
+                    + after_en),
+        "budget-account": ("Les questions sur le site ont atteint leur plafond du jour ; il se renouvelle à minuit "
+                           "(heure d'Antalya).",
+                           "Questions on the site have reached today's limit; it renews at midnight (Antalya time)."),
+        "budget-total": ("Les questions sur le site ont atteint le budget prévu pour cette COP.",
+                         "Questions on the site have reached the budget set for this COP."),
+        "network": ("Trop de questions depuis ce réseau aujourd'hui : réessayez demain.",
+                    "Too many questions from this network today: try again tomorrow."),
+        "busy": ("Une question est déjà en cours : attendez sa réponse.", "A question is already running: wait for its answer."),
+        "crowded": ("Beaucoup de questions en même temps : réessayez dans une minute.", "Many questions at once: please try again in a minute."),
+        "short": ("Posez une question un peu plus précise.", "Please ask a slightly more specific question."),
+    }
 
 
 def _demo_public(payload: dict) -> dict:
@@ -1115,14 +1138,18 @@ async def demo_page(request: Request):
 
     conn = db.get()
     user = current_user(request)
-    if user:
-        request.state.user = user
+    if user:   # /try est l'essai sans compte ; un compte travaille dans ses conversations
+        q = request.query_params.get("q")
+        from urllib.parse import quote
+
+        return RedirectResponse("/ask" + (f"?q={quote(q[:demo.MAX_QUESTION])}" if q else ""), status_code=303)
     session, new = _demo_session(request)
     who = request.query_params.get("pour") or request.query_params.get("for") or ""
     who = who if who in demo.EXAMPLES else "delegations"
     resp = render(request, "try.html", user=user, quota=demo.quota(conn, session, _client(request), user),
                   examples=demo.EXAMPLES, who=who, prefill=(request.query_params.get("q") or "")[:demo.MAX_QUESTION],
-                  shared=None, as_of=demo.corpus_as_of(conn), refusals=DEMO_REFUSALS)
+                  shared=None, as_of=demo.corpus_as_of(conn), refusals=demo_refusals(),
+                  next="/ask", mode="try")
     return _set_demo_cookie(resp, session) if new else resp
 
 
@@ -1142,8 +1169,44 @@ async def demo_answer_page(request: Request):
     resp = render(request, "try.html", user=user, quota=demo.quota(conn, session, _client(request), user),
                   examples=demo.EXAMPLES, who="delegations", prefill="",
                   shared={"id": row["id"], "question": row["question"], "created_at": row["created_at"], **payload},
-                  as_of=demo.corpus_as_of(conn), refusals=DEMO_REFUSALS)
+                  as_of=demo.corpus_as_of(conn), refusals=demo_refusals(), next="/ask", mode="try")
     return _set_demo_cookie(resp, session) if new else resp
+
+
+async def ask_page(request: Request):
+    """Questions des comptes : conversations, historique, réponses sourcées (mêmes outils que la démo)."""
+    from . import demo
+
+    conn = db.get()
+    user = current_user(request)
+    if not user:
+        return RedirectResponse("/?signup=1&next=/ask", status_code=303)
+    request.state.user = user
+    cid = request.path_params.get("cid")
+    conv, turns = None, []
+    if cid:
+        conv = demo.conv_get(conn, cid, user["id"])
+        if not conv:
+            return RedirectResponse("/ask", status_code=303)
+        turns = demo.conv_turns(conn, cid)
+        for t in turns:
+            t["payload"] = {**_demo_public(t["payload"]), "sources": demo.sign_links(conn, t["payload"].get("sources") or [])}
+    return render(request, "try.html", user=user, mode="ask", quota=demo.quota(conn, None, _client(request), user),
+                  examples=demo.EXAMPLES, who="delegations", prefill=(request.query_params.get("q") or "")[:demo.MAX_QUESTION],
+                  shared=None, as_of=demo.corpus_as_of(conn), refusals=demo_refusals(),
+                  conv=conv, turns=[{"id": t["id"], "question": t["question"], "created_at": t["created_at"],
+                                     **t["payload"]} for t in turns],
+                  convs=demo.conv_list(conn, user["id"]), KEEP_DAYS=usage.DEMO_KEEP_DAYS)
+
+
+async def ask_delete(request: Request):
+    from . import demo
+
+    user = current_user(request)
+    if not user or not _same_origin(request):
+        return _forbidden(request)
+    demo.conv_delete(db.get(), request.path_params["cid"], user["id"])
+    return RedirectResponse("/ask", status_code=303)
 
 
 async def demo_ask(request: Request):
@@ -1164,9 +1227,11 @@ async def demo_ask(request: Request):
         return JSONResponse({"error": "bad request"}, status_code=400)
     user = current_user(request)
     lang = body.get("lang") if body.get("lang") in i18n.LANGS else lang_of(request, user)
-    T = lambda key: i18n.pick(lang, *DEMO_REFUSALS[key])  # noqa: E731
+    refusals = demo_refusals()
+    T = lambda key: i18n.pick(lang, *refusals[key])  # noqa: E731
     session = request.cookies.get(DEMO_COOKIE) or ""
-    if body.get("website") or not _demo_token_ok(session):  # robot : piège, ou cookie absent ou fabriqué
+    # Robot : champ piège rempli, ou (invité) cookie de visite absent ou fabriqué.
+    if body.get("website") or (not user and not _demo_token_ok(session)):
         return JSONResponse({"error": T("disabled"), "reason": "session"}, status_code=403)
     question = re.sub(r"\s+", " ", str(body.get("question") or "")).strip()[:demo.MAX_QUESTION]
     if len(question) < 6:
@@ -1176,40 +1241,94 @@ async def demo_ask(request: Request):
     q = demo.quota(conn, session, ip, user)
     if q["remaining"] <= 0:
         return JSONResponse({"error": T(q["reason"]), "reason": q["reason"]}, status_code=429)
-    follow = None
-    if re.fullmatch(r"[A-Za-z0-9_-]{6,20}", str(body.get("follow") or "")):
-        follow = demo.follow_context(conn, body["follow"], session)
-    keys = {f"s:{session}", f"ip:{demo.ip_hash(ip)}"}
-    if keys & _demo_busy:
-        return JSONResponse({"error": T("busy"), "reason": "busy"}, status_code=429)
-    if len(_demo_busy) >= 2 * DEMO_MAX_CONCURRENT:
-        return JSONResponse({"error": T("crowded"), "reason": "crowded"}, status_code=429)
-    _demo_busy.update(keys)
+    follow, history, conv = None, None, None
+    if user:
+        # Compte : la question appartient à une conversation (/ask) ; sans conversation, une nouvelle est créée
+        # à la première réponse réussie.
+        cid = str(body.get("conv") or "")
+        if cid:
+            conv = demo.conv_get(conn, cid, user["id"]) if re.fullmatch(r"[A-Za-z0-9_-]{6,20}", cid) else None
+            if not conv:
+                return JSONResponse({"error": i18n.pick(lang, "Conversation introuvable.", "Conversation not found."),
+                                     "reason": "conv"}, status_code=404)
+            ctx = demo.conv_context(conn, conv["id"])
+            history, follow = ctx["history"], {"state": ctx["state"]}
+        keys = {f"u:{user['id']}"}   # pas de clé d'IP exclusive : sur le Wi-Fi de la COP, tout le monde la partage
+    else:
+        if re.fullmatch(r"[A-Za-z0-9_-]{6,20}", str(body.get("follow") or "")):
+            follow = demo.follow_context(conn, body["follow"], session)
+        keys = {f"s:{session}", f"ip:{demo.ip_hash(ip)}"}
+    net = demo.ip_hash(ip) if user else None
+    with _demo_lock:
+        if keys & _demo_busy:
+            return JSONResponse({"error": T("busy"), "reason": "busy"}, status_code=429)
+        # Places partagées : au plus DEMO_MAX_CONCURRENT en tout, et quelques-unes seulement pour les comptes d'un
+        # même réseau (une rafale de comptes jetables ne bloque pas tout le monde).
+        if _demo_running[0] >= DEMO_MAX_CONCURRENT or (net and _demo_net.get(net, 0) >= demo.IP_INFLIGHT_ACCOUNTS):
+            return JSONResponse({"error": T("crowded"), "reason": "crowded"}, status_code=429)
+        _demo_busy.update(keys)
+        _demo_running[0] += 1
+        if net:
+            _demo_net[net] = _demo_net.get(net, 0) + 1
     queue: asyncio.Queue = asyncio.Queue()
     loop = asyncio.get_running_loop()
 
     def emit(ev):
         loop.call_soon_threadsafe(queue.put_nowait, ev)
 
-    def work():
-        try:
-            res = demo.answer(question, lang, emit, follow=follow, purpose=demo.purpose_for(user))
-            aid = demo.save(db.get(), question=question, lang=lang, session=session, ip=ip, user=user, payload=res)
-            left = demo.quota(db.get(), session, ip, user)
-            pub = _demo_public(res)
-            pub["sources"] = demo.sign_links(db.get(), pub["sources"])
-            emit({"type": "done", "id": aid, "url": f"/try/r/{aid}", **pub,
-                  "remaining": left["remaining"], "reason": left["reason"]})
-        except Exception as exc:  # API indisponible, quota OpenAI…
+    def release():
+        with _demo_lock:
+            _demo_busy.difference_update(keys)
+            _demo_running[0] -= 1
+            if net:
+                _demo_net[net] -= 1
+                if _demo_net[net] <= 0:
+                    del _demo_net[net]
+
+    def failed(msg_fr: str, msg_en: str, error: str | None):
+        if error:
             try:
                 demo.save(db.get(), question=question, lang=lang, session=session, ip=ip, user=user, payload=None,
-                          error=f"{type(exc).__name__}: {exc}"[:500])
+                          error=error[:500])
             except Exception:
                 pass
-            emit({"type": "error", "message": i18n.pick(lang, "La réponse n'a pas pu être produite : réessayez dans un moment.",
-                                                        "The answer could not be produced: please try again in a moment.")})
+        emit({"type": "error", "message": i18n.pick(lang, msg_fr, msg_en)})
+
+    def work():
+        try:
+            try:
+                res = demo.answer(question, lang, emit, follow=follow, purpose=demo.purpose_for(user), history=history)
+            except Exception as exc:  # API indisponible, quota OpenAI…
+                return failed("La réponse n'a pas pu être produite : réessayez dans un moment.",
+                              "The answer could not be produced: please try again in a moment.",
+                              f"{type(exc).__name__}: {exc}")
+            c = db.get()
+            cid, title = None, ""
+            if user:
+                if conv:
+                    still = demo.conv_get(c, conv["id"], user["id"])
+                    if not still:   # supprimée pendant la réponse : on ne garde pas son contenu
+                        demo.save(c, question="", lang=lang, session=session, ip=ip, user=user,
+                                  payload=None, error="conversation deleted")
+                        return failed("Cette conversation a été supprimée entre-temps.",
+                                      "This conversation was deleted in the meantime.", None)
+                    cid, title = still["id"], still["title"]
+                else:
+                    cid = demo.conv_create(c, user["id"], question)
+                    title = demo.conv_get(c, cid, user["id"])["title"]
+            aid = demo.save(c, question=question, lang=lang, session=session, ip=ip, user=user, payload=res,
+                            conv_id=cid)
+            try:
+                left = demo.quota(c, session, ip, user)
+                pub = _demo_public(res)
+                pub["sources"] = demo.sign_links(c, pub["sources"])
+            except Exception:   # réponse enregistrée : on l'affiche quand même
+                left, pub = {"remaining": 1, "reason": None}, _demo_public(res)
+            emit({"type": "done", "id": aid, "url": f"/try/r/{aid}", **pub,
+                  "remaining": left["remaining"], "reason": left["reason"],
+                  "message": T(left["reason"]) if left["reason"] else "", "conv": cid, "title": title})
         finally:
-            _demo_busy.difference_update(keys)
+            release()
             emit(None)
 
     threading.Thread(target=work, daemon=True).start()
@@ -1325,6 +1444,10 @@ routes = [
     Route("/try", demo_page),
     Route("/try/ask", demo_ask, methods=["POST"]),
     Route("/try/r/{aid}", demo_answer_page),
+    Route("/ask", ask_page),
+    Route("/ask/c/{cid}", ask_page),
+    Route("/ask/c/{cid}/delete", ask_delete, methods=["POST"]),
+    Route("/questions", _redirect("/ask")),
     Route("/essayer", _redirect("/try")),
     Route("/for/{who}", audience_page),
     Route("/pour/{who}", audience_page),

@@ -87,7 +87,7 @@
 <h1>{{ p.h1 }}</h1>
 <p class="sub">{{ p.sub }}</p>
 <div class="row">
-{% if demo_on %}<a class="btn" href="/try?pour={{ who }}">{{ L('Essayer maintenant, sans compte', 'Try it now, no account') }}</a>{% endif %}
+{% if demo_on %}{% if user %}<a class="btn" href="/ask">{{ L('Poser une question', 'Ask a question') }}</a>{% else %}<a class="btn" href="/try?pour={{ who }}">{{ L('Essayer maintenant, sans compte', 'Try it now, no account') }}</a>{% endif %}{% endif %}
 <a class="btn secondary" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
 </div>
 
@@ -105,8 +105,8 @@
 
 <h2 class="big">{{ L('Comment commencer', 'How to start') }}</h2>
 <div class="steps3">
-<div><b>{{ L('Essayer', 'Try') }}</b><p>{{ L('Trois questions sans compte, directement sur le site.', 'Three questions without an account, right on the site.') }}{% if demo_on %} <a href="/try?pour={{ who }}">{{ L('Essayer', 'Try') }} →</a>{% endif %}</p></div>
-<div><b>{{ L('Connecter votre LLM', 'Connect your LLM') }}</b><p>{{ L('Compte gratuit, puis Claude, ChatGPT ou Le Chat interrogent le corpus, sans limite.', 'Free account, then Claude, ChatGPT or Le Chat query the corpus, with no limit.') }} <a href="/connect">{{ L('Comment', 'How') }} →</a></p></div>
+<div><b>{{ L('Sur le site', 'On the site') }}</b><p>{{ L('%d questions sans compte pour essayer, puis %d par jour avec un compte gratuit' % (OFFER.guest, OFFER.account), '%d questions without an account to try, then %d a day with a free account' % (OFFER.guest, OFFER.account)) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}. {{ L('Rien à installer.', 'Nothing to install.') }}{% if demo_on %} <a href="{{ '/ask' if user else '/try?pour=' ~ who }}">{{ L('Commencer', 'Start') }} →</a>{% endif %}</p></div>
+<div><b>{{ L('Avec votre LLM', 'With your LLM') }}</b><p>{{ L('Vous utilisez déjà Claude, ChatGPT ou Le Chat ? Avec le même compte gratuit, branchez-y le corpus : pas de limite de notre côté, dans vos conversations.', 'Already using Claude, ChatGPT or Le Chat? With the same free account, plug the corpus into it: no limit on our side, in your own conversations.') }} <a href="/connect">{{ L('Comment', 'How') }} →</a></p></div>
 <div><b>{{ L('Suivre vos dossiers', 'Follow your items') }}</b><p>{{ L('Alertes par Telegram à chaque nouveau texte, récapitulatif matin et soir.', 'Telegram alerts for each new text, morning and evening digest.') }} <a href="/topics">{{ L('Mes sujets', 'My topics') }} →</a></p></div>
 </div>
 

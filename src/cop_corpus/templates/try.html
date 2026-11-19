@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}{{ L('Essayer COP Tracker', 'Try COP Tracker') }}{% endblock %}{% block body %}
+{% extends "base.html" %}{% block title %}{% if mode == 'ask' %}{{ (conv.title ~ ' · ') if conv }}{{ L('Mes questions', 'My questions') }} · COP Tracker{% else %}{{ L('Essayer COP Tracker', 'Try COP Tracker') }}{% endif %}{% endblock %}{% block body %}{% set ask_mode = mode == 'ask' %}
 <style>
 main{max-width:1320px}
 .try [hidden]{display:none!important}
@@ -76,7 +76,33 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 .next h3{margin:0 0 6px;font-size:17px}
 .next p{margin:0 0 12px;color:var(--ink-2);font-size:14px}
 .next .row a{font-size:14px}
+.ways{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:4px}
+.way{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
+.way .k{font:600 11px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+.way b{font-size:15px}
+.way p{margin:0;font-size:13.5px}
+.way .row{margin-top:auto;padding-top:6px;align-items:center}
+.more{font-size:12.5px;margin-left:8px}
+.lead-ways{font-weight:600;color:var(--ink)!important;margin:4px 0 10px!important}
+#next-p:empty{display:none}
 .fine{font-size:12px;color:var(--muted);margin:10px 0 0}
+/* Page des comptes (/ask) : conversations à gauche */
+.try.acct{grid-template-columns:240px minmax(0,1fr)}
+.try.acct.with-panel{grid-template-columns:minmax(0,1fr) minmax(0,0.95fr)}
+.try.acct.with-panel .convs{display:none}
+.convs{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow:auto;display:flex;flex-direction:column;gap:4px}
+.convs .new{justify-content:center;margin-bottom:8px}
+.convs h2{font:600 11px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:8px 0 4px}
+.convs a.c{display:block;padding:8px 10px;border-radius:6px;color:var(--ink-2);text-decoration:none;font-size:13.5px;line-height:1.35}
+.convs a.c:hover{background:var(--surface-2);color:var(--ink)}
+.convs a.c.on{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.convs a.c small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:2px}
+.convs .empty{font-size:13px;color:var(--muted);margin:0}
+.head-row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.head-row form{margin:0}
+.head-row .del{background:transparent;color:var(--muted);border:1px solid var(--line-2);font-size:12.5px;padding:5px 10px;font-weight:600}
+.head-row .del:hover{color:var(--ink);background:var(--surface-2)}
+.turn .when{font-size:11.5px;color:var(--muted);margin:4px 0 0;text-align:right}
 /* Panneau source : PDF à la bonne page */
 .panel{position:sticky;top:76px;height:calc(100vh - 96px);display:none;flex-direction:column;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
 .try.with-panel .panel{display:flex}
@@ -98,27 +124,50 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 .pdfmsg a{color:#fff}
 .textview{flex:1;overflow:auto;padding:16px;font:15px/1.65 var(--serif);white-space:pre-wrap;color:var(--ink-2)}
 @media(max-width:1000px){
- .try.with-panel{grid-template-columns:minmax(0,1fr)}
+ .try.with-panel,.try.acct,.try.acct.with-panel{grid-template-columns:minmax(0,1fr)}
+ .convs{position:static;max-height:none;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:4px}
+ .convs h2,.convs .empty{display:none}
+ .convs .new{margin:0;flex:none}
+ .convs a.c{flex:none;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid var(--line)}
+ .convs a.c small{display:none}
  .panel{position:fixed;inset:auto 0 0 0;top:auto;height:82vh;z-index:40;border-radius:14px 14px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.3)}
 }
 </style>
 
-<div class="try" id="try">
+<div class="try{{ ' acct' if ask_mode }}" id="try">
+{% if ask_mode %}
+<nav class="convs" id="convs" aria-label="{{ L('Mes conversations', 'My conversations') }}">
+<a class="btn new" href="/ask">+ {{ L('Nouvelle conversation', 'New conversation') }}</a>
+<h2>{{ L('Historique', 'History') }}</h2>
+{% for c in convs %}<a class="c{{ ' on' if conv and conv.id == c.id }}" href="/ask/c/{{ c.id }}">{{ c.title }}<small>{{ c.updated_at[:16].replace('T', ' ') }} UTC · {{ c.n }} {{ L('question' ~ ('s' if c.n > 1 else ''), 'question' ~ ('s' if c.n > 1 else '')) }}</small></a>
+{% else %}<p class="empty" id="convs-empty">{{ L('Vos conversations apparaîtront ici.', 'Your conversations will appear here.') }}</p>{% endfor %}
+</nav>
+{% endif %}
 <div class="chat">
 <div class="try-head">
+{% if ask_mode %}
+<span class="eyebrow">{{ L('Mes questions', 'My questions') }}</span>
+<div class="head-row"><h1 id="conv-title">{{ conv.title if conv else L('Nouvelle conversation', 'New conversation') }}</h1>
+{% if conv %}<form method="post" action="/ask/c/{{ conv.id }}/delete" onsubmit="return confirm({{ L('Supprimer cette conversation ? Elle disparaîtra de votre historique, et les liens de partage de ses réponses ne fonctionneront plus.', 'Delete this conversation? It will disappear from your history, and the share links of its answers will stop working.')|tojson|forceescape }})"><button class="del">{{ L('Supprimer', 'Delete') }}</button></form>{% endif %}</div>
+{% if not conv %}<p class="sub">{{ L('Posez vos questions sur la COP31 : chaque réponse cite le passage exact, vérifié mot pour mot. Les questions de suivi restent dans la même conversation ; tout est gardé dans votre historique.', 'Ask your questions about COP31: every answer quotes the exact passage, checked word for word. Follow-up questions stay in the same conversation; everything is kept in your history.') }}</p>{% endif %}
+{% else %}
 <span class="eyebrow">{{ L('Démo · sans compte', 'Demo · no account needed') }}</span>
 <h1>{{ L('Posez votre question sur la COP31', 'Ask your question about COP31') }}</h1>
-<p class="sub">{{ L('Comme un chatbot, à une différence près : chaque affirmation renvoie au passage exact du texte, et chaque citation est vérifiée mot pour mot avant de vous être montrée. Cliquez sur un numéro : le document s\'ouvre à la bonne page.',
+{% endif %}
+{% if not ask_mode %}<p class="sub">{{ L('Comme un chatbot, à une différence près : chaque affirmation renvoie au passage exact du texte, et chaque citation est vérifiée mot pour mot avant de vous être montrée. Cliquez sur un numéro : le document s\'ouvre à la bonne page.',
  'Like a chatbot, with one difference: every claim links to the exact passage, and every quote is checked word for word before you see it. Click a number: the document opens at the right page.') }}</p>
-<ul class="promise">
+{% endif %}
+{% if not ask_mode %}<ul class="promise">
 <li>{{ L('Textes à jour, avec toutes leurs versions', 'Up-to-date texts, with every version') }}</li>
 <li>{{ L('Positions, soumissions, comptes rendus, programme', 'Positions, submissions, reports, programme') }}</li>
 <li>{{ L('Code ouvert', 'Open source') }}</li>
-</ul>
-{% if quota.unlimited %}<span class="left">{{ L('Admin : questions illimitées', 'Admin: unlimited questions') }}</span>{% else %}<span class="left" id="left" data-fr="questions restantes" data-en="questions left">{{ quota.remaining }} {{ L('questions restantes', 'questions left') }}</span>{% endif %}
+</ul>{% endif %}
+{% if quota.unlimited %}<span class="left">{{ L('Admin : questions illimitées', 'Admin: unlimited questions') }}</span>{% elif user %}<span class="left" id="left" data-fr="questions restantes aujourd'hui" data-en="questions left today">{{ quota.remaining }} {{ L('questions restantes aujourd\'hui', 'questions left today') }}</span>
+{% else %}<span class="left" id="left" data-fr="questions sans compte restantes" data-en="questions left without an account">{{ quota.remaining }} {{ L('questions sans compte restantes', 'questions left without an account') }}</span>
+{% if open_signup and quota.reason != 'disabled' %}<a href="#" class="more" data-auth="signup">{{ L('Compte gratuit : %d questions par jour' % OFFER.account, 'Free account: %d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %} →</a>{% endif %}{% endif %}
 </div>
 
-<div id="intro" {% if shared %}hidden{% endif %}>
+<div id="intro" {% if shared or turns %}hidden{% endif %}>
 <div class="tabs" role="tablist">
 {% for key, label in [('delegations', L('Délégation', 'Delegation')), ('presse', L('Journaliste', 'Journalist')), ('militants', L('Militant·e, ONG', 'Activist, NGO'))] %}
 <button type="button" role="tab" aria-selected="{{ 'true' if who == key else 'false' }}" data-tab="{{ key }}">{{ label }}</button>
@@ -134,17 +183,35 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 <div id="thread"></div>
 
 <div class="next" id="next" {% if quota.remaining > 0 and not shared %}hidden{% endif %}>
-<h3 id="next-h">{% if shared %}{{ L('Essayez à votre tour', 'Try it yourself') }}{% else %}{{ L('Pour aller plus loin', 'To go further') }}{% endif %}</h3>
-<p id="next-p">{% if quota.reason %}{{ L(*refusals[quota.reason]) }}{% else %}{{ L('Gratuit : branchez l\'outil sur votre propre LLM (Claude, ChatGPT, Le Chat) et posez toutes vos questions, sans limite, avec les mêmes sources vérifiables.', 'Free: plug the tool into your own LLM (Claude, ChatGPT, Le Chat) and ask all your questions, with no limit and the same verifiable sources.') }}{% endif %}</p>
-<div class="row">
-{% if shared and quota.remaining > 0 %}<a class="btn" href="/try">{{ L('Poser ma question', 'Ask my question') }}</a>{% endif %}
-<a class="btn {{ 'secondary' if shared and quota.remaining > 0 }}" href="/connect">{{ L('Connecter l\'outil à votre LLM', 'Connect the tool to your LLM') }}</a>
-{% if SOURCE_URL %}<a class="btn secondary" href="{{ SOURCE_URL }}" rel="noopener">{{ L('Voir le code', 'See the code') }}</a>{% endif %}
+{% set again = shared and quota.remaining > 0 %}
+<h3 id="next-h">{% if again %}{{ L('Posez votre propre question', 'Ask your own question') }}{% else %}{{ L('Pour continuer', 'To keep going') }}{% endif %}</h3>
+<p id="next-p">{% if quota.reason %}{{ L(*refusals[quota.reason]) }}{% endif %}</p>
+{% if again %}<p><a class="btn" href="{{ '/ask' if user else '/try' }}">{{ L('Poser ma question', 'Ask my question') }}</a></p>{% endif %}
+{% if not user %}
+<p class="lead-ways">{% if open_signup %}{{ L('Un compte gratuit, deux façons de l\'utiliser :', 'One free account, two ways to use it:') }}{% else %}{{ L('Pour aller plus loin :', 'To go further:') }}{% endif %}</p>
+{% endif %}
+<div class="ways">
+{% if not user and open_signup and OFFER.on %}
+<div class="way">
+<span class="k">{{ L('Ici, dans le navigateur', 'Here, in your browser') }}</span>
+<b>{{ L('Poser vos questions sur ce site', 'Ask your questions on this site') }}</b>
+<p>{{ L('Rien à installer ni à payer : l\'IA du site répond, avec les sources, et vos conversations sont gardées.', 'Nothing to install or pay: the site\'s AI answers, with sources, and your conversations are kept.') }}
+<strong>{{ L('%d questions par jour' % OFFER.account, '%d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}.</strong></p>
+<div class="row"><button type="button" data-auth="signup">{{ L('Créer mon compte gratuit', 'Create my free account') }}</button>
+<a href="#" data-auth="signin">{{ L('Déjà inscrit ? Se connecter', 'Already registered? Sign in') }}</a></div>
+</div>
+{% endif %}
+<div class="way">
+<span class="k">{{ L('Dans votre propre assistant', 'In your own assistant') }}</span>
+<b>{{ L('Brancher le corpus sur votre LLM', 'Plug the corpus into your LLM') }}</b>
+<p>{{ L('Si vous utilisez déjà Claude, ChatGPT ou Le Chat (les connecteurs sont souvent réservés aux abonnements payants) : avec le même compte gratuit, votre assistant interroge le corpus. Pas de limite de notre côté, dans vos propres conversations.', 'If you already use Claude, ChatGPT or Le Chat (connectors are often limited to paid plans): with the same free account, your assistant queries the corpus. No limit on our side, in your own conversations.') }}</p>
+<div class="row"><a class="btn {{ 'secondary' if not user }}" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a></div>
+</div>
 </div>
 </div>
 
-<div class="followbar" id="followbar" hidden><span>{{ L('Question de suivi : l\'outil garde le contexte de la réponse précédente.', 'Follow-up question: the tool keeps the context of the previous answer.') }}</span>
-<button type="button" id="fresh">{{ L('Nouvelle question', 'New question') }}</button></div>
+{% if not ask_mode %}<div class="followbar" id="followbar" hidden><span>{{ L('Question de suivi : l\'outil garde le contexte de la réponse précédente.', 'Follow-up question: the tool keeps the context of the previous answer.') }}</span>
+<button type="button" id="fresh">{{ L('Nouvelle question', 'New question') }}</button></div>{% endif %}
 <form class="ask" id="ask" {% if quota.remaining <= 0 or shared %}hidden{% endif %}>
 <label class="hp">Website <input name="website" tabindex="-1" autocomplete="off"></label>
 <textarea id="q" rows="1" maxlength="600" placeholder="{{ L('Ex. : Où en est le texte sur la finance climat ?', 'E.g. Where does the climate finance text stand?') }}" aria-label="{{ L('Votre question', 'Your question') }}">{{ prefill }}</textarea>
@@ -152,7 +219,8 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 </form>
 <p class="fine">{{ L('Réponses produites par un modèle d\'IA (OpenAI) à partir des seuls documents publics du corpus ; vérifiez toujours la source citée.', 'Answers written by an AI model (OpenAI) from the public documents of the corpus only; always check the cited source.') }}
 {% if as_of %}{{ L('Corpus à jour au', 'Corpus updated') }} {{ as_of[:16].replace('T', ' ') }} UTC.{% endif %}
-{{ L('Les questions sont conservées pour permettre le lien de partage ; l\'adresse IP n\'est jamais stockée en clair.', 'Questions are stored to provide the share link; IP addresses are never stored in clear.') }}</p>
+{% if ask_mode %}{{ L('Vos conversations sont gardées %d jours dans votre historique. Une réponse dont vous copiez le lien peut être lue par toute personne qui a ce lien ; supprimer la conversation désactive ces liens.' % KEEP_DAYS, 'Your conversations are kept for %d days in your history. An answer whose link you copy can be read by anyone with that link; deleting the conversation disables those links.' % KEEP_DAYS) }}
+{% else %}{{ L('Les questions sont conservées pour permettre le lien de partage ; l\'adresse IP n\'est jamais stockée en clair.', 'Questions are stored to provide the share link; IP addresses are never stored in clear.') }}{% endif %}</p>
 </div>
 
 <aside class="panel" id="panel" aria-label="{{ L('Source', 'Source') }}">
@@ -169,6 +237,7 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 </div>
 
 <script type="application/json" id="shared">{{ (shared or {})|tojson }}</script>
+<script type="application/json" id="turns">{{ (turns or [])|tojson }}</script>
 <script>
 (function(){
 const LANG={{ lang|tojson }};
@@ -178,10 +247,12 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const tryEl=$('#try'),thread=$('#thread'),form=$('#ask'),qEl=$('#q'),send=$('#send');
 const answers={};   // id → payload (sources, events, checks)
+const ASK={{ 'true' if ask_mode else 'false' }};   // page des comptes : conversation gardée dans l'historique
+let conv={{ (conv.id if conv else None)|tojson }};
 let lastId=null;    // dernière réponse : la question suivante en est la suite, sauf « Nouvelle question »
 const PH_NEW=qEl.placeholder, PH_FOLLOW={{ L('Question de suivi (ex. : et la position de l\'UE ?)', 'Follow-up question (e.g. and the EU position?)')|tojson }};
-function setFollow(id){lastId=id;$('#followbar').hidden=!id||form.hidden;qEl.placeholder=id?PH_FOLLOW:PH_NEW;}
-$('#fresh').addEventListener('click',()=>{setFollow(null);const d=document.createElement('p');d.className='newconv';
+function setFollow(id){lastId=id;if($('#followbar'))$('#followbar').hidden=!id||form.hidden;qEl.placeholder=id?PH_FOLLOW:PH_NEW;}
+if($('#fresh'))$('#fresh').addEventListener('click',()=>{setFollow(null);const d=document.createElement('p');d.className='newconv';
   d.textContent=T('Nouvelle question','New question');thread.appendChild(d);qEl.focus();});
 
 // Onglets d'exemples
@@ -210,7 +281,7 @@ async function ask(question){
   t.scrollIntoView({behavior:'smooth',block:'start'});
   let res;
   try{res=await fetch('/try/ask',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({question,lang:LANG,website:form.website.value,follow:lastId})});}
+      body:JSON.stringify({question,lang:LANG,website:form.website.value,follow:ASK?null:lastId,conv:ASK?conv:null})});}
   catch(e){return fail(t,T('Connexion impossible.','Connection failed.'));}
   if(!res.ok){let j={};try{j=await res.json();}catch(e){}
     fail(t,j.error||T('Erreur.','Error.'));if(res.status===429&&!['busy','crowded'].includes(j.reason))exhausted(j.error);return;}
@@ -223,11 +294,18 @@ async function ask(question){
       else if(ev.type==='error'){fail(t,ev.message);}
       else if(ev.type==='done'){steps.querySelectorAll('li.run').forEach(li=>li.classList.remove('run'));
         steps.hidden=true;showAnswer(t,ev,question);setLeft(ev.remaining);
-        if(ev.remaining<=0)exhausted();setFollow(ev.id);}}}
+        if(ev.remaining<=0)exhausted(ev.message);setFollow(ev.id);if(ASK&&ev.conv)joined(ev.conv,ev.title);}}}
   send.disabled=false;
 }
 function fail(t,msg){t.querySelector('.steps').hidden=true;t.querySelector('.slot').innerHTML=`<div class="err">${esc(msg)}</div>`;send.disabled=false;}
-function exhausted(msg){form.hidden=true;$('#followbar').hidden=true;$('#next').hidden=false;if(msg)$('#next-p').textContent=msg;}
+// Première réponse d'une nouvelle conversation : elle prend son adresse et entre dans l'historique.
+function joined(id,title){if(conv===id)return;conv=id;history.replaceState(null,'','/ask/c/'+id);
+  $('#conv-title').textContent=title;document.title=title+' · '+document.title;
+  const e=$('#convs-empty');if(e)e.remove();
+  document.querySelectorAll('.convs a.c.on').forEach(x=>x.classList.remove('on'));
+  const a=document.createElement('a');a.className='c on';a.href='/ask/c/'+id;a.textContent=title;
+  $('#convs h2').after(a);}
+function exhausted(msg){form.hidden=true;if($('#followbar'))$('#followbar').hidden=true;$('#next').hidden=false;if(msg)$('#next-p').textContent=msg;}
 
 function label(s){const t=s.title||s.actor||'';return s.symbol&&!t.startsWith(s.symbol)?s.symbol+' — '+t:t;}
 function lvl(l){return l?`<span class="lvl lvl-${esc(l)}">${esc(LV[l]||l)}</span>`:'';}
@@ -369,6 +447,11 @@ const shared=JSON.parse($('#shared').textContent||'{}');
 if(shared&&shared.id){const t=turnShell(shared.question);t.querySelector('.steps').hidden=true;showAnswer(t,shared,shared.question);
   const d=document.createElement('p');d.className='fine';d.textContent=T('Réponse produite le ','Answer produced on ')+String(shared.created_at||'').slice(0,16).replace('T',' ')+' UTC';t.appendChild(d);}
 else if(qEl.value.trim())autosize();
+// Conversation reprise depuis l'historique : questions et réponses déjà posées, la suivante en est la suite.
+const turns=JSON.parse($('#turns').textContent||'[]');
+turns.forEach(x=>{const t=turnShell(x.question);t.querySelector('.steps').hidden=true;showAnswer(t,x,x.question);});
+if(turns.length){setFollow(turns[turns.length-1].id);
+  thread.lastElementChild.scrollIntoView({block:'start'});}
 })();
 </script>
 {% endblock %}

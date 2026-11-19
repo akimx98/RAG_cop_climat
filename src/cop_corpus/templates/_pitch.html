@@ -58,7 +58,7 @@
 <li>{{ L('Niveau de fiabilité : traité adopté, projet, déclaration…', 'Reliability level: adopted treaty, draft, statement…') }}</li>
 <li>{{ L('Rien trouvé ? Il le dit, au lieu d\'inventer', 'Nothing found? It says so instead of inventing') }}</li></ul></div>
 </div>
-{% if demo_on %}<p style="margin:14px 0 0"><a class="btn" href="/try">{{ L('Essayer avec ma question', 'Try with my own question') }}</a></p>{% endif %}
+{% if demo_on %}<p style="margin:14px 0 0">{% if user %}<a class="btn" href="/ask">{{ L('Poser ma question', 'Ask my question') }}</a>{% else %}<a class="btn" href="/try">{{ L('Essayer avec ma question', 'Try with my own question') }}</a>{% endif %}</p>{% endif %}
 
 {% if counts %}
 <h2 class="big">{{ L('Pas seulement les textes', 'Not just the texts') }}</h2>

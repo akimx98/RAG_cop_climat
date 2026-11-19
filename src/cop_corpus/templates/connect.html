@@ -33,6 +33,9 @@ details.llm ol{margin:0 0 12px;padding-left:20px;display:grid;gap:4px}
 <div class="eyebrow">{{ L('Demander', 'Ask') }}</div>
 <h1>{{ L('Connecter un LLM', 'Connect an LLM') }}</h1>
 <p>{{ L('Branchez Claude, ChatGPT ou Le Chat sur le corpus de la COP31 : votre assistant cherche dans les textes à jour et cite le passage exact, au lieu de répondre de mémoire.', 'Plug Claude, ChatGPT or Le Chat into the COP31 corpus: your assistant searches the up-to-date texts and quotes the exact passage instead of answering from memory.') }}</p>
+{% if OFFER.on %}<p class="banner">{{ L('Pas d\'abonnement à un LLM qui accepte les connecteurs ? Posez vos questions directement sur le site', 'No LLM subscription that accepts connectors? Ask your questions right on the site') }}
+({{ L('%d par jour avec le compte gratuit' % OFFER.account, '%d a day with the free account' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %}) :
+<a href="{{ '/ask' if user else '/try' }}">{{ L('Mes questions', 'My questions') if user else L('Essayer sur le site', 'Try it on the site') }} →</a></p>{% endif %}
 </section>
 
 <div class="card" id="address">

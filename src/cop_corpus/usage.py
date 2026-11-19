@@ -348,6 +348,9 @@ def purge(conn) -> dict[str, int]:
     if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_answers'").fetchone():
         out["demo_supprimees"] = conn.execute("DELETE FROM demo_answers WHERE created_at<?",
                                               (iso(DEMO_KEEP_DAYS),)).rowcount
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversations'").fetchone():
+            conn.execute("DELETE FROM conversations WHERE NOT EXISTS (SELECT 1 FROM demo_answers a "
+                         "WHERE a.conv_id=conversations.id) AND updated_at<?", (iso(DEMO_KEEP_DAYS),))
     conn.commit()
     return out
 
@@ -358,6 +361,8 @@ def forget_user(conn, user_id: int, demo: bool = True) -> None:
     conn.execute("DELETE FROM usage_events WHERE uid=?", (uid(user_id),))
     if demo and conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_answers'").fetchone():
         conn.execute("DELETE FROM demo_answers WHERE user_id=?", (user_id,))
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversations'").fetchone():
+            conn.execute("DELETE FROM conversations WHERE user_id=?", (user_id,))
 
 
 # --- statistiques (page /admin/usage) ----------------------------------------------------------------------------------

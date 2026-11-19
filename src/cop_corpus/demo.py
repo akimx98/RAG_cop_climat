@@ -6,8 +6,13 @@ renvoyé reçoit une étiquette [S1], [S2]… que le modèle doit citer ; chaque
 vérifiée mot pour mot dans le passage source avant affichage. Les événements du programme reçoivent [E1]… et
 s'exportent en .ics.
 
-Garde-fous : nombre de questions par session, par adresse IP et par jour, plafond de dépense quotidien et total
-propres à la démo (table llm_usage, purpose='demo').
+Deux publics :
+- invités (sans compte) : quelques questions par session et par adresse IP, plafond de dépense quotidien
+  (llm_usage, purpose='demo') ;
+- comptes gratuits : une limite par compte et par jour seulement (pas de plafond par session ni par IP : sur le
+  Wi-Fi de la COP, des centaines de personnes partagent la même adresse), relevée jusqu'à DEMO_BOOST_UNTIL, avec son
+  propre plafond de dépense quotidien (purpose='demo-account').
+Un plafond total couvre les deux.
 """
 
 from __future__ import annotations
@@ -18,7 +23,7 @@ import re
 import secrets
 import time
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any, Callable
 
@@ -32,7 +37,22 @@ PER_SESSION = config.DEMO_PER_SESSION
 PER_IP_DAY = config.DEMO_PER_IP_DAY
 PER_ACCOUNT_DAY = config.DEMO_PER_ACCOUNT_DAY
 DAILY_USD = config.DEMO_DAILY_USD
+ACCOUNT_DAILY_USD = config.DEMO_ACCOUNT_DAILY_USD
 TOTAL_USD = config.DEMO_BUDGET_USD
+PER_IP_ACCOUNTS_DAY = 400     # plafond par réseau, tous comptes confondus (contre une rafale de comptes jetables)
+IP_INFLIGHT_ACCOUNTS = 3      # questions de comptes en cours en même temps depuis un même réseau
+_TZ = timezone(timedelta(hours=3))   # heure d'Antalya (sans heure d'été)
+
+
+def _boost_until() -> datetime | None:
+    if not config.DEMO_BOOST_UNTIL:
+        return None
+    d = datetime.fromisoformat(config.DEMO_BOOST_UNTIL)
+    return d if d.tzinfo else d.replace(tzinfo=_TZ)   # date sans fuseau : heure d'Antalya (jamais d'erreur)
+
+
+BOOST_UNTIL = _boost_until()
+BOOST_PER_ACCOUNT_DAY = config.DEMO_BOOST_PER_ACCOUNT_DAY
 MAX_ROUNDS = 9
 MAX_CALLS = 14            # appels d'outils par question
 MAX_CALLS_PER_ROUND = 5
@@ -123,7 +143,19 @@ def ensure_schema(conn) -> None:
     );
     CREATE INDEX IF NOT EXISTS demo_answers_session ON demo_answers(session);
     CREATE INDEX IF NOT EXISTS demo_answers_ip ON demo_answers(ip_hash, created_at);
+    -- Conversations des comptes (page /ask) : un fil de questions, gardé dans l'historique.
+    CREATE TABLE IF NOT EXISTS conversations (
+      id         TEXT PRIMARY KEY,
+      user_id    INTEGER NOT NULL,
+      title      TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS conversations_user ON conversations(user_id, updated_at);
     """)
+    if "conv_id" not in {r[1] for r in conn.execute("PRAGMA table_info(demo_answers)")}:
+        conn.execute("ALTER TABLE demo_answers ADD COLUMN conv_id TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS demo_answers_conv ON demo_answers(conv_id, created_at)")
 
 
 def _now() -> str:
@@ -148,17 +180,34 @@ def enabled() -> bool:
     return config.demo_enabled()
 
 
-def _spent(conn, since: str | None = None) -> float:
+def _spent(conn, since: str | None = None, purpose: str | None = None) -> float:
+    """Dépense de la démo (invités et comptes ; hors administrateurs), ou d'un seul usage."""
     from . import live
 
     live.ensure_schema(conn)
-    sql = "SELECT COALESCE(SUM(cost),0) FROM llm_usage WHERE purpose='demo'"
-    return conn.execute(sql + (" AND at>=?" if since else ""), (since,) if since else ()).fetchone()[0]
+    sql = "SELECT COALESCE(SUM(cost),0) FROM llm_usage WHERE "
+    sql += "purpose=?" if purpose else "purpose IN ('demo', 'demo-account')"
+    args: tuple = (purpose,) if purpose else ()
+    if since:
+        sql += " AND at>=?"
+        args += (since,)
+    return conn.execute(sql, args).fetchone()[0]
 
 
-def over_budget(conn) -> bool:
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
-    return _spent(conn, day) >= DAILY_USD or _spent(conn) >= TOTAL_USD
+def day_start() -> str:
+    """Début du jour en cours, heure d'Antalya (minuit sur place), en UTC comme les dates stockées."""
+    local = datetime.now(_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    return local.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def over_total(conn) -> bool:
+    return _spent(conn) >= TOTAL_USD
+
+
+def over_budget(conn, purpose: str = "demo") -> bool:
+    """Plafond du jour propre à chaque public (les invités n'épuisent pas celui des comptes), et plafond total."""
+    daily = ACCOUNT_DAILY_USD if purpose == "demo-account" else DAILY_USD
+    return _spent(conn, day_start(), purpose) >= daily or over_total(conn)
 
 
 def unlimited(user: dict | None) -> bool:
@@ -168,30 +217,59 @@ def unlimited(user: dict | None) -> bool:
 
 
 def purpose_for(user: dict | None) -> str:
-    return "demo-admin" if unlimited(user) else "demo"
+    if unlimited(user):
+        return "demo-admin"
+    return "demo-account" if user else "demo"
+
+
+def boost_active(now: datetime | None = None) -> bool:
+    return bool(BOOST_UNTIL and (now or datetime.now(timezone.utc)) <= BOOST_UNTIL)
+
+
+def account_limit() -> int:
+    """Questions par compte et par jour (relevé jusqu'à la fin de la COP)."""
+    return BOOST_PER_ACCOUNT_DAY if boost_active() else PER_ACCOUNT_DAY
+
+
+def offer() -> dict[str, Any]:
+    """Ce que les pages annoncent : invités, comptes, et date de fin de l'offre (pour les appels à l'action)."""
+    end = BOOST_UNTIL.astimezone(_TZ) if BOOST_UNTIL else None
+    return {"on": enabled(), "guest": PER_SESSION, "account": account_limit(), "boost": boost_active(),
+            "after": PER_ACCOUNT_DAY,
+            "until_fr": f"{end.day} novembre" if end else "", "until_en": f"{end.day} November" if end else ""}
 
 
 def quota(conn, session: str | None, ip: str, user: dict | None) -> dict[str, Any]:
     """Questions restantes pour ce visiteur, et raison du refus éventuel."""
     ensure_schema(conn)
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
+    day = day_start()
     if not enabled():
         return {"remaining": 0, "limit": PER_SESSION, "reason": "disabled"}
     if unlimited(user):
         return {"remaining": 999, "limit": PER_SESSION, "reason": None, "unlimited": True}
-    if over_budget(conn):
-        return {"remaining": 0, "limit": PER_SESSION, "reason": "budget"}
-    if user:   # connecté : la limite du compte s'ajoute à celle de la session (vider ses cookies n'y change rien)
+    if over_total(conn):
+        return {"remaining": 0, "limit": PER_SESSION, "reason": "budget-total", "account": bool(user)}
+    if user:   # compte : une limite par compte et par jour (vider ses cookies ou partager une IP n'y change rien)
+        limit = account_limit()
+        if over_budget(conn, "demo-account"):
+            return {"remaining": 0, "limit": limit, "reason": "budget-account", "account": True}
+        # Garde-fou large par réseau, tous comptes confondus : des centaines de personnes partagent le Wi-Fi de la
+        # COP, mais une rafale de comptes jetables depuis une même adresse ne vide pas le budget de tous.
+        net = conn.execute("SELECT COUNT(*) FROM demo_answers WHERE ip_hash=? AND user_id IS NOT NULL AND created_at>=?",
+                           (ip_hash(ip), day)).fetchone()[0]
+        if net >= PER_IP_ACCOUNTS_DAY:
+            return {"remaining": 0, "limit": limit, "reason": "network", "account": True}
         used = conn.execute("SELECT COUNT(*) FROM demo_answers WHERE user_id=? AND created_at>=? AND error IS NULL",
                             (user["id"], day)).fetchone()[0]
-        if used >= PER_ACCOUNT_DAY:
-            return {"remaining": 0, "limit": PER_SESSION, "reason": "account"}
-    used_s = conn.execute("SELECT COUNT(*) FROM demo_answers WHERE session=? AND error IS NULL",
+        left = limit - used
+        return {"remaining": max(0, left), "limit": limit, "reason": None if left > 0 else "account", "account": True}
+    if over_budget(conn, "demo"):
+        return {"remaining": 0, "limit": PER_SESSION, "reason": "budget"}
+    used_s = conn.execute("SELECT COUNT(*) FROM demo_answers WHERE session=? AND user_id IS NULL AND error IS NULL",
                           (session or "-",)).fetchone()[0] if session else 0
-    used_ip = conn.execute("SELECT COUNT(*) FROM demo_answers WHERE ip_hash=? AND created_at>=?",
+    used_ip = conn.execute("SELECT COUNT(*) FROM demo_answers WHERE ip_hash=? AND user_id IS NULL AND created_at>=?",
                            (ip_hash(ip), day)).fetchone()[0]
-    left = min(PER_SESSION - used_s, PER_IP_DAY - used_ip,
-               PER_ACCOUNT_DAY - used if user else PER_SESSION)
+    left = min(PER_SESSION - used_s, PER_IP_DAY - used_ip)
     reason = None if left > 0 else ("session" if used_s >= PER_SESSION else "ip")
     return {"remaining": max(0, left), "limit": PER_SESSION, "reason": reason}
 
@@ -558,7 +636,8 @@ def _summary(args: dict[str, Any]) -> str:
 
 
 def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
-           follow: dict[str, Any] | None = None, purpose: str = "demo") -> dict[str, Any]:
+           follow: dict[str, Any] | None = None, purpose: str = "demo",
+           history: list[dict[str, str]] | None = None) -> dict[str, Any]:
     """Répond à une question ; `emit` reçoit les étapes au fil de l'eau. Renvoie le contenu final et le coût."""
     from openai import OpenAI
 
@@ -577,7 +656,12 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
     trace: list[dict[str, str]] = []
     cost = 0.0
     final = ""
-    pending: list[dict[str, Any]] = [{"role": "user", "content": question}]
+    # Conversation d'un compte : les questions et réponses précédentes passent en texte (pas toute la chaîne
+    # d'appels d'outils), pour qu'une longue conversation ne coûte pas de plus en plus cher à chaque question.
+    pending: list[dict[str, Any]] = []
+    for h in history or []:
+        pending += [{"role": "user", "content": h["question"]}, {"role": "assistant", "content": h["text"]}]
+    pending.append({"role": "user", "content": question})
     previous = follow.get("response_id")   # question de suivi : le modèle garde la conversation précédente
     n_calls = 0
     stop = False
@@ -600,7 +684,7 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
             final = resp.output_text or ""
             break
         # Coût borné : plafond rechecké entre deux tours, appels d'outils limités par tour et par question.
-        stop = purpose == "demo" and over_budget(conn)
+        stop = purpose != "demo-admin" and over_budget(conn, purpose)
         pending = []
         for i, c in enumerate(calls):
             if stop or i >= MAX_CALLS_PER_ROUND or n_calls >= MAX_CALLS:
@@ -629,24 +713,94 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
     sources = [_source_public(refs.sources[r], i + 1) for i, r in enumerate(out["order"])]
     events = [refs.events[r] for r in out["events"]]
     return {"html": out["html"], "sources": sources, "events": events, "checks": out["checks"], "trace": trace,
-            "cost": round(cost, 4), "model": MODEL, "response_id": previous, "state": refs.state()}
+            "cost": round(cost, 4), "model": MODEL, "response_id": previous, "state": refs.state(), "text": final}
 
 
 def save(conn, *, question: str, lang: str, session: str | None, ip: str, user: dict | None,
-         payload: dict[str, Any] | None, error: str | None = None) -> str:
+         payload: dict[str, Any] | None, error: str | None = None, conv_id: str | None = None) -> str:
     ensure_schema(conn)
     aid = secrets.token_urlsafe(9)
-    conn.execute("""INSERT INTO demo_answers(id,created_at,session,ip_hash,user_id,lang,question,payload,cost,error)
-                    VALUES(?,?,?,?,?,?,?,?,?,?)""",
+    conn.execute("""INSERT INTO demo_answers(id,created_at,session,ip_hash,user_id,lang,question,payload,cost,error,conv_id)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
                  (aid, _now(), session, ip_hash(ip), user["id"] if user else None, lang, question[:MAX_QUESTION],
-                  json.dumps(payload, ensure_ascii=False) if payload else None, (payload or {}).get("cost", 0), error))
+                  json.dumps(payload, ensure_ascii=False) if payload else None, (payload or {}).get("cost", 0), error,
+                  conv_id))
+    if conv_id and not error:
+        conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now(), conv_id))
     conn.commit()
     return aid
 
 
+# --- conversations des comptes (page /ask) --------------------------------------------------------------------------
+
+HISTORY_TURNS = 6         # questions précédentes renvoyées au modèle (en texte) dans une conversation
+
+
+def conv_create(conn, user_id: int, question: str) -> str:
+    ensure_schema(conn)
+    cid = secrets.token_urlsafe(9)
+    title = question if len(question) <= 90 else question[:87].rsplit(" ", 1)[0] + "…"
+    conn.execute("INSERT INTO conversations(id,user_id,title,created_at,updated_at) VALUES(?,?,?,?,?)",
+                 (cid, user_id, title, _now(), _now()))
+    conn.commit()
+    return cid
+
+
+def conv_get(conn, cid: str, user_id: int) -> dict[str, Any] | None:
+    """Une conversation de CE compte seulement (jamais celle d'un autre, même avec son adresse)."""
+    ensure_schema(conn)
+    row = conn.execute("SELECT * FROM conversations WHERE id=? AND user_id=?", (cid, user_id)).fetchone()
+    return dict(row) if row else None
+
+
+def conv_list(conn, user_id: int, limit: int = 100) -> list[dict[str, Any]]:
+    ensure_schema(conn)
+    return [dict(r) for r in conn.execute(
+        """SELECT c.id, c.title, c.updated_at,
+                  (SELECT COUNT(*) FROM demo_answers a WHERE a.conv_id=c.id AND a.error IS NULL) n
+           FROM conversations c WHERE c.user_id=? ORDER BY c.updated_at DESC LIMIT ?""", (user_id, limit))]
+
+
+def conv_turns(conn, cid: str, last: int | None = None) -> list[dict[str, Any]]:
+    """Questions et réponses d'une conversation, dans l'ordre (les `last` dernières seulement si précisé)."""
+    out = []
+    rows = conn.execute("""SELECT id, question, payload, created_at FROM demo_answers
+                           WHERE conv_id=? AND error IS NULL AND payload IS NOT NULL
+                           ORDER BY created_at DESC, rowid DESC LIMIT ?""", (cid, last or -1)).fetchall()
+    for r in reversed(rows):
+        p = json.loads(r["payload"] or "{}")
+        out.append({"id": r["id"], "question": r["question"], "created_at": r["created_at"], "payload": p})
+    return out
+
+
+def _plain(html: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html or "")).strip()
+
+
+def conv_context(conn, cid: str) -> dict[str, Any]:
+    """Pour la question suivante : les dernières questions et réponses (texte), et la numérotation des sources."""
+    turns = conv_turns(conn, cid, last=HISTORY_TURNS)
+    history = [{"question": t["question"], "text": t["payload"].get("text") or _plain(t["payload"].get("html"))}
+               for t in turns]
+    return {"history": history, "state": turns[-1]["payload"].get("state") if turns else None}
+
+
+def conv_delete(conn, cid: str, user_id: int) -> bool:
+    """Supprime la conversation et le contenu de ses réponses (le décompte du jour reste : supprimer ne rend
+    pas de questions)."""
+    if not conv_get(conn, cid, user_id):
+        return False
+    conn.execute("UPDATE demo_answers SET question='', payload=NULL, conv_id=NULL WHERE conv_id=? AND user_id=?",
+                 (cid, user_id))
+    conn.execute("DELETE FROM conversations WHERE id=? AND user_id=?", (cid, user_id))
+    conn.commit()
+    return True
+
+
 def load(conn, aid: str) -> dict[str, Any] | None:
     ensure_schema(conn)
-    row = conn.execute("SELECT * FROM demo_answers WHERE id=? AND error IS NULL", (aid,)).fetchone()
+    row = conn.execute("SELECT * FROM demo_answers WHERE id=? AND error IS NULL AND payload IS NOT NULL",
+                       (aid,)).fetchone()
     if not row:
         return None
     out = dict(row)
