@@ -234,7 +234,8 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 </a>
 <span class="countdown" id="countdown" hidden data-day="{{ L('Jour', 'Day') }}" data-before="{{ L('J-', 'D-') }}"></span>
 <nav class="main" aria-label="{{ L('Navigation principale', 'Main navigation') }}">
-<a href="/try" class="{{ 'on' if path.startswith('/try') }}">{{ L('Essayer', 'Try it') }}</a>
+{% if user %}<a href="/ask" class="{{ 'on' if path.startswith('/ask') }}">{{ L('Mes questions', 'My questions') }}</a>
+{% else %}<a href="/try" class="{{ 'on' if path.startswith('/try') }}">{{ L('Essayer', 'Try it') }}</a>{% endif %}
 <a href="/connect" class="{{ 'on' if path.startswith('/connect') }}">{{ L('Connecter un LLM', 'Connect an LLM') }}</a>
 <a href="/plan" class="{{ 'on' if path.startswith('/plan') }}">{{ L('Planifier ma journée', 'Plan my day') }}</a>
 <a href="/topics" class="{{ 'on' if path.startswith('/topics') }}">{{ L('Mes sujets', 'My topics') }}</a>

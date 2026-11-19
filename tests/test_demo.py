@@ -1,6 +1,7 @@
 """Démo publique « Essayer » : lecture seule, documents publics seulement, citations vérifiées, HTML sûr, quotas."""
 
 import importlib
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -148,17 +149,54 @@ def test_signed_links_follow_access(env):
     assert out["withdrawn"] and "text" not in out and "pdf" not in out
 
 
-def test_three_questions_also_for_signed_in_users(env):
-    """Connecté ou non : 3 questions ; un compte ne retrouve pas ses questions en changeant de navigateur."""
+def test_accounts_have_a_daily_limit_per_account_not_per_ip(env, monkeypatch):
+    """Compte : une limite par compte et par jour (relevée jusqu'à la fin de la COP), ni par session ni par IP."""
     from cop_corpus import demo
 
     conn = env
+    monkeypatch.setattr(demo, "BOOST_UNTIL", None)          # après la COP : 3 par jour
     user = {"id": 42}
     for i in range(3):
         assert demo.quota(conn, "a" * 20, "4.4.4.4", user)["remaining"] == 3 - i
         demo.save(conn, question="q?", lang="fr", session="a" * 20, ip="4.4.4.4", user=user, payload={"cost": 0})
-    assert demo.quota(conn, "a" * 20, "4.4.4.4", user)["remaining"] == 0
     assert demo.quota(conn, "b" * 20, "5.5.5.5", user)["reason"] == "account"   # autre navigateur, autre réseau
+    # Wi-Fi partagé : les questions des invités et des autres comptes sur la même IP ne comptent pas
+    for _ in range(demo.PER_IP_DAY + 5):
+        demo.save(conn, question="q?", lang="fr", session="c" * 20, ip="4.4.4.4", user=None, payload={"cost": 0})
+    assert demo.quota(conn, None, "4.4.4.4", {"id": 43})["remaining"] == 3
+    monkeypatch.setattr(demo, "BOOST_UNTIL", datetime.now(timezone.utc) + timedelta(days=1))
+    assert demo.account_limit() == demo.BOOST_PER_ACCOUNT_DAY
+    assert demo.quota(conn, None, "4.4.4.4", user)["remaining"] == demo.BOOST_PER_ACCOUNT_DAY - 3
+
+
+def test_boost_date_without_timezone_is_antalya(monkeypatch):
+    from cop_corpus import config, demo
+
+    monkeypatch.setattr(config, "DEMO_BOOST_UNTIL", "2026-11-21T23:59:59")
+    d = demo._boost_until()
+    assert d.utcoffset() == timedelta(hours=3)
+    assert demo.boost_active(datetime(2026, 11, 21, 20, 0, tzinfo=timezone.utc))
+    assert not demo.boost_active(datetime(2026, 11, 21, 21, 0, tzinfo=timezone.utc))
+
+
+def test_conversations_belong_to_their_account_and_deleting_keeps_the_count(env, monkeypatch):
+    from cop_corpus import demo
+
+    conn = env
+    monkeypatch.setattr(demo, "BOOST_UNTIL", None)
+    me, other = {"id": 50}, {"id": 51}
+    cid = demo.conv_create(conn, me["id"], "Où en est la finance ?")
+    for q in ("Où en est la finance ?", "Et l'UE ?"):
+        demo.save(conn, question=q, lang="fr", session=None, ip="1.1.1.1", user=me,
+                  payload={"cost": 0, "html": "<p>x</p>", "text": "réponse [S1]", "state": {"n": 1}}, conv_id=cid)
+    assert demo.conv_get(conn, cid, other["id"]) is None and not demo.conv_delete(conn, cid, other["id"])
+    assert [c["n"] for c in demo.conv_list(conn, me["id"])] == [2]
+    ctx = demo.conv_context(conn, cid)
+    assert [h["question"] for h in ctx["history"]] == ["Où en est la finance ?", "Et l'UE ?"]
+    aid = demo.conv_turns(conn, cid)[0]["id"]
+    assert demo.conv_delete(conn, cid, me["id"])
+    assert demo.conv_list(conn, me["id"]) == [] and demo.load(conn, aid) is None   # lien de partage désactivé
+    assert demo.quota(conn, None, "1.1.1.1", me)["remaining"] == 1                 # supprimer ne rend pas de questions
 
 
 def test_follow_up_only_from_own_session(env):
@@ -191,8 +229,11 @@ def test_admins_have_no_demo_limit_and_separate_spend(env, monkeypatch):
     monkeypatch.setattr(demo, "DAILY_USD", 0.0)
     q = demo.quota(conn, "a" * 20, "4.4.4.4", admin)
     assert q["unlimited"] and q["remaining"] > 0 and q["reason"] is None
-    assert demo.quota(conn, "b" * 20, "4.4.4.4", {"id": 8})["reason"] == "budget"     # les autres restent bornés
-    assert demo.purpose_for(admin) == "demo-admin" and demo.purpose_for({"id": 8}) == "demo"
+    assert demo.quota(conn, "b" * 20, "4.4.4.4", None)["reason"] == "budget"     # les autres restent bornés
+    monkeypatch.setattr(demo, "ACCOUNT_DAILY_USD", 0.0)
+    assert demo.quota(conn, "b" * 20, "4.4.4.4", {"id": 8})["reason"] == "budget-account"
+    assert demo.purpose_for(admin) == "demo-admin" and demo.purpose_for({"id": 8}) == "demo-account"
+    assert demo.purpose_for(None) == "demo"
     monkeypatch.setattr(demo, "DAILY_USD", 8.0)
     llm._record(conn, "gpt-5.6-terra", "demo-admin", SimpleNamespace(prompt_tokens=10_000_000, completion_tokens=0))
     assert llm.spent(conn) == 0 and demo._spent(conn) == 0

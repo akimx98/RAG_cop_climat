@@ -75,13 +75,18 @@ LLM_BUDGET_USD = float(os.environ.get("COP_LLM_BUDGET_USD", "30"))
 
 
 # --- Démo publique « Essayer » (questions sans compte ; documents publics seulement) -----------------------------
-DEMO_MODEL = os.environ.get("COP_DEMO_MODEL", "gpt-5.6-terra")
+DEMO_MODEL = os.environ.get("COP_DEMO_MODEL", "gpt-6.1-terra")
 DEMO_EFFORT = os.environ.get("COP_DEMO_EFFORT", "low")                       # effort de raisonnement ; vide = défaut
 DEMO_PER_SESSION = int(os.environ.get("COP_DEMO_PER_SESSION", "3"))          # questions par visiteur (cookie)
-DEMO_PER_IP_DAY = int(os.environ.get("COP_DEMO_PER_IP_DAY", "20"))            # par adresse IP et par jour
+DEMO_PER_IP_DAY = int(os.environ.get("COP_DEMO_PER_IP_DAY", "20"))            # par adresse IP et par jour (invités)
 DEMO_PER_ACCOUNT_DAY = int(os.environ.get("COP_DEMO_PER_ACCOUNT_DAY", "3"))  # par compte connecté et par jour
-DEMO_DAILY_USD = float(os.environ.get("COP_DEMO_DAILY_USD", "8"))            # plafond de dépense quotidien
-DEMO_BUDGET_USD = float(os.environ.get("COP_DEMO_BUDGET_USD", "40"))         # plafond de dépense total
+DEMO_DAILY_USD = float(os.environ.get("COP_DEMO_DAILY_USD", "10"))           # plafond quotidien, invités
+DEMO_BUDGET_USD = float(os.environ.get("COP_DEMO_BUDGET_USD", "150"))        # plafond total (invités + comptes)
+# Fin de COP : les comptes gratuits travaillent sur le site, avec bien plus de questions, jusqu'à une date donnée
+# (heure d'Antalya). Ensuite, retour automatique à DEMO_PER_ACCOUNT_DAY.
+DEMO_BOOST_UNTIL = os.environ.get("COP_DEMO_BOOST_UNTIL", "2026-11-21T23:59:59+03:00")
+DEMO_BOOST_PER_ACCOUNT_DAY = int(os.environ.get("COP_DEMO_BOOST_PER_ACCOUNT_DAY", "40"))
+DEMO_ACCOUNT_DAILY_USD = float(os.environ.get("COP_DEMO_ACCOUNT_DAILY_USD", "40"))  # plafond quotidien, comptes
 
 DEMO_KEEP_DAYS = int(os.environ.get("COP_DEMO_KEEP_DAYS", "90"))             # questions de la démo gardées (lien de partage)
 
