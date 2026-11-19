@@ -24,11 +24,24 @@ TEMPLATES = Environment(
 TEMPLATES.globals["LEVELS"] = search.LEVEL_LABELS
 
 
+_DIFF_MARK = re.compile(r"\[-(.*?)-\]|\{\+(.*?)\+\}", re.S)
+
+
 def _diffhtml(text: str) -> Markup:
-    s = str(escape(text))
-    for a, b in (("[-", '<span class="del">'), ("-]", "</span>"), ("{+", '<span class="ins">'), ("+}", "</span>")):
-        s = s.replace(a, b)
-    return Markup(s)
+    """[-supprimé-] {+ajouté+} → surlignage ; les crochets du texte (non agréé) restent visibles et marqués."""
+    def brk(s: str) -> str:
+        return s.replace("[", '<b class="br">[</b>').replace("]", '<b class="br">]</b>')
+
+    out, pos = [], 0
+    for m in _DIFF_MARK.finditer(text):
+        out.append(brk(str(escape(text[pos:m.start()]))))
+        if m.group(1) is not None:
+            out.append(f'<del class="del">{brk(str(escape(m.group(1))))}</del>')
+        else:
+            out.append(f'<ins class="ins">{brk(str(escape(m.group(2))))}</ins>')
+        pos = m.end()
+    out.append(brk(str(escape(text[pos:]))))
+    return Markup("".join(out))
 
 
 TEMPLATES.filters["diffhtml"] = _diffhtml
@@ -848,14 +861,16 @@ async def diff_page(request: Request):
     new = search.document(conn, new_id, user)
     if not new:
         return Response("introuvable", status_code=404)
+    row = conn.execute("SELECT lineage_key FROM documents WHERE id=?", (new_id,)).fetchone()
+    versions = search.versions(conn, row["lineage_key"], user) if row and row["lineage_key"] else []
     old_id = request.query_params.get("avec")
-    if not old_id:
-        row = conn.execute("SELECT id FROM documents WHERE lineage_key=(SELECT lineage_key FROM documents WHERE id=?) "
-                           "AND id<? ORDER BY id DESC LIMIT 1", (new_id, new_id)).fetchone()
-        old_id = row["id"] if row else None
-    if not old_id or not search.document(conn, int(old_id), user):
-        return render(request, "diff.html", doc=new, result=None)
-    return render(request, "diff.html", doc=new, result=diff.compare(conn, int(old_id), new_id, max_items=200))
+    if not re.fullmatch(r"[0-9]{1,12}", old_id or ""):
+        old_id = diff.previous_in_lineage(conn, new_id)
+    old = search.document(conn, int(old_id), user) if old_id else None
+    if not old:
+        return render(request, "diff.html", doc=new, old=None, result=None, versions=versions)
+    result = diff.compare(conn, int(old_id), new_id, lang=lang_of(request, user))
+    return render(request, "diff.html", doc=new, old=old, result=result, versions=versions)
 
 
 async def file_page(request: Request):

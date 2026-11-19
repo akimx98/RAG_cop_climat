@@ -8,6 +8,7 @@ instructions ci-dessous et par les skills du plugin.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -35,7 +36,8 @@ RULES
 9. A group often submits via sub-groups or members: say so; flag distant dates.
 
 TOOLS
-- Corpus: rechercher → lire_passage; document; comparer_versions; crochets (by theme); nouveautes; donnees; glossaire.
+- Corpus: rechercher → lire_passage; document; comparer_versions (unit by unit: resume, options settled, deleted
+  with no trace; filtre="§N"); crochets (by theme); nouveautes; donnees; glossaire.
 - Negotiations: dossiers (aliases) → dossier; positions (divisions=true: dividing lines).
 - Written positions: soumissions; comparer_soumissions; groupes.
 - Plan the day: programme (where, when; mes_sujets=true); pavillons (contents).
@@ -210,11 +212,30 @@ def document(reference: str, ctx: Context | None = None) -> dict[str, Any]:
     return out
 
 
+COMPARE_BUDGET = 40000   # caractères par page pour un client MCP ; /ask passe le sien (limite de 14 000 par appel)
+
+
+def _scope(ctx: Context | None, key: str) -> Any:
+    try:
+        return ctx.request_context.request.scope.get(key) if ctx else None
+    except Exception:
+        return None
+
+
 @mcp.tool(annotations=READ)
-def comparer_versions(document_recent: str, document_ancien: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
-    """What changed between two versions of a text (draft decision, conclusions…): paragraphs added, deleted,
-    modified (word-level diff), change in the number of brackets and options.
-    Without `document_ancien`, compares with the previous version in the same lineage."""
+def comparer_versions(document_recent: str, document_ancien: str | None = None, page: int = 1,
+                      filtre: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
+    """What changed between two versions of a draft text, unit by unit (paragraph, option, bullet, sub-paragraph:
+    ids like §4.opt2.b3 = 3rd bullet of Option 2 of §4). Without `document_ancien`, compares with the previous
+    version in the same lineage.
+    Returns: `resume` (headline lines: options settled, bracket outcomes, units deleted with no trace, verb and
+    qualifier shifts), `options` (which option was retained, in full or in part), `changements` with a status per
+    unit — modifié (full word diff), repris_de (split/rewritten, with its source), repris_dans (merged),
+    ajouté, supprimé_sans_reprise (nothing of it survives: usually the most telling) — each with the fate of its
+    brackets (levé = lifted, text kept; supprimé; maintenu; alternatives [A][B]: which one won), footnote changes,
+    and citable references for BOTH versions (passage_id, page, lien_source = PDF at the page, lien_passage).
+    Texts are never cut: if `tronque` is true, call again with page=N. `filtre`: a unit prefix ("§4") or words
+    ("finance, grant") to keep only matching changes. Quote the diff's text, give versions, dates and "not adopted"."""
     conn = db.get()
     user = _user(ctx)
     new = search.find_doc(conn, document_recent, user)
@@ -232,16 +253,21 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
                 "versions": search.versions(conn, new["lineage_key"], user) if new["lineage_key"] else [],
                 "conseil": "versions of a session text are linked by item and title (the symbol changes between "
                            "bodies); pass document_ancien=<symbol or doc_id> to compare any two texts"}
-    out = diff.compare(conn, old["id"], new["id"])
-    out["ancien"] = search.doc_public(old)
-    out["nouveau"] = search.doc_public(new)
+    head = {"ancien": search.doc_public(old), "nouveau": search.doc_public(new)}
     from . import live as lv
 
     for side, row in (("ancien", old), ("nouveau", new)):
         hint = lv.compilation_hint(conn, row["id"])
         if hint:
-            out[side]["compilation"] = hint
-    return out
+            head[side]["compilation"] = hint
+    if new["lineage_key"]:
+        vs = search.versions(conn, new["lineage_key"], user)
+        if len(vs) > 2:
+            head["autres_versions"] = [{k: v.get(k) for k in ("doc_id", "version", "cote", "publie_le")} for v in vs[-8:]]
+    head["diff_en_ligne"] = f"{config.PUBLIC_BASE}/diff/{new['id']}?avec={old['id']}"
+    budget = (_scope(ctx, "cop_budget") or COMPARE_BUDGET) - len(json.dumps(head, ensure_ascii=False))
+    out = diff.compare(conn, old["id"], new["id"], budget=budget, page=page, filtre=filtre)
+    return {**head, **out}
 
 
 @mcp.tool(annotations=READ)
@@ -960,8 +986,10 @@ METHODES: dict[str, dict[str, list[str]]] = {
     "point_negociation": {
         "fr": ["`dossier` (slug ou alias) : état, textes successifs, crochets et options, rubrique "
                "« soumissions » (appels liés, qui a soumis, alignements connus).",
-               "`comparer_versions` sur la dernière version : paragraphes ajoutés, supprimés, options tranchées, crochets "
-               "levés — citer les paragraphes avant/après ; `crochets(theme=…, texte=…)` : ce qui reste entre crochets "
+               "`comparer_versions` sur la dernière version : lire `resume` et `options` (option retenue, en tout ou "
+               "en partie), unités supprimées sans reprise, reprises et fusions, devenir des crochets et des "
+               "alternatives — citer avant/après avec les références `ancien`/`nouveau` (page, lien PDF), "
+               "`filtre=\"§N\"` pour un paragraphe ; `crochets(theme=…, texte=…)` : ce qui reste entre crochets "
                "sur un thème (genre, droits humains, désinformation…) et depuis quelle version.",
                "`positions(dossier=…, depuis=…)` : qui pousse quoi, qui bloque (l'ENB attribue les interventions) ; "
                "clivages internes d'un groupe : `positions(divisions=true, groupe=…)` ; positions écrites : "
@@ -969,8 +997,10 @@ METHODES: dict[str, dict[str, list[str]]] = {
                "`nouveautes(depuis=…)` et `rechercher` (termes onusiens en anglais) pour les comptes rendus (ENB, Carbon Brief)."],
         "en": ["`dossier` (slug or alias): status, successive texts, brackets and options, “soumissions” "
                "section (linked calls, who submitted, known alignment).",
-               "`comparer_versions` on the latest version: paragraphs added or deleted, options settled, brackets removed "
-               "— quote paragraphs before/after; `crochets(theme=…, texte=…)`: what stays in brackets on a theme "
+               "`comparer_versions` on the latest version: read `resume` and `options` (option retained, in full or "
+               "in part), units deleted with no trace, splits and merges, fate of brackets and alternatives — quote "
+               "before/after with the `ancien`/`nouveau` references (page, PDF link), `filtre=\"§N\"` for one "
+               "paragraph; `crochets(theme=…, texte=…)`: what stays in brackets on a theme "
                "(gender, human rights, disinformation…) and since which version.",
                "`positions(dossier=…, depuis=…)`: who pushes what, who blocks (ENB attributes interventions); "
                "a group's internal splits: `positions(divisions=true, groupe=…)`; written positions: "

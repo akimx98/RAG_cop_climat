@@ -314,7 +314,8 @@ def chunk(pages: list[Page]) -> list[Chunk]:
     def emit(page: int, para: str | None, text: str) -> None:
         nonlocal seq
         text = re.sub(r"\n{2,}", "\n", text).strip()
-        if len(text) < 30:
+        # Un paragraphe numéroté court (« 2. Notes the report; ») compte : le perdre fausse les comparaisons.
+        if len(text) < 30 and not (para and PARA_START.match(text) and len(text) > 6):
             return
         for part in _split_long(text):
             seq += 1

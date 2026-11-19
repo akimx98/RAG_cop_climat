@@ -179,7 +179,7 @@ par famille d'outils ; le détail est dans la description de chaque outil. Un te
 | `rechercher` | recherche hybride dans le corpus (filtres niveau, type, session, partie, groupe, dates) ; trois degrés de pertinence : `resultats`, `pertinence_partielle` (la plupart des termes, pondérés par leur rareté ; `termes_manquants`), `faible_pertinence` ; `verdict` nuancé |
 | `lire_passage` | texte exact d'un passage et de ses voisins |
 | `document` | métadonnées et versions d'un document |
-| `comparer_versions` | ce qui a changé entre deux versions d'un texte : paragraphes appariés par contenu, renumérotations (notes, renvois) écartées, crochets, options, paragraphes entièrement entre crochets, indice de compilation |
+| `comparer_versions` | ce qui a changé entre deux versions d'un texte, unité par unité (`structure.py` : §, options, puces, alinéas, lignes de tableau ; notes de bas de page retirées et comparées à part) : modifié / repris (scission, fusion) / ajouté / supprimé sans reprise, issue des options, devenir de chaque crochet et alternative, glissements de verbe et de nuance, références citables (passage, page, PDF) des deux versions ; pagination sans coupe (`page`), `filtre` ; même calcul pour la page `/diff` |
 | `crochets` | formulations entre crochets d'un projet de texte sur un thème (genre, droits humains, désinformation…) et depuis quelle version |
 | `nouveautes` | documents entrés récemment ; `mes_sujets=true` : ce qui a bougé sur les sujets de l'utilisateur |
 | `donnees` | chiffres d'émissions |
