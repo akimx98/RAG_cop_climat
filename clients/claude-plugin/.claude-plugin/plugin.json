@@ -3,6 +3,6 @@
   "displayName": "COP31 Tracker",
   "version": "0.3.0",
   "description": "Independent, open-source assistant to follow COP31 (Antalya, 9–20 November 2026): UN climate law, COP/CMA decisions, live draft texts and how they evolve, who defends what, NDCs, EU law and positions, science and emissions data. Skills: cop31-protocol, fact-check, negotiation-update, beginner-brief, decode-text, eu-position, daily-brief, find-your-way, plan-my-day. Answers in the user's language. Requires the COP31 MCP connector.",
-  "author": { "name": "Akim Viennet" },
+  "author": { "name": "akimx98" },
   "keywords": ["COP31", "climate", "UNFCCC", "Paris Agreement", "negotiations", "EU", "fact-checking", "agenda"]
 }
