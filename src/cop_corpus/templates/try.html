@@ -98,6 +98,11 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 .convs a.c.on{background:var(--accent-soft);color:var(--ink);font-weight:600}
 .convs a.c small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:2px}
 .convs .empty{font-size:13px;color:var(--muted);margin:0}
+.byo{margin-top:16px;border:1px solid var(--line-2);border-radius:8px;padding:12px;background:var(--surface-2);display:grid;gap:6px;font-size:13px}
+.byo b{font-size:13.5px}
+.byo p{margin:0;color:var(--ink-2);line-height:1.45}
+.byo .btn{justify-content:center;font-size:13px}
+.byo small{color:var(--muted);font-size:11.5px}
 .head-row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
 .head-row form{margin:0}
 .head-row .del{background:transparent;color:var(--muted);border:1px solid var(--line-2);font-size:12.5px;padding:5px 10px;font-weight:600}
@@ -126,7 +131,7 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 @media(max-width:1000px){
  .try.with-panel,.try.acct,.try.acct.with-panel{grid-template-columns:minmax(0,1fr)}
  .convs{position:static;max-height:none;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:4px}
- .convs h2,.convs .empty{display:none}
+ .convs h2,.convs .empty,.convs .byo{display:none}
  .convs .new{margin:0;flex:none}
  .convs a.c{flex:none;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid var(--line)}
  .convs a.c small{display:none}
@@ -141,6 +146,15 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 <h2>{{ L('Historique', 'History') }}</h2>
 {% for c in convs %}<a class="c{{ ' on' if conv and conv.id == c.id }}" href="/ask/c/{{ c.id }}">{{ c.title }}<small>{{ c.updated_at[:16].replace('T', ' ') }} UTC · {{ c.n }} {{ L('question' ~ ('s' if c.n > 1 else ''), 'question' ~ ('s' if c.n > 1 else '')) }}</small></a>
 {% else %}<p class="empty" id="convs-empty">{{ L('Vos conversations apparaîtront ici.', 'Your conversations will appear here.') }}</p>{% endfor %}
+<div class="byo">
+{% if user.mcp_seen_at %}<b>✓ {{ L('Votre LLM est connecté', 'Your LLM is connected') }}</b>
+<p>{{ L('Continuez-y sans limite de questions, dans votre propre compte Claude, ChatGPT ou Le Chat.', 'Keep going there with no question limit, in your own Claude, ChatGPT or Le Chat account.') }}</p>
+<a href="/connect">{{ L('Idées de questions à lui poser', 'Ideas of questions to ask it') }} →</a>
+{% else %}<b>{{ L('Sans limite : votre propre LLM', 'No limit: your own LLM') }}</b>
+<p>{{ L('Branchez le corpus sur Claude, ChatGPT ou Le Chat et travaillez dans votre propre compte : vos conversations, vos projets, vos fichiers, sans limite de questions de notre côté. Mêmes sources, mêmes citations vérifiables.', 'Plug the corpus into Claude, ChatGPT or Le Chat and work in your own account: your conversations, your projects, your files, with no question limit on our side. Same sources, same verifiable quotes.') }}</p>
+<a class="btn secondary" href="/connect">{{ L('Connecter mon LLM', 'Connect my LLM') }}</a>
+<small>{{ L('Les connecteurs sont souvent réservés aux abonnements payants.', 'Connectors are often limited to paid plans.') }}</small>{% endif %}
+</div>
 </nav>
 {% endif %}
 <div class="chat">
@@ -163,6 +177,7 @@ details.trace ol{margin:6px 0 0;padding-left:20px}
 <li>{{ L('Code ouvert', 'Open source') }}</li>
 </ul>{% endif %}
 {% if quota.unlimited %}<span class="left">{{ L('Admin : questions illimitées', 'Admin: unlimited questions') }}</span>{% elif user %}<span class="left" id="left" data-fr="questions restantes aujourd'hui" data-en="questions left today">{{ quota.remaining }} {{ L('questions restantes aujourd\'hui', 'questions left today') }}</span>
+{% if ask_mode %}<a href="/connect" class="more">{{ L('Sans limite, dans votre propre compte : connectez votre LLM', 'No limit, in your own account: connect your LLM') }} →</a>{% endif %}
 {% else %}<span class="left" id="left" data-fr="questions sans compte restantes" data-en="questions left without an account">{{ quota.remaining }} {{ L('questions sans compte restantes', 'questions left without an account') }}</span>
 {% if open_signup and quota.reason != 'disabled' %}<a href="#" class="more" data-auth="signup">{{ L('Compte gratuit : %d questions par jour' % OFFER.account, 'Free account: %d questions a day' % OFFER.account) }}{% if OFFER.boost %} {{ L('jusqu\'au ' ~ OFFER.until_fr, 'until ' ~ OFFER.until_en) }}{% endif %} →</a>{% endif %}{% endif %}
 </div>
