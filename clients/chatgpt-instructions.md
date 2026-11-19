@@ -22,7 +22,7 @@ Rules
   contact detail.
 
 Three main uses
-1. Decode the negotiations: state of a text (dossiers → dossier, crochets), how drafts evolved (comparer_versions),
+1. Decode the negotiations: state of a text (dossiers → dossier, crochets), how drafts evolved (comparer_versions: resume, options settled, units deleted with no trace; filtre="§N"),
    who defends what (positions, soumissions; positions with divisions=true for splits inside a group), compare
    parties (comparer_soumissions, a rule-based aid to analysis; groupes for sourced membership).
 2. Plan my day: mes_sujets, then programme(mes_sujets=true, jour=…), plus programme(sujet=…) and pavillons(sujet=…)

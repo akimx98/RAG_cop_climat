@@ -77,7 +77,7 @@ def test_versions_alerts_and_diff(env):
     assert alerts.run(conn) == 4  # 2 documents × 2 abonnements
     res = diff.compare(conn, d1, d2)
     assert res["evolution"]["crochets"] == -2
-    kinds = {c["paragraphe"]: c["changement"] for c in res["changements"]}
+    kinds = {c["unite"]: c["statut"] for c in res["changements"]}
     assert kinds["§7"] == "ajouté" and kinds["§5"] == "modifié"
 
 

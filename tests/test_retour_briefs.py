@@ -62,12 +62,12 @@ def test_diff_aligns_by_content_and_ignores_renumbering(env):
     conn = env
     a, b = _ingest(conn, V1, "v1", "Host v1"), _ingest(conn, V2, "v2", "Host v2")
     res = diff.compare(conn, a, b)
-    by_para = {c["paragraphe"]: c for c in res["changements"]}
-    assert by_para["§2"]["changement"] == "ajouté"
+    by_para = {c["unite"]: c for c in res["changements"]}
+    assert by_para["§2"]["statut"] == "ajouté"
     # §3 (ancien §2) et §4 (ancien §3) : seuls des nombres changent → pas un changement de fond
     assert "§3" not in by_para and "§4" not in by_para and set(res["renumerotes"]["paragraphes"]) == {"§3", "§4"}
     # Crochets levés sur l'ancien §4, devenu §5 : comparé à son ancien texte, pas au nouveau §4
-    assert by_para["§5"]["changement"] == "modifié" and by_para["§5"]["ancien_paragraphe"] == "§4"
+    assert by_para["§5"]["statut"] == "modifié" and by_para["§5"]["ancien"]["unite"] == "§4"
     assert by_para["§5"]["similarite"] > 0.8
     assert res["avant"]["paragraphes_entre_crochets"] == 1 and res["apres"]["paragraphes_entre_crochets"] == 0
     assert res["deplaces_sans_changement"] == 1   # ancien §5 → §6, identique

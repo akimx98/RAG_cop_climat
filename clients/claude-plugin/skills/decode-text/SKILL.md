@@ -13,7 +13,8 @@ Follow `cop31-protocol`. Answer in the user's language; keep quotes in the origi
    requests [secretariat] / decides / notes); addressee (Parties, developed countries, secretariat…); deadline;
    references ("decision 1/CMA.5, paragraph 28" → go and read the reference).
 3. Brackets and options: list them, say what each option would change (`crochets` for brackets on a theme and
-   since which version).
+   since which version; `comparer_versions(<symbol>, filtre="§N")` for how that paragraph changed since the
+   previous version).
 4. Compare with already agreed language (`rechercher` the same wording in level 1 decisions): "backsliding" or
    "progress" is judged against agreed language.
 

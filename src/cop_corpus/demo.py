@@ -62,7 +62,9 @@ MAX_QUESTION = 600
 # Visiteur de la démo : jamais administrateur ni contributeur → documents publics seulement.
 DEMO_USER = {"id": 0, "email": "demo", "name": "demo", "is_admin": 0, "can_restricted": 0, "active": 1,
              "source": "demo", "lang": "en"}
-_CTX = SimpleNamespace(request_context=SimpleNamespace(request=SimpleNamespace(scope={"cop_user": DEMO_USER})))
+# cop_budget : taille d'une page de comparer_versions, sous MAX_TOOL_CHARS (pas de coupe au milieu d'un texte).
+_CTX = SimpleNamespace(request_context=SimpleNamespace(request=SimpleNamespace(
+    scope={"cop_user": DEMO_USER, "cop_budget": 12000})))
 
 # Outils exposés (lecture seule) et paramètres masqués (propres à un compte, ou sans objet pour un anonyme).
 TOOLS = ("rechercher", "lire_passage", "document", "comparer_versions", "crochets", "nouveautes", "dossiers",
@@ -110,6 +112,9 @@ ABSOLUTE RULES
 6. shall = obligation; should = recommendation; urges/encourages/invites = incentive; notes = observation.
 7. Search in UN English; try 2–3 phrasings if results are thin. Prefer `dossier` for "where do things stand",
    `comparer_versions` for "what changed", `positions` for "who wants what", `programme` for events.
+   With `comparer_versions`: read `resume` and `options` first; `supprimé_sans_reprise` = nothing of that
+   unit survives; quote old wording with the ref of `ancien`, new wording with the ref of `nouveau`, never
+   with the [-…-] {+…+} markers; on a long text, narrow with `filtre` ("§12", or words) rather than paging.
    The structured tools (positions, dossier, soumissions) only hold what has been extracted so far: the daily
    reports (ENB, TWN…), plenary statements and submissions often say more. So ALWAYS also run `rechercher`
    (e.g. "<item full name> <actor>", with acronym and full name, and once with types ["compte_rendu"]) before

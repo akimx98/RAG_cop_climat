@@ -43,7 +43,7 @@ costs nothing**.
 |---|---|
 | State of a negotiation item, texts, brackets, positions | `dossier(slug or alias)`; list and **aliases**: `dossiers` (e.g. ACE, GGA, MWP, art6, NCQG) |
 | What is still bracketed on a theme, and since when | `crochets(theme=…, texte=… or dossier=…)` |
-| What changed between two versions | `comparer_versions(<link or symbol>)` |
+| What changed between two versions | `comparer_versions(<link or symbol>)`: `resume` and `options` first; one paragraph: `filtre="§N"` |
 | Who wants what in the room (ENB, TWN, statements) | `positions(acteur=…, dossier=…, depuis=…)` |
 | Splits inside a group (e.g. G77) | `positions(divisions=true, groupe=…)` |
 | Official written positions | `soumissions(dossier=… / auteur=… / groupe=…)`, then `soumissions(document=…)` |

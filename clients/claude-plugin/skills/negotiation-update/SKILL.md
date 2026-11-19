@@ -11,8 +11,13 @@ Follow `cop31-protocol`. Answer in the user's language.
    item, successive texts with brackets and options, positions recorded during the COP (exact quote + source),
    reference positions (Carbon Brief).
 2. Latest text version: the most recent text in `dossier(...)`. If it is "to be retrieved" (`à récupérer`), say so
-   and give its unfccc.int link. Otherwise `comparer_versions(<link or symbol>)` → what changed; `lire_passage`
-   for the modified paragraphs. `crochets(theme=…, dossier=…)` for what is still bracketed on a theme, and since
+   and give its unfccc.int link. Otherwise `comparer_versions(<link or symbol>)` → what changed, unit by unit
+   (`§4.opt2.b3` = 3rd bullet of Option 2 of §4). Read `resume` and `options` first (which option was retained,
+   in full or in part); `supprimé_sans_reprise` = nothing of that unit survives (often the most telling);
+   `repris_de` / `repris_dans` = split, moved or merged, with the source unit; each bracket's fate (lifted,
+   deleted, kept; for `[A][B]`, which wording won). Quote old wording with the `ancien` reference and new
+   wording with the `nouveau` reference (page + PDF link), never with the `[-…-]` `{+…+}` markers. One paragraph
+   only: `filtre="§12"`; a theme: `filtre="finance, grant"`; long text: `page=2`… `crochets(theme=…, dossier=…)` for what is still bracketed on a theme, and since
    which version.
 3. Who is moving: `positions(dossier=..., depuis="48h")`; compare with pre-COP reference positions.
    WRITTEN positions (official submissions, level 2 for a Party): the `soumissions` and `positions_ecrites`
@@ -32,7 +37,8 @@ Follow `cop31-protocol`. Answer in the user's language.
 ```
 <Item> — version of <date time>, <symbol or title> (not adopted)
 Where we are: <2–3 lines>
-What moved since <previous version>: <paragraphs added/removed/changed; brackets x → y>
+What moved since <previous version>: <options settled; units deleted with no trace; key rewordings quoted
+before/after with page links; brackets x → y (lifted / deleted)>
 Options still open: <short list, quoted>
 Who pushes what: <groups/countries, source and level>
 Written positions: <linked calls, who submitted; known alignments (aid to analysis)>
