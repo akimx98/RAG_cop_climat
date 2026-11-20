@@ -1,5 +1,5 @@
 {# Frise d'un texte au fil de ses versions : crochets, options, et état de chaque notion (formulations.grid). #}
-{% macro frise(g, current=None) %}
+{% macro frise(g, current=None, uid='f') %}
 {% set ST = {'sans crochets': ('ok', '●', L('sans crochets', 'without brackets')),
              'dans une option': ('opt', '◑', L('dans une option', 'in an option')),
              'entre crochets': ('br', '[ ]', L('entre crochets', 'in brackets')),
@@ -9,11 +9,16 @@
 <tbody>
 <tr class="num"><th>{{ L('crochets', 'brackets') }}</th>{% for v in g.versions %}<td>{{ v.crochets }}</td>{% endfor %}</tr>
 {% if g.versions|selectattr('options')|list %}<tr class="num"><th>options</th>{% for v in g.versions %}<td>{{ v.options }}</td>{% endfor %}</tr>{% endif %}
-{% for n in g.notions %}<tr><th>{{ n.fr if lang != 'en' else n.en }}</th>
+{% for n in g.notions %}<tr><th>{% if n.bascules %}<button type="button" class="frise-n" aria-expanded="false" data-frise="{{ uid }}-{{ loop.index }}"><span class="car">▸</span> {{ n.fr if lang != 'en' else n.en }}</button>{% else %}{{ n.fr if lang != 'en' else n.en }}{% endif %}</th>
 {% for c in n.cellules %}{% set s = ST[c.etat] %}{% set v = g.versions[loop.index0] %}{% set prev = n.cellules[loop.index0 - 1] if loop.index0 else none %}
-<td class="st-{{ s[0] }}{{ ' chg' if prev and prev.etat != c.etat }}" title="{{ s[2] }}{% if c.unites %} : {{ c.unites|join(', ') }}{% endif %}">{% if v.prev and prev and prev.etat != c.etat %}<a href="/diff/{{ v.doc_id }}?avec={{ v.prev }}{% if c.unites %}#u-{{ c.unites[0]|urlencode }}{% endif %}">{{ s[1] }}</a>{% else %}{{ s[1] }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
+<td class="st-{{ s[0] }}{{ ' chg' if prev and prev.etat != c.etat }}" title="{{ s[2] }}{% if c.unites %} : {{ c.unites|join(', ') }}{% endif %}">{% if v.prev and prev and prev.etat != c.etat %}<a href="/diff/{{ v.doc_id }}?avec={{ v.prev }}{% if c.unites %}#u-{{ c.unites[0]|urlencode }}{% endif %}">{{ s[1] }}</a>{% else %}{{ s[1] }}{% endif %}</td>{% endfor %}</tr>
+{% if n.bascules %}<tr class="frise-det" id="frise-{{ uid }}-{{ loop.index }}" hidden><td colspan="{{ g.versions|length + 1 }}">
+{% for b in n.bascules %}<div class="fb"><div class="fb-h"><b>v{{ b.version }}</b> · {{ b.date[8:10] }}/{{ b.date[5:7] }} — {{ ST[b.de][2] }} → <b>{{ ST[b.a][2] }}</b> <a href="/diff/{{ b.doc_id }}?avec={{ b.prev }}">{{ L('comparaison complète', 'full comparison') }} ↗</a></div>
+{% for p in b.paragraphes %}<div class="fb-p"><div class="fb-u"><a href="{{ p.lien or '/diff/%s?avec=%s'|format(b.doc_id, b.prev) }}">{{ p.unite }}</a>{% if p.ancien and p.ancien != p.unite %} <span class="muted">← {{ p.ancien }}</span>{% endif %} <span class="muted">· {{ {'supprimé_sans_reprise': L('supprimé sans reprise', 'deleted, no trace'), 'ajouté': L('ajouté', 'added'), 'modifié': L('modifié', 'modified'), 'repris_de': L('repris', 'taken from'), 'repris_dans': L('fusionné', 'merged')}.get(p.statut, p.statut) }}</span></div>
+<div class="fb-t {{ p.genre }}">{{ p.texte|diffhtml|notionmark(n.cle) }}</div></div>{% else %}<div class="small muted">{{ L('Paragraphe non isolé : voir la comparaison complète.', 'Paragraph not isolated: see the full comparison.') }}</div>{% endfor %}
+</div>{% endfor %}</td></tr>{% endif %}{% endfor %}
 </tbody></table></div>
-<p class="small muted frise-leg"><span class="st-ok">●</span> {{ L('sans crochets', 'without brackets') }} · <span class="st-opt">◑</span> {{ L('dans une option', 'in an option') }} · <span class="st-br">[ ]</span> {{ L('entre crochets', 'in brackets') }} · <span class="st-no">–</span> {{ L('absente', 'absent') }} · {{ L('case encadrée : changement, cliquer pour voir le texte barré', 'outlined cell: a change, click to see the struck-through wording') }}</p>
+<p class="small muted frise-leg"><span class="st-ok">●</span> {{ L('sans crochets', 'without brackets') }} · <span class="st-opt">◑</span> {{ L('dans une option', 'in an option') }} · <span class="st-br">[ ]</span> {{ L('entre crochets', 'in brackets') }} · <span class="st-no">–</span> {{ L('absente', 'absent') }} · {{ L('case encadrée : changement ; cliquer sur une notion pour voir les paragraphes qui le montrent', 'outlined cell: a change; click a notion to see the paragraphs that show it') }}</p>
 {% endmacro %}
 
 {% macro frise_css() %}<style>
@@ -29,4 +34,20 @@
 .st-ok{color:var(--l1);font-weight:700}.st-opt{color:var(--l4);font-weight:700}.st-br{color:var(--warm);font-weight:700}.st-no{color:var(--muted)}
 .frise td.chg{outline:2px solid currentColor;outline-offset:-4px;border-radius:6px}
 .frise-leg{margin:8px 0 0}
-</style>{% endmacro %}
+.frise-n{all:unset;cursor:pointer;color:var(--accent);font-weight:600}
+.frise-n:hover{text-decoration:underline}.frise-n:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.frise-n .car{display:inline-block;transition:transform .15s}.frise-n[aria-expanded=true] .car{transform:rotate(90deg)}
+.frise tr.frise-det td{text-align:left;white-space:normal;background:var(--surface-2);padding:10px 12px}
+.fb + .fb{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.fb-h{font-size:13px;margin-bottom:6px}.fb-h a{margin-left:8px}
+.fb-p{margin:6px 0 0}.fb-u{font-size:12.5px;margin-bottom:2px}
+.fb-t{font:14.5px/1.6 var(--serif);color:var(--ink-2);overflow-wrap:anywhere}
+.fb-t.supprime{background:color-mix(in srgb,#e5484d 7%,transparent);border-left:3px solid color-mix(in srgb,#e5484d 55%,transparent);padding:4px 8px}
+.fb-t.ajoute{background:color-mix(in srgb,#30a46c 8%,transparent);border-left:3px solid color-mix(in srgb,#30a46c 55%,transparent);padding:4px 8px}
+.fb-t mark{background:color-mix(in srgb,var(--l3) 35%,transparent);color:inherit;border-radius:2px;padding:0 1px}
+</style>
+<script>
+document.addEventListener('click',function(e){var b=e.target.closest('.frise-n');if(!b)return;
+  var row=document.getElementById('frise-'+b.dataset.frise);if(!row)return;
+  var open=b.getAttribute('aria-expanded')!=='true';b.setAttribute('aria-expanded',open);row.hidden=!open;});
+</script>{% endmacro %}

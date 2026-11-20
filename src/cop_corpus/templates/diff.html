@@ -75,7 +75,7 @@ b.br{color:var(--warm);font-weight:700}
 <span><b>{{ result.avant[k] }}→{{ result.apres[k] }}</b> {{ label }}{% if k == 'crochets' and result.crochets and (result.crochets.leves or result.crochets.supprimes) %} <span class="muted">({{ result.crochets.leves }} {{ L('levés', 'lifted') }}, {{ result.crochets.supprimes }} {{ L('supprimés', 'deleted') }}{% if result.crochets.maintenus %}, {{ result.crochets.maintenus }} {{ L('maintenus', 'kept') }}{% endif %}{% if result.crochets.nouveaux %}, {{ result.crochets.nouveaux }} {{ L('nouveaux', 'new') }}{% endif %})</span>{% endif %}</span>{% endfor %}
 </div>
 
-{% if grille %}{{ frise_css() }}<details class="card" open><summary><b>{{ L('Au fil des versions', 'Across versions') }}</b> <span class="small muted">{{ L('crochets, options et notions suivies', 'brackets, options and tracked notions') }}</span></summary><div style="margin-top:10px">{{ frise(grille, doc.doc_id) }}</div></details>{% endif %}
+{% if grille %}{{ frise_css() }}<details class="card"><summary><b>{{ L('Au fil des versions', 'Across versions') }}</b> <span class="small muted">{{ L('crochets, options et notions suivies', 'brackets, options and tracked notions') }}</span></summary><div style="margin-top:10px">{{ frise(grille, doc.doc_id) }}</div></details>{% endif %}
 
 {% if result.options %}
 <div class="card">

@@ -180,3 +180,11 @@ def test_wording_timeline_tracks_brackets_options_and_switches(env):
     grid = formulations.grid(env, rows)
     assert [c["crochets"] for c in grid["versions"]] == [32, 0]
     assert {line["cle"] for line in grid["notions"]} >= {"1.5", "mesures_unilaterales"}
+    # Cliquer sur une notion : les paragraphes qui montrent la bascule, où la notion figure.
+    line = next(x for x in grid["notions"] if x["cle"] == "1.5")
+    (switch,) = line["bascules"]
+    assert (switch["de"], switch["a"]) == ("entre crochets", "absente")
+    assert {p["unite"] for p in switch["paragraphes"]} == {"§4.opt2.b3", "§4.opt2.b5"}
+    assert all(p["statut"] == "supprimé_sans_reprise" and "1.5 °C" in p["texte"] for p in switch["paragraphes"])
+    v3 = mcp_server.historique_formulation("1.5", texte="10821")["versions"][1]
+    assert {p["unite"] for p in v3["paragraphes"]} == {"§4.opt2.b3", "§4.opt2.b5"}

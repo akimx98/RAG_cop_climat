@@ -76,6 +76,9 @@ main{max-width:1320px}
 .tj-c .e{font-weight:650}.tj-c .e.ok{color:var(--l1)}.tj-c .e.opt{color:var(--l4)}.tj-c .e.br{color:var(--warm)}.tj-c .e.no{color:var(--muted)}
 .tj-c.chg{border-color:currentColor;outline:1px solid var(--line-2)}
 .tj-c .tj-n{display:block;color:var(--muted);margin-top:2px;white-space:normal}
+details.tjw>summary{cursor:pointer;font:650 12px/1.3 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:18px 0 8px}
+.tj-p{margin:8px 0 0;font-size:13px}.tj-p>summary{cursor:pointer;color:var(--accent);font-weight:600}
+.tj-p .dv-u{border-top:0;padding:6px 0 0}
 .src{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;text-align:left;color:var(--ink);font-weight:400}
 .src:hover,.src.on{border-color:var(--accent);background:var(--accent-soft)}
 .src .n{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 12px/1 var(--sans)}
@@ -369,7 +372,7 @@ function showAnswer(t,a,question){
         +(ok<checks.length?T(' : vérifiez les passages marqués ?',': check the passages marked ?'):'')}</span></div>`:'';
   const trace=(a.trace||[]).length?`<details class="trace"><summary>${T('Comment l\'outil a cherché','How the tool searched')} (${a.trace.length})</summary><ol>${a.trace.map(s=>`<li>${esc(s.label)}${s.detail?' · <i>'+esc(s.detail)+'</i>':''}</li>`).join('')}</ol></details>`:'';
   t.querySelector('.slot').innerHTML=`<div class="answer"><div class="body">${a.html||esc(T('Pas de réponse.','No answer.'))}</div>${verif}
-    ${(a.trajectoires||[]).length?`<div class="block-h">${T('Au fil des versions','Across versions')}</div>${trackViews(a)}`:''}
+    ${(a.trajectoires||[]).length?`<details class="tjw"><summary>${T('Au fil des versions','Across versions')} (${a.trajectoires.length})</summary>${trackViews(a)}</details>`:''}
     ${(a.diffs||[]).length?`<div class="block-h">${T('Ce qui a changé dans le texte','What changed in the text')}</div>${diffViews(a)}`:''}
     ${srcs?`<div class="block-h">${T('Sources','Sources')}</div><div class="srcs">${srcs}</div>`:''}
     ${evs?`<div class="block-h">${T('Événements','Events')}</div><div class="evs">${evs}</div>`:''}
@@ -404,7 +407,10 @@ function trackViews(a){return (a.trajectoires||[]).map(t=>`<div class="tj"><div 
   <div class="tj-row">${t.versions.map(v=>{const s=TJS[v.etat]||['','',v.etat,v.etat];const tag=v.lien?'a':'div';
     return `<${tag} class="tj-c${v.evenement?' chg':''}"${v.lien?` href="${esc(safe(v.lien))}" target="_blank" rel="noopener"`:''} title="${esc(v.extrait||'')}">
       <b>v${v.v} · ${esc(fmtDate(v.date))}</b><span class="e ${s[0]}">${s[1]}${esc(T(s[2],s[3]))}</span>
-      ${v.unites&&v.unites.length?`<span class="tj-n">${esc(v.unites.join(', '))}</span>`:''}${v.evenement?`<span class="tj-n">${esc(v.evenement)}</span>`:''}</${tag}>`;}).join('')}</div></div>`).join('');}
+      ${v.unites&&v.unites.length?`<span class="tj-n">${esc(v.unites.join(', '))}</span>`:''}${v.evenement?`<span class="tj-n">${esc(v.evenement)}</span>`:''}</${tag}>`;}).join('')}</div>
+  ${t.versions.filter(v=>v.paragraphes&&v.paragraphes.length).map(v=>`<details class="tj-p"><summary>v${v.v} · ${esc(v.evenement||'')} — ${T('voir les paragraphes','see the paragraphs')}</summary>
+    ${v.paragraphes.map(u=>{const st=DST[u.statut]||['',u.statut,u.statut];return `<div class="dv-u"><div class="uh"><b>${esc(u.unite)}</b>${u.ancien&&u.ancien!==u.unite?`<span class="muted">← ${esc(u.ancien)}</span>`:''}<span class="st ${st[0]}">${esc(T(st[1],st[2]))}</span>${u.lien?`<a href="${esc(safe(u.lien))}" target="_blank" rel="noopener">${T('voir','view')} ↗</a>`:''}</div>
+      <div class="dv-t ${u.genre==='diff'?'':esc(u.genre)}">${diffText(u.texte||'')}</div></div>`;}).join('')}</details>`).join('')}</div>`).join('');}
 function safe(u){return /^(https?:)?\/\//.test(u)||u.startsWith('/')?u:'#';}
 
 // Clics : appels de source, cartes source, export agenda, citations, partage

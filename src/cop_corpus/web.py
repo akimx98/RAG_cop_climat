@@ -45,6 +45,22 @@ def _diffhtml(text: str) -> Markup:
 
 
 TEMPLATES.filters["diffhtml"] = _diffhtml
+
+
+def _notionmark(html: Markup, key: str) -> Markup:
+    """Surligne une notion (formulations.CONCEPTS) dans un texte déjà échappé, hors balises."""
+    from . import formulations
+
+    c = formulations.CONCEPTS.get(key)
+    if not c:
+        return html
+    pat = re.compile("|".join(f"(?:{m})" for m in c["motifs"]), re.I)
+    parts = re.split(r"(<[^>]+>)", str(html))
+    return Markup("".join(p if p.startswith("<") else pat.sub(lambda m: f"<mark>{m.group(0)}</mark>", p)
+                          for p in parts))
+
+
+TEMPLATES.filters["notionmark"] = _notionmark
 TEMPLATES.globals["CLIENT_VERSION"] = json.loads(
     (Path(__file__).resolve().parents[2] / "clients/claude-plugin/.claude-plugin/plugin.json").read_text())["version"]
 

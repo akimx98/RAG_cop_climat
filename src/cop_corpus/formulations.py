@@ -71,6 +71,61 @@ STATES_EN = {"absente": "absent", "entre crochets": "in brackets", "dans une opt
              "sans crochets": "without brackets"}
 
 _CACHE: dict[tuple[int, int], structure.Document] = {}
+_DIFFS: dict[tuple[int, int], dict[str, Any]] = {}
+
+
+def _pair_diff(conn, old_id: int, new_id: int) -> dict[str, Any]:
+    from . import diff
+
+    key = (old_id, new_id)
+    if key not in _DIFFS:
+        if len(_DIFFS) > 100:
+            _DIFFS.clear()
+        _DIFFS[key] = diff.compare(conn, old_id, new_id)
+    return _DIFFS[key]
+
+
+def _window(text: str, patterns: list[re.Pattern], words: int = 70) -> str:
+    """Extrait centré sur la notion (texte avec marqueurs de diff), « … » aux coupures."""
+    plain = re.sub(r"\[-|-\]|\{\+|\+\}|[\[\]]", "", text)
+    m = next((m for p in patterns for m in [p.search(plain)] if m), None)
+    if len(text) <= 1500:
+        return text
+    toks = text.split(" ")
+    if not m:
+        return " ".join(toks[: 2 * words]) + " …"
+    # Position approximative du mot de la notion dans le texte marqué.
+    k = len(plain[: m.start()].split(" "))
+    a, b = max(0, k - words), min(len(toks), k + words)
+    seg = " ".join(toks[a:b])
+    # Ne pas laisser un marqueur ouvert.
+    for o, c in (("[-", "-]"), ("{+", "+}")):
+        if seg.count(o) > seg.count(c):
+            seg += c
+        if seg.count(c) > seg.count(o):
+            seg = o + seg
+    return ("… " if a else "") + seg + (" …" if b < len(toks) else "")
+
+
+def switch_paragraphs(conn, old_id: int, new_id: int, old_units: set[str], new_units: set[str],
+                      patterns: list[re.Pattern] | None = None, limit: int = 3) -> list[dict[str, Any]]:
+    """Les paragraphes qui montrent une bascule : unités de l'ancienne version où figurait la notion, ou de la
+    nouvelle où elle figure, telles que le diff les voit (texte barré / ajouté)."""
+    out = []
+    for c in _pair_diff(conn, old_id, new_id)["changements"]:
+        old = (c.get("ancien") or {}).get("unite")
+        new = (c.get("nouveau") or {}).get("unite")
+        if old in old_units or new in new_units or c["unite"] in new_units:
+            text = c.get("diff") or c.get("texte_ancien") or c.get("texte_nouveau") or ""
+            plain = re.sub(r"\[-|-\]|\{\+|\+\}|[\[\]]", "", text)
+            if not plain.strip() or (patterns and not any(p.search(plain) for p in patterns)):
+                continue   # paragraphe où la notion ne figure pas : pas une preuve de la bascule
+            text = _window(text, patterns or []) if len(text) > 1500 else text
+            out.append({"unite": c["unite"], "ancien": old, "statut": c["statut"], "texte": text,
+                        "genre": "diff" if c.get("diff") else ("supprime" if c.get("texte_ancien") else "ajoute"),
+                        "lien": c.get("lien_diff")})
+    order = {"supprimé_sans_reprise": 0, "ajouté": 1, "modifié": 2, "repris_de": 3, "repris_dans": 3}
+    return sorted(out, key=lambda x: order.get(x["statut"], 4))[:limit]
 
 
 def resolve(notion: str) -> tuple[str, str, list[re.Pattern]]:
@@ -228,6 +283,9 @@ def timeline(conn, doc_row, notion: str, user: dict | None, lang: str = "fr") ->
             ev = _event(versions[-1], v, lang)
             if ev:
                 v["evenement"] = ev
+                v["paragraphes"] = switch_paragraphs(
+                    conn, rows[i - 1]["id"], r["id"], {o["unite"] for o in versions[-1]["occurrences"]},
+                    {o["unite"] for o in occ}, patterns, limit=2)
         versions.append(v)
     last = versions[-1]
     fr = CONCEPTS[key]["fr"] if key in CONCEPTS else label
@@ -261,6 +319,17 @@ def grid(conn, rows: list[Any], keys: list[str] | None = None) -> dict[str, Any]
         for r in rows:
             occ = occurrences(conn, r["id"], pats[k])
             cells.append({"etat": status(occ), "unites": [o["unite"] for o in occ]})
-        if any(c["etat"] != "absente" for c in cells):
-            lines.append({"cle": k, "fr": CONCEPTS[k]["fr"], "en": CONCEPTS[k]["en"], "cellules": cells})
+        if not any(c["etat"] != "absente" for c in cells):
+            continue
+        # Bascules : version où l'état change, avec les paragraphes qui le montrent (texte barré / ajouté).
+        switches = []
+        for i in range(1, len(rows)):
+            if cells[i]["etat"] != cells[i - 1]["etat"]:
+                switches.append({"version": i + 1, "date": cols[i]["date"], "de": cells[i - 1]["etat"],
+                                 "a": cells[i]["etat"], "doc_id": rows[i]["id"], "prev": rows[i - 1]["id"],
+                                 "paragraphes": switch_paragraphs(conn, rows[i - 1]["id"], rows[i]["id"],
+                                                                  set(cells[i - 1]["unites"]),
+                                                                  set(cells[i]["unites"]), pats[k])})
+        lines.append({"cle": k, "fr": CONCEPTS[k]["fr"], "en": CONCEPTS[k]["en"], "cellules": cells,
+                      "bascules": switches})
     return {"versions": cols, "notions": lines}

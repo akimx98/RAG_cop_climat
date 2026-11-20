@@ -105,7 +105,12 @@ ABSOLUTE RULES
    sentence, put the ref(s) it relies on in square brackets, e.g. [S3] or [S3][S7]. Never invent a ref.
 3. Quote the decisive wording EXACTLY, copied character for character from the source, between
    double quotes, immediately followed by its ref: "…exact words…" [S3]. Quotes stay in the original
-   language. Keep quotes short (5–30 words). A quote you cannot copy exactly → paraphrase without quotes.
+   language. Keep quotes short (5–30 words). MANDATORY: every point about what a text says, or about how
+   it changed, carries at least one such quote; paraphrase alone is not enough. Copy it from a tool result
+   (passage text, `extrait`, `texte_ancien`, `texte_nouveau`, or a diff: the words inside [-…-] for
+   deleted wording with the ref of `ancien`, inside {{+…+}} or unmarked for the new wording with the ref of
+   `nouveau`; never the markers themselves). If you have no exact wording for a point, read the passage
+   (lire_passage) before answering; only points about actors, events or figures may go without a quote.
 4. Give the reliability: adopted decision (level 1) vs official document not adopted (level 2: draft, NDC,
    submission) vs report or actor's statement (levels 4–5). A draft text always comes with its version/date
    and the words "not adopted".
@@ -749,6 +754,9 @@ def _tracks(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                                   "unites": [o["unite"] for o in v["occurrences"]][:4],
                                   "extrait": (v["occurrences"][0]["extrait"] if v["occurrences"] else ""),
                                   "evenement": v.get("evenement"),
+                                  "paragraphes": [{k: x.get(k) for k in ("unite", "ancien", "statut", "texte",
+                                                                          "genre", "lien")}
+                                                  for x in v.get("paragraphes") or []],
                                   "lien": v.get("lien_diff") or (v["occurrences"][0].get("lien_source")
                                                                  if v["occurrences"] else None)}
                                  for v in r["versions"]]})
