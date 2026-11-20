@@ -872,7 +872,11 @@ async def diff_page(request: Request):
     if not old:
         return render(request, "diff.html", doc=new, old=None, result=None, versions=versions)
     result = diff.compare(conn, int(old_id), new_id, lang=lang_of(request, user))
-    return render(request, "diff.html", doc=new, old=old, result=result, versions=versions)
+    from . import formulations
+
+    rows = formulations.lineage(conn, conn.execute("SELECT * FROM documents WHERE id=?", (new_id,)).fetchone(), user)
+    grille = formulations.grid(conn, rows) if len(rows) >= 2 else None
+    return render(request, "diff.html", doc=new, old=old, result=result, versions=versions, grille=grille)
 
 
 async def file_page(request: Request):
@@ -1165,7 +1169,7 @@ def demo_refusals() -> dict[str, tuple[str, str]]:
 
 
 def _demo_public(payload: dict) -> dict:
-    return {k: payload.get(k) for k in ("html", "sources", "events", "checks", "trace", "model", "diffs")}
+    return {k: payload.get(k) for k in ("html", "sources", "events", "checks", "trace", "model", "diffs", "trajectoires")}
 
 
 async def demo_page(request: Request):

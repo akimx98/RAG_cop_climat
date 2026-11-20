@@ -68,6 +68,14 @@ main{max-width:1320px}
 .dv-t del{background:color-mix(in srgb,#e5484d 16%,transparent);text-decoration-color:color-mix(in srgb,#e5484d 60%,transparent)}
 .dv-t ins{background:color-mix(in srgb,#30a46c 20%,transparent);text-decoration:none}
 .dv-t b.br{color:var(--warm)}
+.tj{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 8px;background:var(--surface)}
+.tj-h{font-size:13px;color:var(--muted);margin:0 0 8px}.tj-h b{color:var(--ink);font-size:14px}
+.tj-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
+.tj-c{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12.5px;text-decoration:none;color:var(--ink-2)}
+.tj-c b{display:block;font-size:13px;color:var(--ink)}
+.tj-c .e{font-weight:650}.tj-c .e.ok{color:var(--l1)}.tj-c .e.opt{color:var(--l4)}.tj-c .e.br{color:var(--warm)}.tj-c .e.no{color:var(--muted)}
+.tj-c.chg{border-color:currentColor;outline:1px solid var(--line-2)}
+.tj-c .tj-n{display:block;color:var(--muted);margin-top:2px;white-space:normal}
 .src{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;text-align:left;color:var(--ink);font-weight:400}
 .src:hover,.src.on{border-color:var(--accent);background:var(--accent-soft)}
 .src .n{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 12px/1 var(--sans)}
@@ -361,6 +369,7 @@ function showAnswer(t,a,question){
         +(ok<checks.length?T(' : vérifiez les passages marqués ?',': check the passages marked ?'):'')}</span></div>`:'';
   const trace=(a.trace||[]).length?`<details class="trace"><summary>${T('Comment l\'outil a cherché','How the tool searched')} (${a.trace.length})</summary><ol>${a.trace.map(s=>`<li>${esc(s.label)}${s.detail?' · <i>'+esc(s.detail)+'</i>':''}</li>`).join('')}</ol></details>`:'';
   t.querySelector('.slot').innerHTML=`<div class="answer"><div class="body">${a.html||esc(T('Pas de réponse.','No answer.'))}</div>${verif}
+    ${(a.trajectoires||[]).length?`<div class="block-h">${T('Au fil des versions','Across versions')}</div>${trackViews(a)}`:''}
     ${(a.diffs||[]).length?`<div class="block-h">${T('Ce qui a changé dans le texte','What changed in the text')}</div>${diffViews(a)}`:''}
     ${srcs?`<div class="block-h">${T('Sources','Sources')}</div><div class="srcs">${srcs}</div>`:''}
     ${evs?`<div class="block-h">${T('Événements','Events')}</div><div class="evs">${evs}</div>`:''}
@@ -389,6 +398,13 @@ function diffViews(a){return (a.diffs||[]).map(d=>{
       <span class="st ${st[0]}">${esc(T(st[1],st[2]))}</span>${u.lien?`<a href="${esc(safe(u.lien))}" target="_blank" rel="noopener">${T('voir','view')} ↗</a>`:''}</div>
       <div class="dv-t ${u.genre==='diff'?'':esc(u.genre)}">${diffText(u.texte||'')}</div>${u.abrege?`<div class="small muted">${T('Extrait resserré autour des changements.','Excerpt trimmed around the changes.')}</div>`:''}</div>`;}).join('');
   return `<div class="dv">${head}${units}</div>`;}).join('');}
+const TJS={'sans crochets':['ok','● ','sans crochets','without brackets'],'dans une option':['opt','◑ ','dans une option','in an option'],
+  'entre crochets':['br','[ ] ','entre crochets','in brackets'],'absente':['no','– ','absente','absent']};
+function trackViews(a){return (a.trajectoires||[]).map(t=>`<div class="tj"><div class="tj-h"><b>${esc(T(t.notion_fr||t.notion,t.notion))}</b> · ${esc(t.cote||'')}</div>
+  <div class="tj-row">${t.versions.map(v=>{const s=TJS[v.etat]||['','',v.etat,v.etat];const tag=v.lien?'a':'div';
+    return `<${tag} class="tj-c${v.evenement?' chg':''}"${v.lien?` href="${esc(safe(v.lien))}" target="_blank" rel="noopener"`:''} title="${esc(v.extrait||'')}">
+      <b>v${v.v} · ${esc(fmtDate(v.date))}</b><span class="e ${s[0]}">${s[1]}${esc(T(s[2],s[3]))}</span>
+      ${v.unites&&v.unites.length?`<span class="tj-n">${esc(v.unites.join(', '))}</span>`:''}${v.evenement?`<span class="tj-n">${esc(v.evenement)}</span>`:''}</${tag}>`;}).join('')}</div></div>`).join('');}
 function safe(u){return /^(https?:)?\/\//.test(u)||u.startsWith('/')?u:'#';}
 
 // Clics : appels de source, cartes source, export agenda, citations, partage

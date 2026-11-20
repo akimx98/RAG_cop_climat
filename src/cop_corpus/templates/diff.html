@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}{{ L('Ce qui a changé', 'What changed') }} · {{ doc.cote or doc.titre }} · COP31{% endblock %}{% block body %}
+{% extends "base.html" %}{% block title %}{{ L('Ce qui a changé', 'What changed') }} · {{ doc.cote or doc.titre }} · COP31{% endblock %}{% block body %}{% from "_frise.html" import frise, frise_css with context %}
 {% macro picker() %}<form method="get" action="/diff/{{ doc.doc_id }}" class="dv-pick">
 <label class="small" for="avec">{{ L('Comparer avec', 'Compare with') }}</label>
 <select id="avec" name="avec">{% for v in versions if v.doc_id != doc.doc_id %}
@@ -74,6 +74,8 @@ b.br{color:var(--warm);font-weight:700}
 {% for k, label in [('paragraphes', L('paragraphes', 'paragraphs')), ('unites', L('unités', 'units')), ('crochets', L('crochets', 'brackets')), ('alternatives', L('alternatives', 'alternatives')), ('options', 'options'), ('notes', L('notes', 'footnotes'))] if result.avant[k] or result.apres[k] %}
 <span><b>{{ result.avant[k] }}→{{ result.apres[k] }}</b> {{ label }}{% if k == 'crochets' and result.crochets and (result.crochets.leves or result.crochets.supprimes) %} <span class="muted">({{ result.crochets.leves }} {{ L('levés', 'lifted') }}, {{ result.crochets.supprimes }} {{ L('supprimés', 'deleted') }}{% if result.crochets.maintenus %}, {{ result.crochets.maintenus }} {{ L('maintenus', 'kept') }}{% endif %}{% if result.crochets.nouveaux %}, {{ result.crochets.nouveaux }} {{ L('nouveaux', 'new') }}{% endif %})</span>{% endif %}</span>{% endfor %}
 </div>
+
+{% if grille %}{{ frise_css() }}<details class="card" open><summary><b>{{ L('Au fil des versions', 'Across versions') }}</b> <span class="small muted">{{ L('crochets, options et notions suivies', 'brackets, options and tracked notions') }}</span></summary><div style="margin-top:10px">{{ frise(grille, doc.doc_id) }}</div></details>{% endif %}
 
 {% if result.options %}
 <div class="card">

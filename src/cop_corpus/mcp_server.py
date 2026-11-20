@@ -33,15 +33,16 @@ RULES
 {RULES}
 
 TOOLS
-- Corpus: rechercher → lire_passage; document; comparer_versions; crochets (by theme); nouveautes; donnees; glossaire.
+- Corpus: rechercher → lire_passage; document; comparer_versions; crochets; historique_formulation; nouveautes;
+  donnees; glossaire.
 - Negotiations: dossiers (aliases) → dossier; positions (divisions=true: dividing lines).
 - Written positions: soumissions; comparer_soumissions; groupes.
 - Plan the day: programme (where, when; mes_sujets=true); pavillons (contents).
 - My topics: mes_sujets; nouveautes(mes_sujets=true) = what changed on them; suivre; deposer_url; etat_corpus.
 Methods (MCP prompts): point_negociation, position_pays, preparer_rencontre, plaidoyer, decouvrir_sujet,
 quoi_de_neuf.
-Skills or pasted COP31 instructions in this chat older than v{CLIENT_VERSION} (or unversioned): tell the user once to
-update them at {config.PUBLIC_BASE}/connect."""
+COP31 skills or pasted instructions here older than v{CLIENT_VERSION} or unversioned: tell the user once to update
+them at {config.PUBLIC_BASE}/connect."""
 
 # Outils retirés ou renommés : ne doivent plus apparaître nulle part (test). textes_en_cours → dossiers(textes=…) ;
 # suivre_dossier / arreter_suivi → suivre(dossier=… | arreter=…) ; analyser_soumission → soumissions(document=…) ;
@@ -274,6 +275,41 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
     budget = (_scope(ctx, "cop_budget") or COMPARE_BUDGET) - len(json.dumps(head, ensure_ascii=False))
     out = diff.compare(conn, old["id"], new["id"], budget=budget, page=page, filtre=filtre)
     return {**head, **out}
+
+
+@mcp.tool(annotations=READ)
+def historique_formulation(notion: str, texte: str | None = None, dossier: str | None = None,
+                           ctx: Context | None = None) -> dict[str, Any]:
+    """Track a wording or notion through every version of a draft text: is "1.5 °C", "transition away from fossil
+    fuels", "grant-based", "unilateral measures"… present without brackets, in brackets, inside an option, or
+    absent — version by version, where (unit such as §4.opt2.b3, page, link, excerpt), and when it switched
+    (`bascules`: appears, disappears, brackets lifted, put in brackets, option retained…).
+    `notion`: 1.5, fossil fuels, coal, renewables, energy efficiency, methane, deforestation, net zero, CBDR,
+    finance, grants, unilateral measures, human rights, gender, just transition, loss and damage, science (IPCC)
+    — or English words separated by commas, searched as written. `texte`: symbol, doc_id or URL; otherwise
+    `dossier` (slug or alias): its latest retrieved text. "Absent" means this wording is absent, not that the
+    topic is: try other words. Quote the excerpt with version, date, page and link; drafts are not adopted; give
+    the `lien_diff` of a switch so the user sees the struck-through wording."""
+    from . import formulations
+
+    conn = db.get()
+    user = _user(ctx)
+    if texte:
+        row = search.find_doc(conn, texte, user)
+        if not row:
+            return {"erreur": f"document not found: {texte}"}
+    elif dossier:
+        slug, err = _resolve_dossier(dossier)
+        if err:
+            return err
+        live, _, _ = _live()
+        got = [t for t in live.texts(conn, slug, limit=40) if t["doc_id"]]
+        row = search.find_doc(conn, str(got[0]["doc_id"]), user) if got else None
+        if not row:
+            return {"erreur": f"no text of item “{slug}” retrieved in the corpus", "conseil": "dossiers(a_recuperer=true)"}
+    else:
+        return {"erreur": "specify texte=<symbol or doc_id> or dossier=<slug or alias>"}
+    return formulations.timeline(conn, row, notion, user)
 
 
 @mcp.tool(annotations=READ)
@@ -1000,7 +1036,8 @@ METHODES: dict[str, dict[str, list[str]]] = {
                "`comparer_versions` sur la dernière version : lire `resume` et `options` (option retenue, en tout ou "
                "en partie), unités supprimées sans reprise, reprises et fusions, devenir des crochets et des "
                "alternatives — citer avant/après avec les références `ancien`/`nouveau` (page, lien PDF), "
-               "`filtre=\"§N\"` pour un paragraphe ; `crochets(theme=…, texte=…)` : ce qui reste entre crochets "
+               "`filtre=\"§N\"` pour un paragraphe ; `historique_formulation(notion=…, dossier=…)` pour les notions clés "
+               "(1,5 °C, fossiles, financement…) version par version ; `crochets(theme=…, texte=…)` : ce qui reste entre crochets "
                "sur un thème (genre, droits humains, désinformation…) et depuis quelle version.",
                "`positions(dossier=…, depuis=…)` : qui pousse quoi, qui bloque (l'ENB attribue les interventions) ; "
                "clivages internes d'un groupe : `positions(divisions=true, groupe=…)` ; positions écrites : "
@@ -1011,7 +1048,8 @@ METHODES: dict[str, dict[str, list[str]]] = {
                "`comparer_versions` on the latest version: read `resume` and `options` (option retained, in full or "
                "in part), units deleted with no trace, splits and merges, fate of brackets and alternatives — quote "
                "before/after with the `ancien`/`nouveau` references (page, PDF link), `filtre=\"§N\"` for one "
-               "paragraph; `crochets(theme=…, texte=…)`: what stays in brackets on a theme "
+               "paragraph; `historique_formulation(notion=…, dossier=…)` for key notions (1.5 °C, fossil fuels, "
+               "finance…) version by version; `crochets(theme=…, texte=…)`: what stays in brackets on a theme "
                "(gender, human rights, disinformation…) and since which version.",
                "`positions(dossier=…, depuis=…)`: who pushes what, who blocks (ENB attributes interventions); "
                "a group's internal splits: `positions(divisions=true, groupe=…)`; written positions: "

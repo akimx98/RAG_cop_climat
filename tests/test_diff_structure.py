@@ -150,3 +150,29 @@ def test_ask_diff_view_shows_cited_units_or_the_most_telling(env):
     cited = demo._diff_previews([res], {s2}, refs)[0]
     assert cited["cites"] and "§2" in [u["unite"] for u in cited["unites"]]
     assert "[-[-]Notes" in next(u["texte"] for u in cited["unites"] if u["unite"] == "§2")
+
+
+def test_wording_timeline_tracks_brackets_options_and_switches(env):
+    """1,5 °C, mesures unilatérales : entre crochets dans les puces de l'option 2 (v2), disparus en v3."""
+    from cop_corpus import formulations, mcp_server
+
+    out = mcp_server.historique_formulation("1.5", texte="10821")
+    v2, v3 = out["versions"]
+    assert v2["etat"] == "entre crochets" and {o["unite"] for o in v2["occurrences"]} == {"§4.opt2.b3", "§4.opt2.b5"}
+    assert v3["etat"] == "absente" and v3["evenement"].startswith("disparaît")
+    assert out["bascules"][0]["lien_diff"].endswith("/diff/10821?avec=2623")
+    o = v2["occurrences"][0]
+    assert "1.5 °C" in o["extrait"] and o["page"] == 1 and "#page=1" in o["lien_source"]
+    assert mcp_server.historique_formulation("unilateral measures", texte="10821")["versions"][0]["etat"] == \
+        "entre crochets"
+    # Mots libres, cherchés tels quels ; présent sans crochets dans les deux versions.
+    free = mcp_server.historique_formulation("annual global stocktake dialogue", texte="10821")
+    assert [v["etat"] for v in free["versions"]] == ["sans crochets", "sans crochets"] and not free["bascules"]
+    # Une mention sans crochets dans une option en balance : « dans une option ».
+    opt = mcp_server.historique_formulation("take into account the information", texte="10821")
+    assert opt["versions"][0]["etat"] == "dans une option"
+    import sqlite3  # noqa: F401
+    rows = formulations.lineage(env, env.execute("SELECT * FROM documents WHERE id=10821").fetchone(), None)
+    grid = formulations.grid(env, rows)
+    assert [c["crochets"] for c in grid["versions"]] == [32, 0]
+    assert {line["cle"] for line in grid["notions"]} >= {"1.5", "mesures_unilaterales"}

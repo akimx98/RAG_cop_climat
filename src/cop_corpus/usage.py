@@ -81,7 +81,7 @@ PROFILE_KEYS = {k for k, _, _ in PROFILES}
 FAMILIES = {
     "veille": {"nouveautes", "mes_sujets", "suivre", "quoi_de_neuf", "/brief", "/nouveau", "/sujets", "/suivre",
                "/arreter", "/suivi", "/textes"},
-    "negociation": {"dossier", "dossiers", "crochets", "comparer_versions", "positions", "soumissions",
+    "negociation": {"dossier", "dossiers", "crochets", "comparer_versions", "historique_formulation", "positions", "soumissions",
                     "comparer_soumissions", "groupes", "point_negociation", "position_pays", "preparer_rencontre",
                     "/dossier", "/dossiers"},
     "agenda": {"programme", "pavillons"},

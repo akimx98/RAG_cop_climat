@@ -67,7 +67,7 @@ _CTX = SimpleNamespace(request_context=SimpleNamespace(request=SimpleNamespace(
     scope={"cop_user": DEMO_USER, "cop_budget": 12000})))
 
 # Outils exposés (lecture seule) et paramètres masqués (propres à un compte, ou sans objet pour un anonyme).
-TOOLS = ("rechercher", "lire_passage", "document", "comparer_versions", "crochets", "nouveautes", "dossiers",
+TOOLS = ("rechercher", "lire_passage", "document", "comparer_versions", "historique_formulation", "crochets", "nouveautes", "dossiers",
          "dossier", "positions", "programme", "pavillons", "soumissions", "groupes", "glossaire", "donnees")
 HIDDEN = {"mes_sujets", "acces"}
 
@@ -77,6 +77,7 @@ STEP_LABELS = {
     "document": ("Fiche du document", "Document record"),
     "comparer_versions": ("Comparaison des versions", "Comparing versions"),
     "crochets": ("Relevé des crochets", "Listing brackets"),
+    "historique_formulation": ("Suivi d'une formulation dans les versions", "Tracking a wording across versions"),
     "nouveautes": ("Nouveautés du corpus", "What's new in the corpus"),
     "dossiers": ("Liste des dossiers de négociation", "Negotiation items"),
     "dossier": ("État du dossier", "Negotiation item status"),
@@ -118,6 +119,8 @@ ABSOLUTE RULES
    Whenever a question touches how a draft evolved (what moved, whether a wording or an option survived, what
    was dropped), call `comparer_versions`: the interface then shows the struck-through and added wording of the
    units you cite under your answer, with a link to the full comparison. Cite those units' refs.
+   For "is X still in the text / since when / where did X go" (1.5 °C, fossil fuels, grants…), call
+   `historique_formulation`: the interface shows its version-by-version strip under your answer.
    The structured tools (positions, dossier, soumissions) only hold what has been extracted so far: the daily
    reports (ENB, TWN…), plenary statements and submissions often say more. So ALWAYS also run `rechercher`
    (e.g. "<item full name> <actor>", with acronym and full name, and once with types ["compte_rendu"]) before
@@ -638,7 +641,7 @@ def sign_links(conn, sources: list[dict[str, Any]], hours: int = 24) -> list[dic
 
 def _summary(args: dict[str, Any]) -> str:
     keys = ("requete", "slug", "sujet", "acteur", "dossier", "reference", "document_recent", "theme", "terme", "pays",
-            "jour", "pavillon", "depuis", "auteur", "groupe")
+            "jour", "pavillon", "depuis", "auteur", "groupe", "notion", "texte")
     vals = [str(args[k]) for k in keys if args.get(k)]
     return " · ".join(vals)[:120]
 
@@ -674,6 +677,7 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
     n_calls = 0
     stop = False
     compared: list[dict[str, Any]] = []   # résultats de comparer_versions : vue du diff sous la réponse
+    tracks: list[dict[str, Any]] = []     # résultats de historique_formulation : frise sous la réponse
     for rnd in range(MAX_ROUNDS):
         kwargs: dict[str, Any] = dict(model=MODEL, instructions=system, input=pending, tools=specs,
                                       max_output_tokens=6000)
@@ -713,6 +717,8 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
             result = refs.tag(call_tool(c.name, args), c.name)
             if c.name == "comparer_versions" and isinstance(result, dict) and result.get("changements"):
                 compared.append(result)
+            if c.name == "historique_formulation" and isinstance(result, dict) and result.get("versions"):
+                tracks.append(result)
             content = json.dumps(result, ensure_ascii=False, default=str)
             if len(content) > MAX_TOOL_CHARS:
                 content = content[:MAX_TOOL_CHARS] + ' …[truncated: ask a narrower question or read a passage]'
@@ -725,8 +731,28 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
     events = [refs.events[r] for r in out["events"]]
     diffs = _diff_previews(compared, set(out["order"]), refs)
     return {"html": out["html"], "sources": sources, "events": events, "checks": out["checks"], "trace": trace,
-            "diffs": diffs,
+            "diffs": diffs, "trajectoires": _tracks(tracks),
             "cost": round(cost, 4), "model": MODEL, "response_id": previous, "state": refs.state(), "text": final}
+
+
+def _tracks(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Frise d'une notion au fil des versions (historique_formulation), au plus trois, sans doublon."""
+    out, seen = [], set()
+    for r in results:
+        key = (r.get("cle"), r.get("notion"), (r.get("texte") or {}).get("doc_id"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"notion": r.get("notion"), "notion_fr": r.get("notion_fr"), "cote": (r.get("texte") or {}).get("cote"),
+                    "titre": (r.get("texte") or {}).get("titre"),
+                    "versions": [{"v": v["version"], "cote": v["cote"], "date": v["date"], "etat": v["etat"],
+                                  "unites": [o["unite"] for o in v["occurrences"]][:4],
+                                  "extrait": (v["occurrences"][0]["extrait"] if v["occurrences"] else ""),
+                                  "evenement": v.get("evenement"),
+                                  "lien": v.get("lien_diff") or (v["occurrences"][0].get("lien_source")
+                                                                 if v["occurrences"] else None)}
+                                 for v in r["versions"]]})
+    return out[:3]
 
 
 def _diff_previews(results: list[dict[str, Any]], cited: set[str], refs: "Refs | None" = None) -> list[dict[str, Any]]:

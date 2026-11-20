@@ -1,0 +1,32 @@
+{# Frise d'un texte au fil de ses versions : crochets, options, et état de chaque notion (formulations.grid). #}
+{% macro frise(g, current=None) %}
+{% set ST = {'sans crochets': ('ok', '●', L('sans crochets', 'without brackets')),
+             'dans une option': ('opt', '◑', L('dans une option', 'in an option')),
+             'entre crochets': ('br', '[ ]', L('entre crochets', 'in brackets')),
+             'absente': ('no', '–', L('absente', 'absent'))} %}
+<div class="frise-wrap"><table class="frise">
+<thead><tr><th></th>{% for v in g.versions %}<th class="{{ 'cur' if current == v.doc_id }}"><a href="{{ '/diff/%s?avec=%s'|format(v.doc_id, v.prev) if v.prev else '/doc/%s'|format(v.doc_id) }}" title="{{ v.cote }}">v{{ v.version }}</a><span>{{ v.date[8:10] }}/{{ v.date[5:7] }}</span></th>{% endfor %}</tr></thead>
+<tbody>
+<tr class="num"><th>{{ L('crochets', 'brackets') }}</th>{% for v in g.versions %}<td>{{ v.crochets }}</td>{% endfor %}</tr>
+{% if g.versions|selectattr('options')|list %}<tr class="num"><th>options</th>{% for v in g.versions %}<td>{{ v.options }}</td>{% endfor %}</tr>{% endif %}
+{% for n in g.notions %}<tr><th>{{ n.fr if lang != 'en' else n.en }}</th>
+{% for c in n.cellules %}{% set s = ST[c.etat] %}{% set v = g.versions[loop.index0] %}{% set prev = n.cellules[loop.index0 - 1] if loop.index0 else none %}
+<td class="st-{{ s[0] }}{{ ' chg' if prev and prev.etat != c.etat }}" title="{{ s[2] }}{% if c.unites %} : {{ c.unites|join(', ') }}{% endif %}">{% if v.prev and prev and prev.etat != c.etat %}<a href="/diff/{{ v.doc_id }}?avec={{ v.prev }}{% if c.unites %}#u-{{ c.unites[0]|urlencode }}{% endif %}">{{ s[1] }}</a>{% else %}{{ s[1] }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted frise-leg"><span class="st-ok">●</span> {{ L('sans crochets', 'without brackets') }} · <span class="st-opt">◑</span> {{ L('dans une option', 'in an option') }} · <span class="st-br">[ ]</span> {{ L('entre crochets', 'in brackets') }} · <span class="st-no">–</span> {{ L('absente', 'absent') }} · {{ L('case encadrée : changement, cliquer pour voir le texte barré', 'outlined cell: a change, click to see the struck-through wording') }}</p>
+{% endmacro %}
+
+{% macro frise_css() %}<style>
+.frise-wrap{overflow-x:auto}
+.frise{border-collapse:collapse;font-size:13px;min-width:100%}
+.frise th,.frise td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.frise tbody th{text-align:left;font-weight:500;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink-2);white-space:normal;min-width:150px}
+.frise thead th{font-weight:650;vertical-align:bottom;text-transform:none;letter-spacing:0}
+.frise thead th span{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
+.frise thead th.cur{background:var(--accent-soft)}
+.frise tr.num td{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.frise td a{text-decoration:none;color:inherit;display:block}
+.st-ok{color:var(--l1);font-weight:700}.st-opt{color:var(--l4);font-weight:700}.st-br{color:var(--warm);font-weight:700}.st-no{color:var(--muted)}
+.frise td.chg{outline:2px solid currentColor;outline-offset:-4px;border-radius:6px}
+.frise-leg{margin:8px 0 0}
+</style>{% endmacro %}

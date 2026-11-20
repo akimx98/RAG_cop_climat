@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% from "_live.html" import stance, when, textstate with context %}{% from "_doc.html" import docline with context %}{% block title %}{{ DN(d) }} · COP31{% endblock %}{% block body %}
+{% extends "base.html" %}{% from "_live.html" import stance, when, textstate with context %}{% from "_doc.html" import docline with context %}{% from "_frise.html" import frise, frise_css with context %}{% block title %}{{ DN(d) }} · COP31{% endblock %}{% block body %}
 <section class="hero">
 <div class="eyebrow"><a href="/database">{{ L('Base de données', 'Database') }}</a> · <a href="/database?tab=negotiations">{{ L('Dossiers', 'Negotiation items') }}</a> · {{ d.alias|join(', ') }}</div>
 <h1>{{ DN(d) }}</h1>
@@ -13,7 +13,8 @@
 <div class="grid wide">
 <section>
 <h2>{{ L('Textes de négociation', 'Negotiating texts') }}</h2>
-{% if spark %}<div class="card"><div class="small muted">{{ L('Crochets au fil des versions', 'Brackets across versions') }}</div>{{ spark|safe }}</div>{% endif %}
+{% if spark and not frises %}<div class="card"><div class="small muted">{{ L('Crochets au fil des versions', 'Brackets across versions') }}</div>{{ spark|safe }}</div>{% endif %}
+{% if frises %}{{ frise_css() }}{% for f in frises %}<div class="card"><div class="small muted" style="margin-bottom:6px">{{ L('Au fil des versions', 'Across versions') }} · <b>{{ f.cote }}</b> {{ f.titre|replace(f.cote ~ ' — ', '') }}</div>{{ frise(f.grille) }}</div>{% endfor %}{% endif %}
 <div class="card flush">
 {% for t in texts %}<div class="item">
 <div class="title">{% if t.doc_id %}<a href="/doc/{{ t.doc_id }}">{{ t.symbol or '' }} {{ t.title }}</a>{% else %}{{ t.symbol or '' }} {{ t.title }}{% endif %}</div>

@@ -24,7 +24,7 @@ These are the rules the COP31 connector itself sends (same text, same version):
 7. Queries in UN English; 2–3 wordings if results are thin.
 8. Short, essentials first, in the user's language (quote in the original language).
 9. A group often submits via sub-groups or members: say so; flag distant dates.
-(COP31 instructions v0.3.3)
+(COP31 instructions v0.3.4)
 <!-- /rules -->
 
 In practice:
@@ -50,6 +50,7 @@ In practice:
 |---|---|
 | State of a negotiation item, texts, brackets, positions | `dossier(slug or alias)`; list and **aliases**: `dossiers` (e.g. ACE, GGA, MWP, art6, NCQG) |
 | What is still bracketed on a theme, and since when | `crochets(theme=…, texte=… or dossier=…)` |
+| Is a wording still in the text, version by version (1.5 °C, fossil fuels, grants…) | `historique_formulation(notion=…, dossier=… or texte=…)` |
 | What changed between two versions (option settled, wording dropped, brackets lifted) | `comparer_versions(<link or symbol>)`, optionally narrowed to one paragraph |
 | Who wants what in the room (ENB, TWN, statements) | `positions(acteur=…, dossier=…, depuis=…)` |
 | Splits inside a group (e.g. G77) | `positions(divisions=true, groupe=…)` |

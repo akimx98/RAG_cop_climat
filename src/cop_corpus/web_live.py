@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
-from . import db, ingest, live, positions, search, usage
+from . import auth, db, ingest, live, positions, search, usage
 from .web import admin_required, login_required, render
 
 
@@ -33,6 +33,26 @@ def _spark(series: list[dict], width: int = 260, height: int = 48) -> str | None
             f'<g fill="currentColor">{dots}</g></svg>')
 
 
+def _frises(conn, texts: list[dict], user: dict) -> list[dict]:
+    """Une frise par texte du dossier qui a au moins deux versions accessibles (crochets, options, notions)."""
+    from . import formulations
+
+    out, seen = [], set()
+    for t in texts:
+        if not t.get("doc_id"):
+            continue
+        row = conn.execute("SELECT * FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
+        if not row or not row["lineage_key"] or row["lineage_key"] in seen:
+            continue
+        seen.add(row["lineage_key"])
+        if row["access"] != "public" and not auth.can_restricted(user):
+            continue
+        rows = formulations.lineage(conn, row, user)
+        if len(rows) >= 2:
+            out.append({"titre": rows[-1]["title"], "cote": rows[-1]["symbol"], "grille": formulations.grid(conn, rows)})
+    return out[:4]
+
+
 @login_required
 async def dossier_page(request: Request):
     conn = db.get()
@@ -54,11 +74,12 @@ async def dossier_page(request: Request):
     for p in ref:
         by_actor.setdefault(p["actor"], []).append(p)
     hits = search.search(conn, d["requete"], {"added_since": _since(24 * 7)}, user, limit=10, per_doc=1)
+    frises = _frises(conn, ts, user)
     return render(
         request, "dossier.html", d=d, texts=ts, spark=_spark(live.bracket_series(conn, slug)),
         etat=live.status_by_dossier(conn).get(slug, []), extracted=extracted[:60],
         ref_actors=sorted(by_actor.items(), key=lambda kv: (-len(kv[1]), kv[0])),
-        hits=hits,
+        hits=hits, frises=frises,
         social=live.social(conn, live.dossier_words(d), since=_since(24 * 4), limit=15),
         subs=_sub_section(conn, slug),
         suivi=slug in live.followed(conn, user["id"]), credit=live.CB_CREDIT, cb_www=live.CB_WWW_PAGE,

@@ -14,7 +14,9 @@ Follow `cop31-protocol`. Answer in the user's language.
    and give its unfccc.int link. Otherwise `comparer_versions(<link or symbol>)` → what changed since the previous
    version: which options were settled, what was dropped with no trace (often the most telling), what was moved
    or merged, which brackets were lifted. Quote the old and the new wording, each with its own page and link
-   (the tool's description says how to read its output, and how to narrow it to one paragraph or a theme). `crochets(theme=…, dossier=…)` for what is still bracketed on a theme, and since
+   (the tool's description says how to read its output, and how to narrow it to one paragraph or a theme).
+   For the key notions of the item (1.5 °C, fossil fuels, finance, grants…): `historique_formulation(notion=…,
+   dossier=…)` → in, bracketed, in an option or gone, version by version, and when it switched. `crochets(theme=…, dossier=…)` for what is still bracketed on a theme, and since
    which version.
 3. Who is moving: `positions(dossier=..., depuis="48h")`; compare with pre-COP reference positions.
    WRITTEN positions (official submissions, level 2 for a Party): the `soumissions` and `positions_ecrites`
@@ -37,6 +39,7 @@ Where we are: <2–3 lines>
 What moved since <previous version>: <options settled; units deleted with no trace; key rewordings quoted
 before/after with page links; brackets x → y (lifted / deleted)>
 Options still open: <short list, quoted>
+Key wording across versions: <notion: v1 → vN states, switch with link>
 Who pushes what: <groups/countries, source and level>
 Written positions: <linked calls, who submitted; known alignments (aid to analysis)>
 Gap with the EU position: <…>

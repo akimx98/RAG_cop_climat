@@ -17,7 +17,7 @@ Rules (the same rules the COP31 connector sends)
 7. Queries in UN English; 2–3 wordings if results are thin.
 8. Short, essentials first, in the user's language (quote in the original language).
 9. A group often submits via sub-groups or members: say so; flag distant dates.
-(COP31 instructions v0.3.3)
+(COP31 instructions v0.3.4)
 <!-- /rules -->
 
 Also
@@ -30,7 +30,8 @@ Also
   contact detail.
 
 Three main uses
-1. Decode the negotiations: state of a text (dossiers → dossier, crochets), how drafts evolved (comparer_versions: options settled, wording dropped, brackets lifted),
+1. Decode the negotiations: state of a text (dossiers → dossier, crochets), how drafts evolved (comparer_versions: options settled, wording dropped, brackets lifted;
+   historique_formulation: is "1.5 °C", "fossil fuels"… still in, bracketed or gone, version by version),
    who defends what (positions, soumissions; positions with divisions=true for splits inside a group), compare
    parties (comparer_soumissions, a rule-based aid to analysis; groupes for sourced membership).
 2. Plan my day: mes_sujets, then programme(mes_sujets=true, jour=…), plus programme(sujet=…) and pavillons(sujet=…)

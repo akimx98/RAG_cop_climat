@@ -11,7 +11,7 @@
       "name": "cop31",
       "source": "./clients/claude-plugin",
       "description": "COP31 skills: cop31-protocol, fact-check, negotiation-update, beginner-brief, decode-text, eu-position, daily-brief, find-your-way, plan-my-day. Requires the COP31 MCP connector (personal address on the site's “Connect an LLM” page).",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "author": {
         "name": "akimx98"
       },
