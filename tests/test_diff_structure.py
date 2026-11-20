@@ -142,7 +142,11 @@ def test_ask_diff_view_shows_cited_units_or_the_most_telling(env):
 
     refs = demo.Refs()
     res = refs.tag(demo.call_tool("comparer_versions", {"document_recent": "10821"}), "comparer_versions")
-    assert all("#u-" in c["lien_diff"] and "avec=2623" in c["lien_diff"] for c in res["changements"])
+    # /ask : références compactes (les liens sont rendus par l'interface) ; client MCP : liens complets
+    assert all("lien_source" not in (c["nouveau"] or {}) and "lien_diff" not in c for c in res["changements"])
+    from cop_corpus import mcp_server
+    full = mcp_server.comparer_versions("10821")
+    assert all("#u-" in c["lien_diff"] and "avec=2623" in c["lien_diff"] for c in full["changements"])
     view = demo._diff_previews([res], set(), refs)[0]
     assert not view["cites"] and view["unites"][0]["statut"] == "supprimé_sans_reprise"
     assert view["lien"].endswith("/diff/10821?avec=2623") and view["crochets"] == [32, 0]

@@ -506,7 +506,7 @@ def _option_fates(A: structure.Document, B: structure.Document, status: dict[str
 
 
 def compare(conn, old_id: int, new_id: int, max_items: int | None = None, *, budget: int | None = None,
-            page: int = 1, filtre: str | None = None, lang: str = "fr") -> dict[str, Any]:
+            page: int = 1, filtre: str | None = None, lang: str = "fr", compact: bool = False) -> dict[str, Any]:
     """Diff structuré. `budget` (caractères JSON de la liste des changements par page) : None = tout."""
     T = (lambda fr, en: en if lang == "en" else fr)
     A, B = structure.load(conn, old_id), structure.load(conn, new_id)
@@ -669,7 +669,13 @@ def compare(conn, old_id: int, new_id: int, max_items: int | None = None, *, bud
     from . import config
 
     for c in changes:
-        c["lien_diff"] = f"{config.PUBLIC_BASE}/diff/{new_id}?avec={old_id}#u-{quote(c['unite'])}"
+        if compact:
+            # /ask : les liens sont rendus par l'interface (sources numérotées, vue du diff) ; la place va au texte.
+            for side in ("ancien", "nouveau"):
+                if c.get(side):
+                    c[side] = {k: c[side][k] for k in ("unite", "doc_id", "passage_id", "page") if k in c[side]}
+        else:
+            c["lien_diff"] = f"{config.PUBLIC_BASE}/diff/{new_id}?avec={old_id}#u-{quote(c['unite'])}"
     # « No text » : options vides, jugées dans le devenir des options, pas comme des suppressions.
     options = _option_fates(A, B, status, new_of, lang)
     ca, cb = _counts(A), _counts(B)
@@ -730,12 +736,14 @@ def compare(conn, old_id: int, new_id: int, max_items: int | None = None, *, bud
                                             f"+{len(options) - 8} paragraphs with options: filtre='§N'")}]
             if len(options) > 8 else [])
     if budget:
-        # Le budget couvre toute la réponse : ce qui précède la liste (résumé, comptes) en est déduit.
-        rest = max(3000, budget - len(json.dumps(out, ensure_ascii=False)) - 2500)
-        first = rest
-        if len(json.dumps(changes, ensure_ascii=False)) > rest:
+        # Le budget couvre toute la réponse. Page 1 : résumé, comptes, options (et sommaire) ; pages suivantes :
+        # seulement la liste, donc bien plus de changements par page.
+        base = {k: v for k, v in out.items() if k not in FIRST_PAGE_ONLY}
+        rest = max(3000, budget - len(json.dumps(base, ensure_ascii=False)) - 2500)
+        first = max(2000, budget - len(json.dumps(out, ensure_ascii=False)) - 2500)
+        if len(json.dumps(changes, ensure_ascii=False)) > first:
             # Plusieurs pages : en page 1, un sommaire d'une ligne par changement, pour viser ensuite avec `filtre`.
-            room = max(1500, budget - len(json.dumps(out, ensure_ascii=False)) - 4000)
+            room = max(1200, first - 2000)
             summary: list[str] = []
             for k, c in enumerate(changes):
                 line = _index_line(c)
@@ -744,7 +752,7 @@ def compare(conn, old_id: int, new_id: int, max_items: int | None = None, *, bud
                                      f"… (+{len(changes) - k}: next page or filtre)"))
                     break
                 summary.append(line)
-            first = max(2000, rest - len(json.dumps(summary, ensure_ascii=False)))
+            first = max(2000, first - len(json.dumps(summary, ensure_ascii=False)))
             if page <= 1:
                 out["sommaire"] = summary
     if rest:
@@ -753,7 +761,7 @@ def compare(conn, old_id: int, new_id: int, max_items: int | None = None, *, bud
     page = max(1, min(page, len(pages)))
     if page > 1 and budget:
         # Pages suivantes : le résumé, les comptes et les options sont en page 1.
-        for k in ("resume", "avant", "apres", "evolution", "options", "crochets", "versions_lues"):
+        for k in FIRST_PAGE_ONLY:
             out.pop(k, None)
     out["changements"] = pages[page - 1] if pages else []
     out["page"], out["pages"] = page, len(pages) or 1
@@ -762,6 +770,9 @@ def compare(conn, old_id: int, new_id: int, max_items: int | None = None, *, bud
         out["suite"] = T(f"changements suivants : même appel avec page={page + 1} (sur {len(pages)})",
                          f"more changes: same call with page={page + 1} (of {len(pages)})")
     return out
+
+
+FIRST_PAGE_ONLY = ("resume", "avant", "apres", "evolution", "options", "crochets", "versions_lues")
 
 
 def _notes(u: Unit, v: Unit) -> dict[str, list[str]]:
@@ -826,7 +837,7 @@ def preview(result: dict[str, Any], cited: set[str] | None = None, limit: int = 
     cited = cited or set()
     changes = [c for c in result.get("changements") or [] if c.get("statut") in PREVIEW_ORDER]
     hit = [c for c in changes if {(c.get("ancien") or {}).get("ref"), (c.get("nouveau") or {}).get("ref")} & cited]
-    pool = hit or sorted(changes, key=lambda c: (PREVIEW_ORDER[c["statut"]], c.get("similarite") or 0))
+    pool = sorted(hit or changes, key=lambda c: (PREVIEW_ORDER[c["statut"]], c.get("similarite") or 0))
     units = []
     for c in pool[:limit]:
         text = c.get("diff") or c.get("texte_ancien") or c.get("texte_nouveau") or ""

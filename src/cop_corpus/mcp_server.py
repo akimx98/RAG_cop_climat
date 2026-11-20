@@ -273,7 +273,8 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
             head["autres_versions"] = [{k: v.get(k) for k in ("doc_id", "version", "cote", "publie_le")} for v in vs[-8:]]
     head["diff_en_ligne"] = f"{config.PUBLIC_BASE}/diff/{new['id']}?avec={old['id']}"
     budget = (_scope(ctx, "cop_budget") or COMPARE_BUDGET) - len(json.dumps(head, ensure_ascii=False))
-    out = diff.compare(conn, old["id"], new["id"], budget=budget, page=page, filtre=filtre)
+    out = diff.compare(conn, old["id"], new["id"], budget=budget, page=page, filtre=filtre,
+                       compact=bool(_scope(ctx, "cop_compact")))
     return {**head, **out}
 
 

@@ -64,7 +64,7 @@ DEMO_USER = {"id": 0, "email": "demo", "name": "demo", "is_admin": 0, "can_restr
              "source": "demo", "lang": "en"}
 # cop_budget : taille d'une page de comparer_versions, sous MAX_TOOL_CHARS (pas de coupe au milieu d'un texte).
 _CTX = SimpleNamespace(request_context=SimpleNamespace(request=SimpleNamespace(
-    scope={"cop_user": DEMO_USER, "cop_budget": 12000})))
+    scope={"cop_user": DEMO_USER, "cop_budget": 12000, "cop_compact": True})))
 
 # Outils exposés (lecture seule) et paramètres masqués (propres à un compte, ou sans objet pour un anonyme).
 TOOLS = ("rechercher", "lire_passage", "document", "comparer_versions", "historique_formulation", "crochets", "nouveautes", "dossiers",
