@@ -1656,6 +1656,10 @@ def test_public_pages_without_account(env):
     r = visitor.get(f"/diff/{d2}?avec={d1}")
     assert r.status_code == 200 and "transition away" in r.text
     assert visitor.get(f"/fichier/{d2}").status_code == 200
+    closed = visitor.get(f"/diff/{d2}?avec={d1}").text
+    assert 'id="versions">' in closed
+    opened = visitor.get(f"/diff/{d2}?avec={d1}&frise=1&lang=fr").text
+    assert 'id="versions" open>' in opened and "Au fil des versions" in opened
     assert visitor.get("/database?q=fossil+fuels").status_code == 200
     assert visitor.get("/database?tab=negotiations").status_code == 200
     page = visitor.get("/database/negotiations/finance")

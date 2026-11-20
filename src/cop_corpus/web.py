@@ -141,6 +141,8 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx["base"] = config.PUBLIC_BASE
     ctx["path"] = request.url.path
     ctx["here"] = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    # ?frise=1 : panneau « Au fil des versions » ouvert d'emblée (lien partagé), replié sinon
+    ctx["frise_open"] = request.query_params.get("frise") in ("1", "open", "ouvert")
     ctx["SOURCE_URL"] = config.SOURCE_URL
     ctx["PROFILES"] = usage.PROFILES
     ctx["PASSWORD_MIN"] = auth.PASSWORD_MIN

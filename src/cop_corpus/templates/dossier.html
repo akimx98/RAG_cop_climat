@@ -14,7 +14,7 @@
 <section>
 <h2>{{ L('Textes de négociation', 'Negotiating texts') }}</h2>
 {% if spark and not frises %}<div class="card"><div class="small muted">{{ L('Crochets au fil des versions', 'Brackets across versions') }}</div>{{ spark|safe }}</div>{% endif %}
-{% if frises %}{{ frise_css() }}{% for f in frises %}<details class="card"><summary><b>{{ L('Au fil des versions', 'Across versions') }}</b> <span class="small muted">· {{ f.cote }} {{ f.titre|replace(f.cote ~ ' — ', '') }}</span></summary><div style="margin-top:10px">{{ frise(f.grille, uid='d' ~ loop.index) }}</div></details>{% endfor %}{% endif %}
+{% if frises %}{{ frise_css() }}{% for f in frises %}<details class="card" id="versions{{ '' if loop.first else '-' ~ loop.index }}"{{ ' open' if frise_open }}><summary><b>{{ L('Au fil des versions', 'Across versions') }}</b> <span class="small muted">· {{ f.cote }} {{ f.titre|replace(f.cote ~ ' — ', '') }}</span></summary><div style="margin-top:10px">{{ frise(f.grille, uid='d' ~ loop.index) }}</div></details>{% endfor %}{% endif %}
 <div class="card flush">
 {% for t in texts %}<div class="item">
 <div class="title">{% if t.doc_id %}<a href="/doc/{{ t.doc_id }}">{{ t.symbol or '' }} {{ t.title }}</a>{% else %}{{ t.symbol or '' }} {{ t.title }}{% endif %}</div>
