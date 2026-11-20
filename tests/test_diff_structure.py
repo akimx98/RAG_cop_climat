@@ -134,3 +134,19 @@ def test_filter_is_exact_on_units_and_text_only(env):
     assert {c["unite"] for c in res["changements"]} == {"§1"}
     assert diff.compare(env, 2623, 10821, filtre="passage")["changements"] == []   # pas les clés ni les liens
     assert diff.compare(env, 2623, 10821, filtre="grant-based")["changements"]
+
+
+def test_ask_diff_view_shows_cited_units_or_the_most_telling(env):
+    """Sous une réponse /ask : les unités citées, sinon d'abord les suppressions sans reprise ; liens vers /diff."""
+    from cop_corpus import demo
+
+    refs = demo.Refs()
+    res = refs.tag(demo.call_tool("comparer_versions", {"document_recent": "10821"}), "comparer_versions")
+    assert all("#u-" in c["lien_diff"] and "avec=2623" in c["lien_diff"] for c in res["changements"])
+    view = demo._diff_previews([res], set(), refs)[0]
+    assert not view["cites"] and view["unites"][0]["statut"] == "supprimé_sans_reprise"
+    assert view["lien"].endswith("/diff/10821?avec=2623") and view["crochets"] == [32, 0]
+    s2 = next(c for c in res["changements"] if c["unite"] == "§2")["nouveau"]["ref"]
+    cited = demo._diff_previews([res], {s2}, refs)[0]
+    assert cited["cites"] and "§2" in [u["unite"] for u in cited["unites"]]
+    assert "[-[-]Notes" in next(u["texte"] for u in cited["unites"] if u["unite"] == "§2")

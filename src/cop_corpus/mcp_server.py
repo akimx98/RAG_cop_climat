@@ -239,7 +239,9 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
     brackets (levé = lifted, text kept; supprimé; maintenu; alternatives [A][B]: which one won), footnote changes,
     and citable references for BOTH versions (passage_id, page, lien_source = PDF at the page, lien_passage).
     Texts are never cut: if `tronque` is true, call again with page=N. `filtre`: a unit prefix ("§4") or words
-    ("finance, grant") to keep only matching changes. Quote the diff's text, give versions, dates and "not adopted"."""
+    ("finance, grant") to keep only matching changes. Quote the diff's text, give versions, dates and "not adopted".
+    Give the user the link `diff_en_ligne` (whole comparison) or a unit's `lien_diff`: that page shows the deleted
+    and added wording struck through and highlighted, which says more than a summary."""
     conn = db.get()
     user = _user(ctx)
     new = search.find_doc(conn, document_recent, user)

@@ -53,6 +53,21 @@ main{max-width:1320px}
 .verif b{color:var(--l1)}.verif.warn b{color:var(--l3)}
 .block-h{font:650 12px/1.3 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:18px 0 8px}
 .srcs{display:grid;gap:6px}
+.dv{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 8px;background:var(--surface)}
+.dv-h{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:13px;color:var(--muted);margin:0 0 6px}
+.dv-h b{color:var(--ink);font-size:14px}
+.dv-h a{margin-left:auto;font-weight:600}
+.dv-u{padding:8px 0;border-top:1px solid var(--line)}
+.dv-u .uh{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font-size:13px;margin:0 0 4px}
+.dv-u .uh b{font-size:14px}
+.dv-u .st{font:650 11px/1 var(--sans);padding:3px 6px;border-radius:4px;color:var(--c,var(--muted));background:color-mix(in srgb,var(--c,var(--muted)) 12%,transparent)}
+.dv-u .st.gone{--c:var(--lR)}.dv-u .st.mod{--c:var(--accent)}.dv-u .st.mov{--c:var(--l4)}.dv-u .st.add{--c:var(--l1)}
+.dv-t{font:15px/1.6 var(--serif);color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere}
+.dv-t.supprime{background:color-mix(in srgb,#e5484d 7%,transparent);border-left:3px solid color-mix(in srgb,#e5484d 55%,transparent);padding:4px 8px}
+.dv-t.ajoute{background:color-mix(in srgb,#30a46c 8%,transparent);border-left:3px solid color-mix(in srgb,#30a46c 55%,transparent);padding:4px 8px}
+.dv-t del{background:color-mix(in srgb,#e5484d 16%,transparent);text-decoration-color:color-mix(in srgb,#e5484d 60%,transparent)}
+.dv-t ins{background:color-mix(in srgb,#30a46c 20%,transparent);text-decoration:none}
+.dv-t b.br{color:var(--warm)}
 .src{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;text-align:left;color:var(--ink);font-weight:400}
 .src:hover,.src.on{border-color:var(--accent);background:var(--accent-soft)}
 .src .n{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 12px/1 var(--sans)}
@@ -346,6 +361,7 @@ function showAnswer(t,a,question){
         +(ok<checks.length?T(' : vérifiez les passages marqués ?',': check the passages marked ?'):'')}</span></div>`:'';
   const trace=(a.trace||[]).length?`<details class="trace"><summary>${T('Comment l\'outil a cherché','How the tool searched')} (${a.trace.length})</summary><ol>${a.trace.map(s=>`<li>${esc(s.label)}${s.detail?' · <i>'+esc(s.detail)+'</i>':''}</li>`).join('')}</ol></details>`:'';
   t.querySelector('.slot').innerHTML=`<div class="answer"><div class="body">${a.html||esc(T('Pas de réponse.','No answer.'))}</div>${verif}
+    ${(a.diffs||[]).length?`<div class="block-h">${T('Ce qui a changé dans le texte','What changed in the text')}</div>${diffViews(a)}`:''}
     ${srcs?`<div class="block-h">${T('Sources','Sources')}</div><div class="srcs">${srcs}</div>`:''}
     ${evs?`<div class="block-h">${T('Événements','Events')}</div><div class="evs">${evs}</div>`:''}
     <div class="tools">${evs?`<button type="button" data-ics="${esc(a.id)}">📅 ${T('Ajouter à mon agenda (.ics)','Add to my calendar (.ics)')}</button>`:''}
@@ -355,6 +371,24 @@ function showAnswer(t,a,question){
   t.querySelectorAll('.cite[data-ref^="S"]').forEach(b=>b.dataset.aid=a.id);
   t.querySelectorAll('.cite.evc').forEach(x=>x.setAttribute('href','#'+a.id+'-'+x.dataset.ref));
 }
+// Vue du diff (comparer_versions) sous la réponse : texte barré / ajouté des unités citées.
+function diffText(s){const br=x=>x.replace(/\[/g,'<b class="br">[</b>').replace(/\]/g,'<b class="br">]</b>');
+  let out='',pos=0;const re=/\[-([\s\S]*?)-\]|\{\+([\s\S]*?)\+\}/g;let m;
+  while((m=re.exec(s))){out+=br(esc(s.slice(pos,m.index)));
+    out+=m[1]!==undefined?`<del>${br(esc(m[1]))}</del>`:`<ins>${br(esc(m[2]))}</ins>`;pos=re.lastIndex;}
+  return out+br(esc(s.slice(pos)));}
+const DST={'supprimé_sans_reprise':['gone','supprimé sans reprise','deleted, no trace'],'modifié':['mod','modifié','modified'],
+  'repris_de':['mov','repris','taken from'],'repris_dans':['mov','fusionné','merged'],'ajouté':['add','ajouté','added']};
+function diffViews(a){return (a.diffs||[]).map(d=>{
+  const head=`<div class="dv-h"><b>${esc(d.ancien.cote||'#'+d.ancien.doc_id)} → ${esc(d.nouveau.cote||'#'+d.nouveau.doc_id)}</b>
+    <span>${esc(fmtDate(d.ancien.publie_le))} → ${esc(fmtDate(d.nouveau.publie_le))}</span>
+    <span>${d.nb_changements} ${T('changements','changes')}${d.crochets&&d.crochets[0]!=null?` · ${T('crochets','brackets')} ${d.crochets[0]}→${d.crochets[1]}`:''}</span>
+    ${d.lien?`<a href="${esc(safe(d.lien))}" target="_blank" rel="noopener">${T('Comparaison complète','Full comparison')} ↗</a>`:''}</div>`;
+  const units=(d.unites||[]).map(u=>{const st=DST[u.statut]||['',u.statut,u.statut];
+    return `<div class="dv-u"><div class="uh"><b>${esc(u.unite)}</b>${u.ancien&&u.ancien!==u.unite?`<span class="muted">← ${esc(u.ancien)}</span>`:''}
+      <span class="st ${st[0]}">${esc(T(st[1],st[2]))}</span>${u.lien?`<a href="${esc(safe(u.lien))}" target="_blank" rel="noopener">${T('voir','view')} ↗</a>`:''}</div>
+      <div class="dv-t ${u.genre==='diff'?'':esc(u.genre)}">${diffText(u.texte||'')}</div>${u.abrege?`<div class="small muted">${T('Extrait resserré autour des changements.','Excerpt trimmed around the changes.')}</div>`:''}</div>`;}).join('');
+  return `<div class="dv">${head}${units}</div>`;}).join('');}
 function safe(u){return /^(https?:)?\/\//.test(u)||u.startsWith('/')?u:'#';}
 
 // Clics : appels de source, cartes source, export agenda, citations, partage

@@ -1165,7 +1165,7 @@ def demo_refusals() -> dict[str, tuple[str, str]]:
 
 
 def _demo_public(payload: dict) -> dict:
-    return {k: payload.get(k) for k in ("html", "sources", "events", "checks", "trace", "model")}
+    return {k: payload.get(k) for k in ("html", "sources", "events", "checks", "trace", "model", "diffs")}
 
 
 async def demo_page(request: Request):

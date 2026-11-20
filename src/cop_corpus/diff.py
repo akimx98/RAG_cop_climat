@@ -663,6 +663,13 @@ def compare(conn, old_id: int, new_id: int, max_items: int | None = None, *, bud
         changes.append(item)
     flush(len(ua))
 
+    # Lien vers l'unité sur la page /diff (texte barré et ajouté, à montrer à l'utilisateur).
+    from urllib.parse import quote
+
+    from . import config
+
+    for c in changes:
+        c["lien_diff"] = f"{config.PUBLIC_BASE}/diff/{new_id}?avec={old_id}#u-{quote(c['unite'])}"
     # « No text » : options vides, jugées dans le devenir des options, pas comme des suppressions.
     options = _option_fates(A, B, status, new_of, lang)
     ca, cb = _counts(A), _counts(B)
@@ -807,6 +814,36 @@ def _fit(c: dict[str, Any], cap: int, lang: str) -> dict[str, Any]:
                     "very long unit, shortened around the changes: full text with lire_passage (passage_id) or "
                     "on the diff_en_ligne page")
     return c
+
+
+PREVIEW_ORDER = {"supprimé_sans_reprise": 0, "repris_de": 1, "repris_dans": 1, "modifié": 2, "ajouté": 3}
+
+
+def preview(result: dict[str, Any], cited: set[str] | None = None, limit: int = 4, cap: int = 1400) -> dict[str, Any]:
+    """Extrait d'un diff pour l'afficher sous une réponse (/ask) : les unités citées par la réponse, sinon les plus
+    parlantes (supprimées sans reprise, reprises, modifications les plus profondes). Textes longs : resserrés autour
+    des changements, signalés."""
+    cited = cited or set()
+    changes = [c for c in result.get("changements") or [] if c.get("statut") in PREVIEW_ORDER]
+    hit = [c for c in changes if {(c.get("ancien") or {}).get("ref"), (c.get("nouveau") or {}).get("ref")} & cited]
+    pool = hit or sorted(changes, key=lambda c: (PREVIEW_ORDER[c["statut"]], c.get("similarite") or 0))
+    units = []
+    for c in pool[:limit]:
+        text = c.get("diff") or c.get("texte_ancien") or c.get("texte_nouveau") or ""
+        short = len(text) > cap
+        if short:
+            text = _focus(text, 20)
+            text = text if len(text) <= cap else text[:cap].rsplit(" ", 1)[0] + " […]"
+        units.append({"unite": c["unite"], "statut": c["statut"], "ancien": (c.get("ancien") or {}).get("unite"),
+                      "similarite": c.get("similarite"), "texte": text, "abrege": short,
+                      "genre": "diff" if c.get("diff") else ("supprime" if c.get("texte_ancien") else "ajoute"),
+                      "lien": c.get("lien_diff")})
+    old, new = result.get("ancien") or {}, result.get("nouveau") or {}
+    return {"ancien": {k: old.get(k) for k in ("doc_id", "cote", "publie_le")},
+            "nouveau": {k: new.get(k) for k in ("doc_id", "cote", "publie_le", "titre")},
+            "nb_changements": result.get("nb_changements"), "par_statut": result.get("par_statut"),
+            "crochets": [(result.get("avant") or {}).get("crochets"), (result.get("apres") or {}).get("crochets")],
+            "lien": result.get("diff_en_ligne"), "unites": units, "cites": bool(hit)}
 
 
 def _index_line(c: dict[str, Any]) -> str:

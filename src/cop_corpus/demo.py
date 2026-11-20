@@ -115,6 +115,9 @@ ABSOLUTE RULES
    With `comparer_versions`: read `resume` and `options` first; `supprimé_sans_reprise` = nothing of that
    unit survives; quote old wording with the ref of `ancien`, new wording with the ref of `nouveau`, never
    with the [-…-] {{+…+}} markers; on a long text, narrow with `filtre` ("§12", or words) rather than paging.
+   Whenever a question touches how a draft evolved (what moved, whether a wording or an option survived, what
+   was dropped), call `comparer_versions`: the interface then shows the struck-through and added wording of the
+   units you cite under your answer, with a link to the full comparison. Cite those units' refs.
    The structured tools (positions, dossier, soumissions) only hold what has been extracted so far: the daily
    reports (ENB, TWN…), plenary statements and submissions often say more. So ALWAYS also run `rechercher`
    (e.g. "<item full name> <actor>", with acronym and full name, and once with types ["compte_rendu"]) before
@@ -670,6 +673,7 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
     previous = follow.get("response_id")   # question de suivi : le modèle garde la conversation précédente
     n_calls = 0
     stop = False
+    compared: list[dict[str, Any]] = []   # résultats de comparer_versions : vue du diff sous la réponse
     for rnd in range(MAX_ROUNDS):
         kwargs: dict[str, Any] = dict(model=MODEL, instructions=system, input=pending, tools=specs,
                                       max_output_tokens=6000)
@@ -707,6 +711,8 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
             trace.append({"tool": c.name, "label": label, "detail": detail})
             emit({"type": "step", "label": label, "detail": detail})
             result = refs.tag(call_tool(c.name, args), c.name)
+            if c.name == "comparer_versions" and isinstance(result, dict) and result.get("changements"):
+                compared.append(result)
             content = json.dumps(result, ensure_ascii=False, default=str)
             if len(content) > MAX_TOOL_CHARS:
                 content = content[:MAX_TOOL_CHARS] + ' …[truncated: ask a narrower question or read a passage]'
@@ -717,8 +723,34 @@ def answer(question: str, lang: str, emit: Callable[[dict[str, Any]], None],
     out = render(final, refs, conn)
     sources = [_source_public(refs.sources[r], i + 1) for i, r in enumerate(out["order"])]
     events = [refs.events[r] for r in out["events"]]
+    diffs = _diff_previews(compared, set(out["order"]), refs)
     return {"html": out["html"], "sources": sources, "events": events, "checks": out["checks"], "trace": trace,
+            "diffs": diffs,
             "cost": round(cost, 4), "model": MODEL, "response_id": previous, "state": refs.state(), "text": final}
+
+
+def _diff_previews(results: list[dict[str, Any]], cited: set[str], refs: "Refs | None" = None) -> list[dict[str, Any]]:
+    """Une vue par paire de versions comparée, calculée sur la comparaison COMPLÈTE (le modèle n'en a lu qu'une
+    page) ; une unité est « citée » quand la réponse cite le passage d'une de ses deux versions. D'abord les vues dont
+    la réponse cite des unités."""
+    from . import diff
+
+    conn = db.get()
+    views, seen = [], set()
+    for r in results:
+        key = (r.get("ancienne_version"), r.get("nouvelle_version"))
+        if None in key or key in seen:
+            continue
+        seen.add(key)
+        full = diff.compare(conn, key[0], key[1])
+        full.update({k: r.get(k) for k in ("ancien", "nouveau", "diff_en_ligne")})
+        for c in full["changements"]:
+            for side in ("ancien", "nouveau"):
+                ref = (c.get(side) or {}).get("passage_id")
+                if c.get(side) and ref and refs is not None:
+                    c[side]["ref"] = refs._key("S", f"p{ref}")
+        views.append(diff.preview(full, cited))
+    return sorted(views, key=lambda v: not v["cites"])[:2]
 
 
 def save(conn, *, question: str, lang: str, session: str | None, ip: str, user: dict | None,
