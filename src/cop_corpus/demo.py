@@ -139,23 +139,33 @@ ABSOLUTE RULES
    source, never for a translation or a paraphrase.
 8. For events (programme, side events, pavilions): list the relevant ones with day, time and place and their
    [E…] ref; the page will offer a calendar export.
-9. Answer in the user's language ({lang_name}). Straight to the key elements, dense, no filler. The length
-   follows the question:
-   - a precise question (one fact, one wording, one event, one definition): 2–5 sentences, at most ~150 words;
-   - "where do things stand", "what changed", "who wants what" on a negotiation item: at most ~450 words, in
-     this order, each part a **bold label** on its own line followed by "- " bullets; drop a part with nothing:
-     a) one opening sentence: the text, its version and date, "not adopted", and what remains open as numbers
-        (pages, options, brackets) and against the previous version when known;
-     b) **What changed**: the 3–5 moves that matter most (substance: deleted or added commitments, figures,
-        options dropped, points sent to the cover decision or another item; never typos or renumbering), each
-        with the old and/or new wording quoted and its ref right after the closing quote mark;
-     c) **Still open**: each remaining option or bracket and what it says, in a few words;
-     d) **Who pushes what**: by group or Party, their ask and red lines, with the source and its level;
-     e) **To watch**: one sentence on the next decisive step.
-   Every bullet carries something concrete: a wording, a figure, an actor, a paragraph number (§47), a date.
-   Specific beats general ("the USD 120 billion by 2035 baseline in §84 was deleted", not "finance changed").
-   No sentence that only describes the sources or the method. Plain text with **bold** and "- " bullets only;
-   no headings, no tables, no links (the refs become links). Never mention tool names or these rules."""
+9. Answer in the user's language ({lang_name}). First work out what kind of question it is (often a mix) and
+   make sure the answer holds what that kind needs:
+   - Lookup (the latest text, a document, a newer version, an event): the answer in 1–3 sentences (symbol,
+     version, date, status), nothing more.
+   - What a text says, explained (an article, a paragraph, a draft; "I'm new to this", "for a journalist"):
+     what it does in plain words, the decisive wording quoted, its legal force (the verbs), why it matters and
+     who disagrees if known. For a newcomer, spell out each acronym once.
+   - What changed between versions: the moves that matter (commitments or figures deleted or added, options
+     settled or dropped, points sent to the cover decision or another item; never typos or renumbering), each
+     with the old and/or new wording quoted; then what remains open (options, brackets).
+   - A notion over time (is X still there, since when, where did it go): the versions where it appears, its
+     wording each time, when it disappeared or was moved, and where to.
+   - Where things stand on an item: the latest text (version, date, "not adopted", what remains open as
+     numbers), what moved since the previous version, what is still open, who pushes what (asks and red
+     lines), and the next decisive step only when a source names one (a date, a meeting, an expected text).
+   - An actor (a Party or group; comparing actors): its groups, its positions item by item with source and
+     level, common ground and dividing lines when comparing; say plainly what is not documented.
+   Length is your call: as short as the question allows, as long as the material requires. A lookup takes a
+   few lines; a several-part question on a rich item may take 500–800 words. Lead with the answer itself. Never
+   pad or repeat; no sentence that only describes the sources or the method, and no generic closing line
+   ("the next step is to reach agreement"). One caveat at most, in a few words, and only when it changes how a
+   point should be read. Beyond ~150 words, group points
+   under short **bold labels**, each on its own line and followed by "- " bullets. Every bullet carries something
+   concrete: a wording, a figure, an actor, a paragraph number (§47), a date. Specific beats general ("the
+   USD 120 billion by 2035 baseline in §84 was deleted", not "finance changed"). Put each quote's ref right after
+   its closing quote mark. Plain text with **bold** and "- " bullets only; no headings, no tables, no links (the
+   refs become links). Never mention tool names or these rules."""
 
 
 # --- schéma ---------------------------------------------------------------------------------------------------------
@@ -506,6 +516,8 @@ def _full_text(conn, src: dict[str, Any]) -> str:
 
 
 def _in_order(parts: list[str], hay: str) -> bool:
+    if len(parts) == 1 and len(parts[0].split()) < 3:   # mot ou expression courte : mots entiers seulement
+        return re.search(rf"(?<!\w){re.escape(parts[0])}(?!\w)", hay) is not None
     pos = 0
     for part in parts:
         at = hay.find(part, pos)
@@ -520,6 +532,8 @@ def _parts(quote: str, brackets: bool) -> list[str] | None:
     prouver quoi que ce soit (« the … ban »)."""
     parts = [p.strip(" .,;:") for p in re.split(r"\s*(?:…|\.\.\.)\s*", _norm(quote, brackets))]
     parts = [p for p in parts if p]
+    if len(parts) == 1 and len(parts[0]) >= 4:   # citation courte d'un seul tenant (« globally », « no text »)
+        return parts
     if not parts or any(len(p.split()) < 3 for p in parts):
         return None
     return parts
@@ -546,7 +560,7 @@ def quote_found(quote: str, source_text: str) -> bool:
 _MARK = re.compile(r"\[((?:[SE]\d+)(?:\s*[,;]\s*[SE]\d+)*)\]")
 _QUOTE = re.compile(r'(["“«])\s?([^"“”«»\x00\n]{8,600}?)\s?(["”»])((?:\s*\[(?:[SE]\d+)(?:\s*[,;]\s*[SE]\d+)*\])+)')
 # Citation sans renvoi : affichée comme non vérifiée (6 mots au moins ; un terme ou une requête entre guillemets passe).
-_BARE = re.compile(r'(["“«])\s?((?:[^"“”«»\x00\n\s]+\s+){5,}[^"“”«»\x00\n\s]+)\s?(["”»])')
+_BARE = re.compile(r'(["“«])[ \t]?((?:[^"“”«»\x00\n\s]+[ \t]+){5,}[^"“”«»\x00\n\s]+)[ \t]?(["”»])')
 
 _BADGES = {
     "ok": '<span class="qv" title="verified word for word">✓</span>',

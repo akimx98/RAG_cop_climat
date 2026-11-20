@@ -194,6 +194,18 @@ def cmd_smoke(args) -> None:
     print(f"OK : réponse en {time.time() - t0:.0f} s, {len(res['sources'])} source(s), {res['cost']:.3f} $")
 
 
+def cmd_eval_ask(args) -> None:
+    """Rejoue le jeu de questions de référence de /ask et écrit un rapport (data/evals/)."""
+    from . import eval_ask
+
+    results, text = eval_ask.run(only=args.only or None, workers=args.workers)
+    path = eval_ask.save(text)
+    print(text.split("\n## ", 1)[0])
+    print(f"Rapport complet : {path}")
+    if any("error" in r for r in results):
+        sys.exit(1)
+
+
 def cmd_programme_sync(args) -> None:
     from . import agenda, fetch
 
@@ -454,6 +466,10 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("smoke", help="contrôle après déploiement : une vraie question de bout en bout")
     s.add_argument("--question", default="Que dit l'Accord de Paris sur l'objectif de 1,5 °C ?")
     s.set_defaults(func=cmd_smoke)
+    s = sub.add_parser("eval-ask", help="rejouer les questions de référence de /ask (≈ 1 $) et écrire un rapport")
+    s.add_argument("--only", nargs="*", help="identifiants des questions (par défaut : toutes)")
+    s.add_argument("--workers", type=int, default=4)
+    s.set_defaults(func=cmd_eval_ask)
     s = sub.add_parser("worker", help="veilleur + alertes + bot Telegram")
     s.add_argument("--no-bot", action="store_true")
     s.add_argument("--no-watch", action="store_true")

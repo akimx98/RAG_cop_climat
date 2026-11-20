@@ -281,3 +281,45 @@ def test_quote_checked_against_whole_cited_document(env):
     out = demo.render('One says "the technical task force should comprise experts" [S1], also "the technical '
                       'task force should comprise experts" [S2].', refs, env)
     assert [c["status"] for c in out["checks"]] == ["ok", "no"]
+
+
+def test_eval_ask_flags(env):
+    """Jeu de référence /ask : les alertes se déclenchent sur ce qui se voit à coup sûr, sans appel à l'API."""
+    from cop_corpus import eval_ask
+
+    ids = [q[0] for q in eval_ask.QUESTIONS]
+    assert len(ids) == len(set(ids)) and {q[1] for q in eval_ask.QUESTIONS} >= {
+        "recherche", "expliquer", "diff", "notion", "etat", "acteur"}
+
+    def fake(question, lang, emit, purpose):
+        assert purpose == "demo-admin"
+        if question == "Dernier texte GCF":
+            raise RuntimeError("boom")
+        return {"text": "mot " * 200, "trace": [{"tool": "dossier"}], "sources": [],
+                "checks": [{"quote": "x", "status": "no"}, {"quote": "y", "status": "ok"}], "cost": 0.01}
+
+    results, text = eval_ask.run(only=["gcf", "gst-version", "gga-diff"], workers=2, answer_fn=fake)
+    by = {r["id"]: r for r in results}
+    assert "error" in by["gcf"]
+    assert any("trop long" in f for f in by["gst-version"]["flags"])
+    assert any("comparer_versions" in f for f in by["gga-diff"]["flags"])
+    assert "1 citation(s) non retrouvée(s)" in by["gga-diff"]["flags"] and "aucune source" in by["gga-diff"]["flags"]
+    assert "| gcf | recherche |" in text and "## gga-diff (diff)" in text
+
+
+def test_bare_quote_never_spans_lines(env):
+    """Deux mots cités courts sur une ligne, un guillemet plus loin : rien ne doit avaler la ligne suivante."""
+    from cop_corpus import demo
+
+    out = demo.render('- une correction de "takess" en "takes" dans le préambule.\n\n**Qu’est-ce qui reste ?**\n'
+                      '- Au §14, "no text" reste possible.', demo.Refs(), env)
+    assert out["checks"] == [] and "<b>Qu’est-ce qui reste ?</b>" in out["html"]
+
+
+def test_short_quote_whole_words(env):
+    from cop_corpus import demo
+
+    src = "Notes the share of electricity globally in final energy; Option 3: no text."
+    assert demo.quote_status("globally", src) == "ok" and demo.quote_status("no text", src) == "ok"
+    assert demo.quote_status("global", src) == "no"                      # pas un morceau de mot
+    assert demo.quote_status("the … energy", src) == "no"                # coupée : morceaux trop courts
