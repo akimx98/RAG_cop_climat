@@ -120,6 +120,12 @@ def test_quote_order_brackets_and_unsourced(env):
     assert out["checks"] == [{"quote": "governments must phase out coal by 2030", "ref": None, "ok": False,
                               "status": "unsourced"}]
     assert "unverified" in out["html"]
+    # Référence en fin de puce, pas collée à la citation : vérifiée contre elle (pas sur la ligne suivante).
+    refs.sources["S1"] = {"ref": "S1", "passage_id": None, "text": src}
+    out = demo.render('- It drops "with the aim of achieving the objectives of such contributions", says the diff. [S1]\n'
+                      '- Not "governments must phase out coal by 2030 now".\n- Other point [S1]', refs, env)
+    assert [(c["status"], c["ref"]) for c in out["checks"]] == [("ok", "S1"), ("unsourced", None)]
+    assert out["html"].count('class="q ok"') == 1 and out["order"] == ["S1"]
 
 
 def test_demo_spend_separate_from_global_budget(env):
@@ -238,3 +244,40 @@ def test_admins_have_no_demo_limit_and_separate_spend(env, monkeypatch):
     llm._record(conn, "gpt-5.6-terra", "demo-admin", SimpleNamespace(prompt_tokens=10_000_000, completion_tokens=0))
     assert llm.spent(conn) == 0 and demo._spent(conn) == 0
     assert not demo.unlimited({"id": 9, "is_admin": 1, "active": 0})
+
+
+def test_diff_summary_surfaces_weighty_deletions_and_placeholders():
+    """Long texte : les suppressions qui pèsent (chiffres, finance) remontent, et les renvois « placeholder » sont
+    signalés, même au-delà des 8 premières unités."""
+    from cop_corpus import diff
+
+    filler = [{"statut": "supprimé_sans_reprise", "unite": f"§{i}", "texte_ancien": f"Notes the report number {i}."}
+              for i in range(1, 20)]
+    tripling = {"statut": "supprimé_sans_reprise", "unite": "§84",
+                "texte_ancien": "Decides that the tripling of adaptation finance shall be at least USD 120 billion per year by 2035"}
+    held = {"statut": "modifié", "unite": "§49", "texte_ancien": "Old finance text",
+            "texte_nouveau": "<placeholder for adaptation tripling language from cover decision>"}
+    lines = diff._summary(filler + [tripling, held], [], {"crochets": 0}, {"crochets": 0},
+                          {"supprimé_sans_reprise": 20, "modifié": 1}, "en")
+    text = "\n".join(lines)
+    assert "§84" in text and "USD 120 billion" in text
+    assert "moved elsewhere (placeholder): §49" in text
+    assert "(20, weightiest)" in text
+
+
+def test_quote_checked_against_whole_cited_document(env):
+    """Une version citée comme document (pas un passage) : la citation est vérifiée dans tout son texte, et jamais
+    dans un document interne."""
+    from cop_corpus import demo, ingest
+
+    conn = env
+    body = ("Preamble filler about the Convention. " * 40) + "Also agrees that the technical task force should comprise experts."
+    pub = ingest.ingest_bytes(conn, body.encode(), url=None, filename="draft.txt")
+    sec = ingest.ingest_bytes(conn, ("Internal. " + body).encode(), url=None, access="restreint", filename="secret.txt")
+    pub, sec = (x[0] if isinstance(x, (list, tuple)) else x for x in (pub, sec))
+    refs = demo.Refs()
+    for ref, did in (("S1", pub), ("S2", sec)):
+        refs.sources[ref] = {"ref": ref, "passage_id": None, "doc_id": did, "kind": "document", "text": ""}
+    out = demo.render('One says "the technical task force should comprise experts" [S1], also "the technical '
+                      'task force should comprise experts" [S2].', refs, env)
+    assert [c["status"] for c in out["checks"]] == ["ok", "no"]

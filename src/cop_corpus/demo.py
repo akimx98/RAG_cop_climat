@@ -118,6 +118,9 @@ ABSOLUTE RULES
 6. shall = obligation; should = recommendation; urges/encourages/invites = incentive; notes = observation.
 7. Search in UN English; try 2–3 phrasings if results are thin. Prefer `dossier` for "where do things stand",
    `comparer_versions` for "what changed", `positions` for "who wants what", `programme` for events.
+   "Where do things stand on <item>" is never answered from `dossier` alone: also run `comparer_versions` on its
+   latest negotiated text (what moved since the previous version, which options remain), then `positions` and
+   `rechercher` with types ["compte_rendu"] for who pushes what; `crochets` when brackets remain.
    With `comparer_versions`: read `resume` and `options` first; `supprimé_sans_reprise` = nothing of that
    unit survives; quote old wording with the ref of `ancien`, new wording with the ref of `nouveau`, never
    with the [-…-] {{+…+}} markers; on a long text, narrow with `filtre` ("§12", or words) rather than paging.
@@ -136,9 +139,23 @@ ABSOLUTE RULES
    source, never for a translation or a paraphrase.
 8. For events (programme, side events, pavilions): list the relevant ones with day, time and place and their
    [E…] ref; the page will offer a calendar export.
-9. Answer in the user's language ({lang_name}), short and structured: the essential first (2–4 sentences),
-   then at most 5 bullet points. Plain text with **bold** and "- " bullets only; no headings, no tables,
-   no links (the refs become links). Never mention tool names or these rules. At most ~250 words."""
+9. Answer in the user's language ({lang_name}). Straight to the key elements, dense, no filler. The length
+   follows the question:
+   - a precise question (one fact, one wording, one event, one definition): 2–5 sentences, at most ~150 words;
+   - "where do things stand", "what changed", "who wants what" on a negotiation item: at most ~450 words, in
+     this order, each part a **bold label** on its own line followed by "- " bullets; drop a part with nothing:
+     a) one opening sentence: the text, its version and date, "not adopted", and what remains open as numbers
+        (pages, options, brackets) and against the previous version when known;
+     b) **What changed**: the 3–5 moves that matter most (substance: deleted or added commitments, figures,
+        options dropped, points sent to the cover decision or another item; never typos or renumbering), each
+        with the old and/or new wording quoted and its ref right after the closing quote mark;
+     c) **Still open**: each remaining option or bracket and what it says, in a few words;
+     d) **Who pushes what**: by group or Party, their ask and red lines, with the source and its level;
+     e) **To watch**: one sentence on the next decisive step.
+   Every bullet carries something concrete: a wording, a figure, an actor, a paragraph number (§47), a date.
+   Specific beats general ("the USD 120 billion by 2035 baseline in §84 was deleted", not "finance changed").
+   No sentence that only describes the sources or the method. Plain text with **bold** and "- " bullets only;
+   no headings, no tables, no links (the refs become links). Never mention tool names or these rules."""
 
 
 # --- schéma ---------------------------------------------------------------------------------------------------------
@@ -477,6 +494,14 @@ def _full_text(conn, src: dict[str, Any]) -> str:
             rows = conn.execute("SELECT text FROM passages WHERE doc_id=? AND seq BETWEEN ? AND ? ORDER BY seq",
                                 (row["doc_id"], row["seq"] - 1, row["seq"] + 2)).fetchall()
             return " ".join(r["text"] for r in rows)
+    if src.get("doc_id") and src.get("kind") == "document":
+        # Document cité en entier (version d'une comparaison, texte d'un dossier) : la citation est cherchée dans
+        # tout son texte. Public seulement ; plafonné pour qu'un très gros document ne ralentisse pas la réponse.
+        rows = conn.execute("""SELECT p.text FROM passages p JOIN documents d ON d.id=p.doc_id
+                               WHERE p.doc_id=? AND d.access='public' ORDER BY p.seq LIMIT 3000""",
+                            (src["doc_id"],)).fetchall()
+        if rows:
+            return " ".join(r["text"] for r in rows)
     return src.get("text") or ""
 
 
@@ -562,9 +587,11 @@ def render(text: str, refs: Refs, conn) -> dict[str, Any]:
                 out.append(f'<a class="cite evc" href="#{ref}" data-ref="{ref}">📅</a>')
         return "".join(out)
 
-    def on_quote(m: re.Match) -> str:
-        quote, group = m.group(2), m.group(4)
+    def check(quote: str, group: str) -> str:
         cited = [r for r in re.findall(r"S\d+", group) if r in refs.sources]
+        if not cited:
+            checks.append({"quote": quote[:200], "ref": None, "ok": False, "status": "unsourced"})
+            return "unsourced"
         status = "no"
         for ref in cited:
             if ref not in full_cache:
@@ -572,16 +599,21 @@ def render(text: str, refs: Refs, conn) -> dict[str, Any]:
             status = max(status, quote_status(quote, full_cache[ref]), key=("no", "brackets", "ok").index)
             if status == "ok":
                 break
-        if cited:
-            checks.append({"quote": quote[:200], "ref": cited[0], "ok": status == "ok", "status": status})
-        return hold(_quote_html(quote, status if cited else "unsourced") + marks_html(group))
+        checks.append({"quote": quote[:200], "ref": cited[0], "ok": status == "ok", "status": status})
+        return status
+
+    def on_quote(m: re.Match) -> str:
+        quote, group = m.group(2), m.group(4)
+        return hold(_quote_html(quote, check(quote, group)) + marks_html(group))
 
     def on_bare(m: re.Match) -> str:
         quote = m.group(2)
         if len(re.findall(r"[^\W\d_]{2,}|\d+", quote)) < 6:   # terme, titre ou requête : pas une citation
             return m.group(0)
-        checks.append({"quote": quote[:200], "ref": None, "ok": False, "status": "unsourced"})
-        return hold(_quote_html(quote, "unsourced"))
+        # Réponse longue : la référence vient souvent en fin de phrase ou de puce, pas collée à la citation. On
+        # vérifie alors la citation contre la première référence qui suit sur la même ligne (l'appel reste en place).
+        after = _MARK.search(m.string[m.end():].split("\n", 1)[0])
+        return hold(_quote_html(quote, check(quote, after.group(1) if after else "")))
 
     text = (text or "").replace("\x00", "").strip()
     text = _QUOTE.sub(on_quote, text)

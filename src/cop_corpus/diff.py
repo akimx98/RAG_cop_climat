@@ -892,6 +892,17 @@ def _short(text: str, n: int = 12) -> str:
     return " ".join(w[:n]) + ("…" if len(w) > n else "")
 
 
+_WEIGHTY = re.compile(r"financ|tripl|doubl|grant|billion|usd|1\.5|°c|overshoot|fossil|loss and damage|"
+                      r"means of implementation|baseline|roadmap|shall\b|developed countr", re.I)
+
+
+def _weight(text: str) -> float:
+    """Poids d'une unité supprimée : chiffres et termes qui font la négociation, puis la longueur."""
+    t = text or ""
+    return 3 * len(_WEIGHTY.findall(t)) + 2 * len(re.findall(r"\d+(?:[.,]\d+)?\s*(?:%|billion|bn|usd)", t, re.I)) \
+        + min(len(t), 1200) / 400
+
+
 def _summary(changes, options, ca, cb, tally, lang: str) -> list[str]:
     T = (lambda fr, en: en if lang == "en" else fr)
     lines = []
@@ -911,10 +922,20 @@ def _summary(changes, options, ca, cb, tally, lang: str) -> list[str]:
                    f"{sum(1 for a in bt['alternatives'] if 'open' not in a['devenir'])}"))
     for a in bt["alternatives"][:6]:
         lines.append(f"{a['unite']} : [" + "][".join(_short(x, 8) for x in a["choix"]) + f"] → {a['devenir']}")
+    # Renvois : un « placeholder » à la place d'un bloc = le point part ailleurs (décision de couverture, autre point).
+    held = [c for c in changes if c.get("texte_nouveau") and "placeholder" in c["texte_nouveau"].lower()]
+    if held:
+        lines.append(T("renvoyé ailleurs (placeholder) : ", "moved elsewhere (placeholder): ")
+                     + " ; ".join(f"{c['unite']} « {_short(c['texte_nouveau'], 18)} »" for c in held[:6]))
     gone = [c for c in changes if c["statut"] == "supprimé_sans_reprise"]
     if gone:
-        lines.append(T("supprimé sans reprise : ", "deleted with no trace: ")
-                     + " ; ".join(f"{c['unite']} « {_short(c['texte_ancien'], 10)} »" for c in gone[:8])
+        # Long texte : les 8 suppressions qui pèsent le plus (chiffres, finance, température…), pas les 8 premières.
+        top = sorted(sorted(gone, key=lambda c: -_weight(c["texte_ancien"]))[:8], key=gone.index)
+        lines.append(T(f"supprimé sans reprise ({len(gone)}, les plus lourds) : " if len(gone) > 8
+                       else "supprimé sans reprise : ",
+                       f"deleted with no trace ({len(gone)}, weightiest): " if len(gone) > 8
+                       else "deleted with no trace: ")
+                     + " ; ".join(f"{c['unite']} « {_short(c['texte_ancien'], 14)} »" for c in top)
                      + (" …" if len(gone) > 8 else ""))
     extra: list[str] = []
     for c in changes:
