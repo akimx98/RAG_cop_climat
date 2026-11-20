@@ -218,6 +218,22 @@ def login_required(handler):
     return wrapper
 
 
+def public_page(handler):
+    """Page ouverte à tous, sans compte : `request.state.user` vaut l'utilisateur connecté ou None.
+    Les documents internes (restreint) restent filtrés par search.document / search.versions / can_restricted."""
+    async def wrapper(request: Request):
+        request.state.user = current_user(request)
+        return await handler(request)
+    return wrapper
+
+
+def _signin_redirect(request: Request) -> Response:
+    """Visiteur sans compte sur un document interne : la fenêtre de connexion, avec retour ici."""
+    from urllib.parse import quote
+
+    return RedirectResponse(f"/?signin=1&next={quote(_next_url(request))}", status_code=303)
+
+
 def admin_required(handler):
     async def wrapper(request: Request):
         user = current_user(request)
@@ -714,7 +730,7 @@ async def topic_delete(request: Request):
 
 # --- base de données ----------------------------------------------------------------------------------------------
 
-@login_required
+@public_page
 async def database_page(request: Request):
     """Base de données : recherche, dossiers de négociation, textes de session, derniers documents."""
     from . import live
@@ -837,13 +853,15 @@ def _redirect(target: str):
     return handler
 
 
-@login_required
+@public_page
 async def doc_page(request: Request):
     conn = db.get()
     user = request.state.user
     doc_id = int(request.path_params["doc_id"])
     info = search.document(conn, doc_id, user)
     if not info:
+        if not user and conn.execute("SELECT 1 FROM documents WHERE id=?", (doc_id,)).fetchone():
+            return _signin_redirect(request)
         return Response("Document introuvable ou non autorisé", status_code=404)
     per = 40
     hl = request.query_params.get("passage")
@@ -871,13 +889,15 @@ async def doc_page(request: Request):
     return render(request, "doc.html", doc=info, passages=passages, p=page, per=per, highlight=hl, n_pages=n_pages)
 
 
-@login_required
+@public_page
 async def diff_page(request: Request):
     conn = db.get()
     user = request.state.user
     new_id = int(request.path_params["doc_id"])
     new = search.document(conn, new_id, user)
     if not new:
+        if not user and conn.execute("SELECT 1 FROM documents WHERE id=?", (new_id,)).fetchone():
+            return _signin_redirect(request)
         return Response("introuvable", status_code=404)
     row = conn.execute("SELECT lineage_key FROM documents WHERE id=?", (new_id,)).fetchone()
     versions = search.versions(conn, row["lineage_key"], user) if row and row["lineage_key"] else []
@@ -903,10 +923,8 @@ async def file_page(request: Request):
         return Response("introuvable", status_code=404)
     user = current_user(request)
     signed = auth.check_file_signature(doc_id, request.query_params.get("exp"), request.query_params.get("sig"))
-    if not signed and not user:
-        return Response("Connexion requise", status_code=401)
     if row["access"] != "public" and not (signed or auth.can_restricted(user)):
-        return Response("Non autorisé", status_code=403)
+        return _signin_redirect(request) if not user else Response("Non autorisé", status_code=403)
     path = config.DATA_DIR / row["raw_path"]
     media = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     if path.suffix == ".html":
@@ -1459,6 +1477,27 @@ def _compute_counts(conn) -> dict[str, int]:
     }
 
 
+ROBOTS = """User-agent: *
+Disallow: /diff/
+Disallow: /fichier/
+Disallow: /database?
+Disallow: /ask
+Disallow: /try/
+Disallow: /u/
+Disallow: /mcp
+Disallow: /admin
+Disallow: /account
+Disallow: /topics
+Disallow: /lang/
+"""
+
+
+async def robots(request: Request):
+    """Pages publiques, mais les robots d'indexation restent hors des pages coûteuses ou sans fin
+    (comparaisons de versions deux à deux, recherches, fichiers bruts) et des pages personnelles."""
+    return Response(ROBOTS, media_type="text/plain")
+
+
 async def health(request: Request):
     db.get().execute("SELECT 1").fetchone()
     return JSONResponse({"ok": True})
@@ -1511,6 +1550,7 @@ routes = [
     Route("/for/{who}", audience_page),
     Route("/pour/{who}", audience_page),
     Route("/healthz", health),
+    Route("/robots.txt", robots),
     # anciennes adresses (liens dans les alertes, favoris)
     Route("/compte", account_redirect),
     Route("/sujets", _redirect("/topics")),

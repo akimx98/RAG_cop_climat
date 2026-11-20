@@ -9,7 +9,7 @@ from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
 from . import auth, db, ingest, live, positions, search, usage
-from .web import admin_required, login_required, render
+from .web import admin_required, login_required, public_page, render
 
 
 
@@ -53,7 +53,7 @@ def _frises(conn, texts: list[dict], user: dict) -> list[dict]:
     return out[:4]
 
 
-@login_required
+@public_page
 async def dossier_page(request: Request):
     conn = db.get()
     user = request.state.user
@@ -82,7 +82,7 @@ async def dossier_page(request: Request):
         hits=hits, frises=frises,
         social=live.social(conn, live.dossier_words(d), since=_since(24 * 4), limit=15),
         subs=_sub_section(conn, slug),
-        suivi=slug in live.followed(conn, user["id"]), credit=live.CB_CREDIT, cb_www=live.CB_WWW_PAGE,
+        suivi=bool(user) and slug in live.followed(conn, user["id"]), credit=live.CB_CREDIT, cb_www=live.CB_WWW_PAGE,
         cb_texts=live.CB_TEXTS_PAGE, message=request.query_params.get("ok"))
 
 

@@ -5,7 +5,7 @@
 <p>{{ DN(d, 'enjeu') }}</p>
 <div class="row">
 {% for e in etat %}<span class="pill">{{ e.status }}</span>{% endfor %}
-<form method="post" action="/database/negotiations/{{ d.slug }}/follow"><button class="star {{ 'on' if suivi }}">{{ L('✓ Suivi', '✓ Following') if suivi else L('Suivre ce dossier', 'Follow this negotiation') }}</button></form>
+{% if user %}<form method="post" action="/database/negotiations/{{ d.slug }}/follow"><button class="star {{ 'on' if suivi }}">{{ L('✓ Suivi', '✓ Following') if suivi else L('Suivre ce dossier', 'Follow this negotiation') }}</button></form>{% else %}<a class="star" href="/?signin=1&amp;next={{ path|urlencode }}">{{ L('Suivre ce dossier', 'Follow this negotiation') }}</a>{% endif %}
 <a class="small" href="/database?q={{ d.requete|urlencode }}">{{ L('Rechercher dans le corpus', 'Search the corpus') }} →</a>
 </div>
 </section>

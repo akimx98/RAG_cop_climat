@@ -1632,3 +1632,45 @@ def test_client_copies_carry_the_server_rules_and_version():
                            text=True)
     assert check.returncode == 0, check.stdout
     assert mcp_server.etat_corpus()["consignes_clients"]["version"] == version
+
+
+def test_public_pages_without_account(env):
+    """Sans compte : documents publics, comparaisons, base de données et dossiers ouverts ; documents internes,
+    /ask, sujets et compte réservés."""
+    from starlette.applications import Starlette
+    from starlette.testclient import TestClient
+    from cop_corpus import ingest, web, web_live
+    importlib.reload(web)
+    importlib.reload(web_live)
+    conn = env
+    meta = {"symbol": "FCCC/PA/CMA/2026/L.4", "title": "Mitigation work programme", "doc_type": "projet_texte",
+            "level": "2", "published": "2026-11-12"}
+    d1, *_ = ingest.ingest_bytes(conn, DRAFT_V1.encode(), url="https://x/p1.txt", meta=meta, filename="p1.txt")
+    d2, *_ = ingest.ingest_bytes(conn, DRAFT_V2.encode(), url="https://x/p2.txt",
+                                 meta={**meta, "published": "2026-11-14"}, filename="p2.txt")
+    secret, *_ = ingest.ingest_bytes(conn, b"Internal coordination note on mitigation. " * 5, url="https://x/n.txt",
+                                     access="restreint", filename="n.txt", meta={"title": "Note interne"})
+    visitor = TestClient(Starlette(routes=[*web.routes, *web_live.routes]), base_url="https://testserver")
+
+    assert visitor.get(f"/doc/{d2}").status_code == 200
+    r = visitor.get(f"/diff/{d2}?avec={d1}")
+    assert r.status_code == 200 and "transition away" in r.text
+    assert visitor.get(f"/fichier/{d2}").status_code == 200
+    assert visitor.get("/database?q=fossil+fuels").status_code == 200
+    assert visitor.get("/database?tab=negotiations").status_code == 200
+    page = visitor.get("/database/negotiations/finance")
+    assert page.status_code == 200 and "/?signin=1&amp;next=" in page.text
+    assert "text/plain" in visitor.get("/robots.txt").headers["content-type"]
+
+    # interne : ni le texte ni le fichier, mais la fenêtre de connexion (le lien d'un collègue reste utilisable)
+    for url in (f"/doc/{secret}", f"/diff/{secret}", f"/fichier/{secret}"):
+        r = visitor.get(url, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"].startswith("/?signin=1&next=")
+    assert "Internal coordination" not in visitor.get("/database?q=coordination").text
+    assert visitor.get(f"/diff/{d2}?avec={secret}").status_code == 200   # l'autre version interne est ignorée
+    assert "Internal coordination" not in visitor.get(f"/diff/{d2}?avec={secret}").text
+
+    # restent réservés aux comptes
+    for url in ("/ask", "/topics", "/account"):
+        assert visitor.get(url, follow_redirects=False).status_code == 303
+    assert visitor.post("/database/negotiations/finance/follow", follow_redirects=False).status_code == 303
