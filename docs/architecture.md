@@ -1,9 +1,12 @@
-# COP Tracker — documentation de référence
+# OpenCOP — documentation de référence
+
+*(Ancien nom : COP Tracker. Nom affiché, adresse, accroche : §10.)*
 
 Corpus vérifiable, veille en temps réel et alertes pour suivre les négociations de la COP31 (Antalya,
 9–20 novembre 2026). Outil indépendant, gratuit et non commercial, sans lien avec la CCNUCC ni avec une délégation.
 Ce document décrit l'état actuel ; l'historique de construction est dans [historique.md](historique.md),
 l'exploitation (commandes, déploiement, courrier) dans le [README](../README.md). Réglages : §7.
+Indexation et présentation publique (ce qu'il faut mettre à jour quand on ajoute une page) : §10.
 
 ## 1. Vue d'ensemble
 
@@ -306,3 +309,46 @@ tableau couvre toutes les variables lues.
 - Embeddings : `text-embedding-3-small` (512 dimensions), documents publics seulement ; vecteurs gardés en mémoire
   dans chaque processus (≈ 200 000 vecteurs aujourd'hui).
 - Hébergement : VPS partagé (3,8 Go de RAM), conteneurs plafonnés (app 700 Mo, worker 600 Mo, mail 150 Mo).
+
+## 10. Indexation et présentation publique
+
+**Domaines.** `https://opencop.org` est l'adresse publique (`COP_PUBLIC_BASE`) ; `www.opencop.org` et l'ancienne
+`cop31.akimx.fr` servent le même site (connecteurs MCP existants, QR codes, courrier entrant sur
+`veille@cop31.akimx.fr`). Les trois noms sont dans la route Caddy et dans `deploy/edge/.env` sur le VPS : toujours
+réinstaller la route avec les trois (PITFALLS « Domaines, edge »). Note :
+[2026-11-25-domaine-opencop](notes/2026-11-25-domaine-opencop.md) ; redirection de l'ancien nom : issue #9.
+
+**Ce que voient les moteurs et les LLM** (note [2026-11-25-indexation-langues](notes/2026-11-25-indexation-langues.md)) :
+
+| Élément | Où | Règle |
+|---|---|---|
+| Adresse de référence, `og:url` | `base.html` | toujours sur `COP_PUBLIC_BASE` ; `?lang=fr` seulement s'il est dans l'adresse |
+| Versions linguistiques | `base.html` (`hreflang`), `?lang=fr` | pages bilingues : en, fr, x-default ; documents (`/doc/`) : une seule version |
+| Description par défaut | `base.html`, bloc `description` | **= accroche de `about.html`** (test `test_accroche_unique`) |
+| Description d'une page | bloc `{% block description %}` du gabarit | ex. `doc.html` ; sinon la description par défaut |
+| Image d'aperçu | `static/og-opencop.svg` → `.png` | `rsvg-convert og-opencop.svg -o og-opencop.png` après toute modification du SVG |
+| Sitemap | `web.SITEMAP_PAGES`, `SITEMAP_GENERATED`, `sitemap_urls` | documents publics indexés non doublons seulement |
+| Pages exclues | `web.NOT_INDEXED` (avec la raison), `web.ROBOTS` | pages personnelles, actions, secrets dans l'adresse, alias |
+| Présentation pour LLM | `web.llms_text` (`/llms.txt`) | reprend l'accroche de `/about` ; liens vers des pages du sitemap ; aucun chiffre qui bouge |
+
+**Garde-fous automatiques** (`tests/test_indexation.py`, donc bloquants pour `scripts/ship.sh`) :
+toute route GET est classée (sitemap ou `NOT_INDEXED`) ; chaque page fixe du sitemap répond 200 en anglais et en
+français ; jamais de document non public dans le sitemap ; liens de `llms.txt` vers des pages du sitemap ;
+une seule accroche (`/about`, description par défaut, `llms.txt`).
+
+**Quand on change…**
+
+- *une page publique (ajout)* : route, puis `SITEMAP_PAGES` (ou `SITEMAP_GENERATED` + `sitemap_urls`) **ou**
+  `NOT_INDEXED` avec la raison ; si elle est privée ou coûteuse, aussi `ROBOTS` ; un bloc `description` si la
+  description par défaut ne lui convient pas ; un lien dans `llms_text` si elle aide à utiliser l'outil.
+- *l'accroche ou la présentation* (`about.html`) : même texte dans la description par défaut de `base.html` et
+  dans le résumé de `llms_text`, dans les deux langues ; l'image d'aperçu si le slogan change.
+- *le nom affiché* : gabarits, `llms_text`, image d'aperçu, `MAIL_FROM` par défaut (`config.py`) et
+  `COP_MAIL_FROM` en production, aide du bot (`telegram.py`), démo (`demo.py`) ; restent à renommer : serveur MCP,
+  plugin, instructions clients (issue #11).
+- *le domaine* : note du 25/11 (route aux noms complets, `COP_PUBLIC_BASE`, `MCP_ALLOWED_HOSTS`,
+  `COP_MAIL_DOMAIN` figé, `ship.sh`) ; le reste suit `COP_PUBLIC_BASE`.
+- *la COP en cours* (généralisation à toutes les COP) : ligne « Sur ce site » de `about.html`, `llms_text`
+  (« The current edition covers… »), sous-titre de l'en-tête (`base.html`), titre par défaut ; contenu du corpus
+  et programme : catalogue.
+

@@ -1,11 +1,12 @@
-# CLAUDE.md — COP Tracker (COP31)
+# CLAUDE.md — OpenCOP (ex-COP Tracker ; édition COP31)
 
 Corpus vérifiable et veille des négociations climat. Projet **indépendant**, open source, sans lien avec la CCNUCC
 ni avec une délégation (ne jamais le présenter comme l'outil d'une délégation). En production
-(https://cop31.akimx.fr) : chaque erreur touche de vrais utilisateurs. La COP31 s'est tenue du 9 au 20/11/2026.
+(https://opencop.org ; l'ancienne adresse cop31.akimx.fr reste servie) : chaque erreur touche de vrais utilisateurs. La COP31 s'est tenue du 9 au 20/11/2026.
 
 À lire selon le besoin :
-- [docs/architecture.md](docs/architecture.md) : référence (données, outils MCP, tâches, réglages, confidentialité, coûts).
+- [docs/architecture.md](docs/architecture.md) : référence (données, outils MCP, tâches, réglages, confidentialité, coûts ;
+  §10 : ce qu'il faut mettre à jour quand on ajoute une page ou qu'on change la présentation, le nom, le domaine).
 - [PITFALLS.md](PITFALLS.md) : pièges déjà payés. **À relire avant toute conception M/L et à passer sur le diff
   avant toute revue.**
 - [README.md](README.md) : commandes, exploitation ; [scripts/ship.sh](scripts/ship.sh) : mise en production.

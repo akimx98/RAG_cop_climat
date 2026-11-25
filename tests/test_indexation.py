@@ -145,3 +145,66 @@ def test_documents_une_seule_version(env):
     assert '<link rel="alternate" hreflang' not in html
     xml = _client().get("/sitemap.xml").text
     assert f"/doc/{ok}?lang=fr" not in xml and f"/doc/{secret}<" not in xml and f"/doc/{ok}</loc>" in xml
+
+
+# --- Garde-fous contre la dérive (architecture.md, « Indexation et présentation publique ») ----------------------
+
+def _get_routes():
+    from starlette.routing import Route
+    from cop_corpus import web, web_live
+
+    return [r.path for r in [*web.routes, *web_live.routes] if isinstance(r, Route) and "GET" in (r.methods or ())]
+
+
+def test_toute_page_est_classee(env):
+    """Une page ajoutée au site doit être mise dans le sitemap ou exclue avec sa raison (web.NOT_INDEXED)."""
+    from cop_corpus import web
+
+    gen = set(web.SITEMAP_GENERATED)
+    fixed = {p for p in web.SITEMAP_PAGES if not p.startswith("/for/")}
+    routes = set(_get_routes())
+    oublis = sorted(routes - fixed - gen - set(web.NOT_INDEXED))
+    assert not oublis, f"routes ni dans le sitemap ni dans NOT_INDEXED : {oublis}"
+    doubles = sorted((fixed | gen) & set(web.NOT_INDEXED))
+    assert not doubles, f"routes à la fois indexées et exclues : {doubles}"
+    perimes = sorted((fixed | gen | set(web.NOT_INDEXED)) - routes)
+    assert not perimes, f"classement de routes qui n'existent plus : {perimes}"
+    assert all(web.NOT_INDEXED.values()), "chaque exclusion dit pourquoi"
+
+
+def test_pages_du_sitemap_repondent(env):
+    """Pages fixes du sitemap, en anglais et en français : 200 pour un visiteur anonyme (pas de redirection)."""
+    from cop_corpus import web
+
+    c = _client()
+    for p in web.SITEMAP_PAGES:
+        for q in ("", "?lang=fr"):
+            r = c.get(p + q, follow_redirects=False)
+            assert r.status_code == 200, f"{p}{q} -> {r.status_code}"
+
+
+def test_llms_txt_coherent(env):
+    """llms.txt : tous ses liens internes mènent à des pages du sitemap ; il reprend l'accroche de la page
+    « Qu'est-ce qu'OpenCOP » (une seule formulation, sinon les textes divergent)."""
+    from cop_corpus import web
+
+    t = _client().get("/llms.txt").text
+    liens = re.findall(r"https://opencop\.example(/[^)\s]*)", t)
+    assert liens
+    for chemin in liens:
+        chemin = chemin.rstrip(".").split("?")[0]
+        assert chemin in web.SITEMAP_PAGES, f"llms.txt renvoie vers {chemin}, absent du sitemap"
+    about = _client().get("/about").text
+    lede = re.sub(r"\s+", " ", re.search(r'<p class="lede">(.*?)</p>', about, re.S).group(1)).strip()
+    resume = re.sub(r"\s+", " ", " ".join(l[2:] for l in t.splitlines() if l.startswith("> ")))
+    assert lede in resume, "l'accroche de /about et le résumé de llms.txt ont divergé"
+
+
+def test_accroche_unique(env):
+    """Description par défaut (balise meta) = accroche de /about, dans les deux langues."""
+    for q in ("", "?lang=fr"):
+        about = _client().get("/about" + q).text
+        lede = re.sub(r"\s+", " ", re.search(r'<p class="lede">(.*?)</p>', about, re.S).group(1)).strip()
+        home = _client().get("/" + q).text
+        desc = re.search(r'<meta name="description" content="([^"]*)">', home).group(1)
+        assert desc == lede, f"accroche divergente ({q or 'en'}) : description par défaut ≠ /about"

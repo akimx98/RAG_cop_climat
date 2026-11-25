@@ -1499,6 +1499,57 @@ Disallow: /lang/
 # Pages fixes proposées aux moteurs (les pages personnelles et coûteuses restent exclues par ROBOTS).
 SITEMAP_PAGES = ("/", "/about", "/how-it-works", "/connect", "/plan", "/try", "/database", "/contact",
                  "/confidentialite", "/for/delegations", "/for/press", "/for/activists")
+# Routes dont les adresses entrent dans le sitemap par `sitemap_urls` (valeurs fixes ou tirées de la base).
+SITEMAP_GENERATED = ("/for/{who}", "/doc/{doc_id:int}", "/database/negotiations/{slug}")
+# Routes GET hors du sitemap, avec la raison. Garde-fou (tests/test_indexation.py) : toute route GET du site est
+# dans SITEMAP_PAGES, SITEMAP_GENERATED ou ici. Nouvelle page publique → décider ; voir architecture.md §
+# « Indexation et présentation publique ».
+NOT_INDEXED = {
+    "/topics": "page personnelle (compte)",
+    "/account": "page personnelle (compte)",
+    "/compte": "redirection vers /account",
+    "/ask": "page personnelle (questions du compte)",
+    "/ask/c/{cid}": "conversation personnelle",
+    "/admin": "administration",
+    "/admin/usage": "administration",
+    "/admin/courrier": "administration",
+    "/admin/programme": "administration",
+    "/signin": "formulaire de connexion",
+    "/connexion": "formulaire de connexion (alias)",
+    "/entrer/{value}": "lien de connexion personnel (secret dans l'adresse)",
+    "/login/{token}": "lien de connexion personnel (secret dans l'adresse)",
+    "/logout": "action",
+    "/lang/{code}": "action (change la langue puis redirige)",
+    "/join": "inscription",
+    "/join/{code}": "invitation (code dans l'adresse)",
+    "/rejoindre": "inscription (alias)",
+    "/rejoindre/{code}": "invitation (alias, code dans l'adresse)",
+    "/inviter": "page d'invitation d'un compte",
+    "/static/{name}": "fichier (image)",
+    "/diff/{doc_id:int}": "comparaison de versions : coûteuse, sans fin (exclue par robots.txt)",
+    "/fichier/{doc_id:int}": "fichier brut signé (exclu par robots.txt)",
+    "/telechargements/{name}": "fichier à télécharger",
+    "/privacy": "alias de /confidentialite",
+    "/pour/{who}": "alias de /for/{who}",
+    "/try/r/{aid}": "réponse de démo d'un visiteur",
+    "/healthz": "sonde technique",
+    "/healthz/deep": "sonde technique",
+    "/robots.txt": "fichier pour robots",
+    "/sitemap.xml": "fichier pour robots",
+    "/llms.txt": "fichier pour LLM (lié depuis nulle part : convention d'adresse fixe)",
+    "/questions": "ancienne adresse (redirection)",
+    "/essayer": "ancienne adresse (redirection)",
+    "/sujets": "ancienne adresse (redirection)",
+    "/connecteur": "ancienne adresse (redirection)",
+    "/recherche": "ancienne adresse (redirection)",
+    "/a-propos": "ancienne adresse (redirection)",
+    "/bienvenue": "ancienne adresse (redirection)",
+    "/telegram": "ancienne adresse (redirection)",
+    "/deposer": "ancienne adresse (redirection)",
+    "/dossiers": "ancienne adresse (redirection)",
+    "/textes": "ancienne adresse (redirection)",
+    "/dossiers/{slug}": "ancienne adresse (redirection)",
+}
 
 
 async def robots(request: Request):

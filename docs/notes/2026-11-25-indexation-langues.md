@@ -1,6 +1,6 @@
 # 2026-11-25 — Indexation : version française, llms.txt, image d'aperçu
 
-*Taille : M · Statut : revu (tour 1), prêt à déployer*
+*Taille : M · Statut : livré (9326e27, déployé le 25/11/2026)*
 *Fichiers concernés : `src/cop_corpus/templates/base.html`, `src/cop_corpus/web.py` (`ROBOTS`, `sitemap`, `llms`),
 `src/cop_corpus/static/`, `tests/test_indexation.py`*
 
@@ -91,9 +91,22 @@ Reporté en suite : 6. chemin non ré-encodé dans les adresses de référence ;
 
 ## Suites
 
-- Adresses de référence : ré-encoder le chemin ; `noindex` sur les pages privées et d'erreur (constat 6).
+- Adresses de référence : ré-encoder le chemin ; `noindex` sur les pages privées et d'erreur (constat 6) : #13.
+- Pages de dossier de 10 à 16 s qui figent la boucle d'événements (constaté pendant la vérification, antérieur à ce
+  changement ; le sitemap invite les robots à les explorer) : traité par une autre session (« Performance du site »).
 
 ## Promotion (à la livraison)
 
-- [ ] faits → architecture (indexation : sitemap, langues, llms.txt)
-- [ ] statut « livré » ici et dans l'index
+- [x] faits → architecture §10 « Indexation et présentation publique » (quoi mettre à jour quand on change une page,
+      l'accroche, le nom, le domaine, la COP) ; CLAUDE.md y renvoie ; ligne ajoutée à la liste de PITFALLS
+- [x] garde-fous : `web.NOT_INDEXED` + tests (toute route classée, pages du sitemap en 200, liens de `llms.txt`,
+      accroche unique)
+- [x] suites → #13
+- [x] statut « livré » ici et dans l'index
+
+## Vérifications en production (25/11)
+
+`robots.txt` (règle `Allow` et `Sitemap`) ; sitemap valide, 10 348 adresses dont 30 en français, toutes sur
+opencop.org ; les 60 pages fixes et dossiers en 200 ; `/about?lang=fr` : canonical en `?lang=fr`, hreflang en/fr/
+x-default, `og:locale` fr_FR, `og:image` ; `/doc/51?lang=fr` : aucun hreflang, canonical sans `lang` ; `llms.txt`
+200 et ses 9 liens en 200 ; image 200, PNG 1200 × 630.

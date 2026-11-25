@@ -18,6 +18,8 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
       (salve de notifications) ?
 - [ ] Arrêt pendant un déploiement (SIGTERM, 10 s par défaut) : l'état est-il cohérent, est-ce compté comme panne ?
 - [ ] Réglage nouveau : dans `config.py` et dans architecture.md §7 ? Outil MCP : dans le tableau de la doc ?
+- [ ] Page publique ajoutée ou texte de présentation modifié : architecture.md §10 (sitemap ou `NOT_INDEXED`,
+      description, `llms.txt`, même accroche partout) ? Les tests le rattrapent en partie, pas le sens du texte.
 
 ## Processus, Docker, signaux
 
