@@ -140,6 +140,8 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx["LEVELS"] = i18n.LEVELS_EN if lang == "en" else search.LEVEL_LABELS
     ctx["base"] = config.PUBLIC_BASE
     ctx["path"] = request.url.path
+    q_lang = request.query_params.get("lang")
+    ctx["url_lang"] = q_lang if q_lang in i18n.LANGS else None   # langue demandée dans l'adresse (versions indexées)
     ctx["here"] = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     # ?frise=1 : panneau « Au fil des versions » ouvert d'emblée (lien partagé), replié sinon
     ctx["frise_open"] = request.query_params.get("frise") in ("1", "open", "ouvert")
@@ -1483,6 +1485,7 @@ ROBOTS = """User-agent: *
 Disallow: /diff/
 Disallow: /fichier/
 Disallow: /database?
+Allow: /database?lang=fr$
 Disallow: /ask
 Disallow: /try/
 Disallow: /u/
@@ -1504,30 +1507,96 @@ async def robots(request: Request):
     return Response(ROBOTS + f"\nSitemap: {config.PUBLIC_BASE}/sitemap.xml\n", media_type="text/plain")
 
 
-def sitemap_urls(conn) -> list[tuple[str, str | None]]:
-    """(chemin, date) proposés aux moteurs : pages fixes, dossiers de négociation, documents **publics** indexés
-    (jamais un document restreint, en attente ou doublon : seulement ce qu'un visiteur anonyme peut ouvrir)."""
+def sitemap_urls(conn) -> list[tuple[str, str | None, bool]]:
+    """(chemin, date, bilingue) proposés aux moteurs : pages fixes et dossiers (en anglais et en français),
+    documents **publics** indexés (une fois : le texte reste dans sa langue d'origine ; jamais un document
+    restreint, en attente ou doublon : seulement ce qu'un visiteur anonyme peut ouvrir)."""
     from . import live
 
-    urls: list[tuple[str, str | None]] = [(p, None) for p in SITEMAP_PAGES]
-    urls += [(f"/database/negotiations/{d['slug']}", None) for d in live.dossiers()]
+    urls: list[tuple[str, str | None, bool]] = [(p, None, True) for p in SITEMAP_PAGES]
+    urls += [(f"/database/negotiations/{d['slug']}", None, True) for d in live.dossiers()]
     rows = conn.execute("SELECT id, fetched_at FROM documents WHERE access='public' AND status='indexed' "
-                        "AND duplicate_of IS NULL ORDER BY id LIMIT 45000").fetchall()   # plafond du format : 50 000
-    urls += [(f"/doc/{r['id']}", (r["fetched_at"] or "")[:10] or None) for r in rows]
+                        "AND duplicate_of IS NULL ORDER BY id LIMIT 40000").fetchall()   # plafond du format : 50 000
+    urls += [(f"/doc/{r['id']}", (r["fetched_at"] or "")[:10] or None, False) for r in rows]
     return urls
 
 
 async def sitemap(request: Request):
-    from xml.sax.saxutils import escape
+    from xml.sax.saxutils import escape, quoteattr
 
     from starlette.concurrency import run_in_threadpool
 
     urls = await run_in_threadpool(sitemap_urls, db.get())
-    body = "".join(f"<url><loc>{escape(config.PUBLIC_BASE + p)}</loc>" + (f"<lastmod>{d}</lastmod>" if d else "")
-                   + "</url>\n" for p, d in urls)
-    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-           + body + "</urlset>\n")
+    out = []
+    for p, d, both in urls:
+        en, fr = config.PUBLIC_BASE + p, config.PUBLIC_BASE + p + "?lang=fr"
+        last = f"<lastmod>{d}</lastmod>" if d else ""
+        if not both:
+            out.append(f"<url><loc>{escape(en)}</loc>{last}</url>\n")
+            continue
+        alt = "".join(f'<xhtml:link rel="alternate" hreflang="{h}" href={quoteattr(u)}/>'
+                      for h, u in (("en", en), ("fr", fr), ("x-default", en)))
+        out += [f"<url><loc>{escape(u)}</loc>{last}{alt}</url>\n" for u in (en, fr)]
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+           'xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' + "".join(out) + "</urlset>\n")
     return Response(xml, media_type="application/xml")
+
+
+def llms_text() -> str:
+    """Présentation d'OpenCOP pour les LLM et leurs outils de recherche (convention llms.txt). Rien qui change
+    souvent (pas de chiffres) : seulement ce que disent déjà les pages du site."""
+    b = config.PUBLIC_BASE
+    levels = "\n".join(f"- {k} = {v}" for k, v in i18n.LEVELS_EN.items() if k in "12345")
+    return f"""# OpenCOP
+
+> OpenCOP is a free and open-source tool for following the UN climate COP negotiations directly in the texts:
+> draft decisions and their successive versions, adopted decisions, positions of countries and groups.
+> Independent project, not affiliated with the UNFCCC, the COP Presidency or any delegation. No ads.
+
+The current edition covers COP31 (Antalya, 9–20 November 2026).
+OpenCOP was created by Akim Viennet and Alix de Thoisy to help small delegations, NGOs and civil society
+observers get past the technical barrier of the negotiations: understand what is being negotiated, build and defend their advocacy, and bring into these forums
+voices that are not those of professional negotiators. It is meant to serve every COP, and to become a teaching
+tool (secondary schools, youth programmes that take young people to COPs); neither is online yet.
+
+## What the corpus contains
+
+Draft texts and their successive versions, the law already adopted (COP/CMA decisions, Paris Agreement),
+positions of countries and groups, their official submissions, reference reports, and the programme of every
+room and pavilion. Each document is split into citable passages, with a link to the official source.
+
+## How to use it
+
+- [Database]({b}/database): search and browse the corpus; documents are split into citable passages, with a link
+  to the official source.
+- [Connect an LLM]({b}/connect): a free account gives a personal MCP connector address for Claude, ChatGPT or
+  Le Chat; the tools return exact passages to quote.
+- [Plan my day]({b}/plan): events and negotiation sessions for your topics.
+- [How it works]({b}/how-it-works): sources, processing, strengths and limits.
+
+## Reliability levels used in answers
+
+{levels}
+
+Draft texts are not adopted: always give their version and date. Keep what a text says apart from what actors
+say about it.
+
+## About
+
+- [What is OpenCOP?]({b}/about)
+- [Privacy]({b}/confidentialite)
+- [Contact]({b}/contact)
+{f"- [Source code (MIT licence)]({config.SOURCE_URL})" if config.SOURCE_URL else "- Source code: MIT licence"}
+
+## En français
+
+OpenCOP est un outil libre et gratuit pour suivre les négociations des COP climat directement dans les textes.
+Pages en français : ajouter `?lang=fr` à l'adresse, par exemple {b}/about?lang=fr.
+"""
+
+
+async def llms(request: Request):
+    return Response(llms_text(), media_type="text/plain; charset=utf-8")
 
 
 async def health(request: Request):
@@ -1596,6 +1665,7 @@ routes = [
     Route("/healthz/deep", health_deep),
     Route("/robots.txt", robots),
     Route("/sitemap.xml", sitemap),
+    Route("/llms.txt", llms),
     # anciennes adresses (liens dans les alertes, favoris)
     Route("/compte", account_redirect),
     Route("/sujets", _redirect("/topics")),

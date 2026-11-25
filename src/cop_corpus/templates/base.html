@@ -6,17 +6,29 @@
 <meta name="theme-color" content="#17456b" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1418" media="(prefers-color-scheme: dark)">
 <title>{% block title %}OpenCOP · COP31{% endblock %}</title>
-{# Indexation : adresse de référence sur le domaine public (les autres noms servent le même contenu), description
-   et aperçu de partage. La langue suit un cookie : les robots voient l'anglais. #}
+{# Indexation : adresse de référence sur le domaine public (les autres noms servent le même contenu), versions
+   linguistiques par ?lang=fr (la langue suit sinon un cookie : sans lui, anglais), description et aperçu. #}
 {% set desc %}{% block description %}{{ L("OpenCOP est un outil libre et gratuit pour suivre les négociations des COP climat directement dans les textes : projets de décision et leurs versions successives, décisions adoptées, positions des pays et des groupes.", "OpenCOP is a free and open-source tool for following the UN climate COP negotiations directly in the texts: draft decisions and their successive versions, adopted decisions, positions of countries and groups.") }}{% endblock %}{% endset %}
+{# documents : texte dans sa langue d'origine, une seule version annoncée #}
+{% set bilingue = not path.startswith('/doc/') %}
+{% set ref = base ~ path ~ ('?lang=fr' if bilingue and url_lang == 'fr' else '') %}
 <meta name="description" content="{{ desc|trim }}">
-<link rel="canonical" href="{{ base }}{{ path }}">
+<link rel="canonical" href="{{ ref }}">
+{% if bilingue %}<link rel="alternate" hreflang="en" href="{{ base }}{{ path }}">
+<link rel="alternate" hreflang="fr" href="{{ base }}{{ path }}?lang=fr">
+<link rel="alternate" hreflang="x-default" href="{{ base }}{{ path }}">{% endif %}
 <meta property="og:site_name" content="OpenCOP">
 <meta property="og:type" content="website">
 <meta property="og:title" content="{{ self.title()|trim }}">
 <meta property="og:description" content="{{ desc|trim }}">
-<meta property="og:url" content="{{ base }}{{ path }}">
+<meta property="og:url" content="{{ ref }}">
 <meta property="og:locale" content="{{ 'fr_FR' if lang == 'fr' else 'en_GB' }}">
+<meta property="og:locale:alternate" content="{{ 'en_GB' if lang == 'fr' else 'fr_FR' }}">
+<meta property="og:image" content="{{ base }}/static/og-opencop.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ L('OpenCOP : suivre les négociations des COP climat dans les textes', 'OpenCOP: follow the UN climate COP negotiations in the texts') }}">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%2317456b'/%3E%3Cpath d='M12 8H8v16h4M20 8h4v16h-4' stroke='%23fff' stroke-width='2.6' fill='none'/%3E%3C/svg%3E">
 <style>
 /* Polices système uniquement : aucune requête vers un tiers (documents internes). */

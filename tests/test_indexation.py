@@ -83,3 +83,65 @@ def test_reference_et_description(env):
     assert re.search(r'<meta property="og:title" content="What is OpenCOP\?">', html)
     fr = _client().get("/about?lang=fr").text
     assert "libre et gratuit" in re.search(r'<meta name="description" content="([^"]*)">', fr).group(1)
+
+
+def test_versions_linguistiques(env):
+    en = _client().get("/about").text
+    assert '<link rel="alternate" hreflang="en" href="https://opencop.example/about">' in en
+    assert '<link rel="alternate" hreflang="fr" href="https://opencop.example/about?lang=fr">' in en
+    assert '<link rel="alternate" hreflang="x-default" href="https://opencop.example/about">' in en
+    fr = _client().get("/about?lang=fr").text
+    assert '<link rel="canonical" href="https://opencop.example/about?lang=fr">' in fr      # propre à la langue
+    assert '<meta property="og:url" content="https://opencop.example/about?lang=fr">' in fr
+    assert '<meta property="og:locale" content="fr_FR">' in fr and 'og:locale:alternate" content="en_GB"' in fr
+    assert '<link rel="alternate" hreflang="fr" href="https://opencop.example/about?lang=fr">' in fr
+    # cookie français sans ?lang= : l'adresse de référence reste celle de la version sans paramètre
+    c = _client()
+    c.cookies.set("lang", "fr")
+    assert '<link rel="canonical" href="https://opencop.example/about">' in c.get("/about").text
+    # autres paramètres ignorés dans l'adresse de référence
+    assert '<link rel="canonical" href="https://opencop.example/about?lang=fr">' in _client().get("/about?lang=fr&x=1").text
+
+
+def test_sitemap_bilingue_et_robots(env):
+    xml = _client().get("/sitemap.xml").text
+    assert 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' in xml
+    assert "<loc>https://opencop.example/about?lang=fr</loc>" in xml
+    block = re.search(r"<url><loc>https://opencop.example/about\?lang=fr</loc>.*?</url>", xml).group(0)
+    assert 'hreflang="en" href="https://opencop.example/about"' in block and 'hreflang="x-default"' in block
+    from xml.dom import minidom
+    minidom.parseString(xml.encode())                                     # XML bien formé
+    robots = _client().get("/robots.txt").text
+    assert "Allow: /database?lang=fr$" in robots and "Disallow: /database?" in robots
+    # le $ limite l'autorisation à la page exacte : une recherche en français reste exclue (règle la plus longue)
+    from urllib import robotparser  # noqa: F401  (ne gère pas $ ; vérification sur le texte)
+    assert "Allow: /database?lang=fr\n" not in robots
+
+
+def test_llms_txt_et_image(env):
+    r = _client().get("/llms.txt")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
+    t = r.text
+    assert t.startswith("# OpenCOP") and "https://opencop.example/connect" in t and "not affiliated" in t
+    assert "Akim Viennet" in t and "Alix de Thoisy" in t
+    assert not re.search(r"https?://(?!opencop\.example|github\.com)", t)          # liens sur le domaine public
+    html = _client().get("/").text
+    assert '<meta property="og:image" content="https://opencop.example/static/og-opencop.png">' in html
+    assert '<meta name="twitter:card" content="summary_large_image">' in html
+    assert "/privacy" not in t and "https://opencop.example/confidentialite" in t   # une seule adresse
+    img = _client().get("/static/og-opencop.png")
+    assert img.status_code == 200 and img.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_documents_une_seule_version(env):
+    conn = env
+    ok = _doc(conn, "Public climate finance text. ", "ok")
+    secret = _doc(conn, "Internal note on positions. ", "secret")
+    conn.execute("UPDATE documents SET status='indexed' WHERE id IN (?,?)", (ok, secret))
+    conn.execute("UPDATE documents SET access='restreint' WHERE id=?", (secret,))
+    conn.commit()
+    html = _client().get(f"/doc/{ok}?lang=fr").text
+    assert f'<link rel="canonical" href="https://opencop.example/doc/{ok}">' in html   # pas de version française
+    assert '<link rel="alternate" hreflang' not in html
+    xml = _client().get("/sitemap.xml").text
+    assert f"/doc/{ok}?lang=fr" not in xml and f"/doc/{secret}<" not in xml and f"/doc/{ok}</loc>" in xml

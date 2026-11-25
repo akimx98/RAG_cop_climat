@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Image d'aperçu des partages (og:image). Source ; le PNG est produit par : rsvg-convert og-opencop.svg -o og-opencop.png -->
+  <rect width="1200" height="630" fill="#17456b"/>
+  <rect x="0" y="582" width="1200" height="48" fill="#0f3352"/>
+  <path d="M150 170H100v290h50M290 170h50v290h-50" stroke="#ffffff" stroke-width="30" fill="none"/>
+  <text x="420" y="300" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="128" font-weight="700" fill="#ffffff">OpenCOP</text>
+  <text x="424" y="378" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="40" fill="#d6e4f0">Follow the UN climate COP negotiations</text>
+  <text x="424" y="430" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="40" fill="#d6e4f0">in the texts themselves</text>
+  <text x="100" y="615" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="26" fill="#d6e4f0">Free and open source · Libre et gratuit · opencop.org</text>
+</svg>
