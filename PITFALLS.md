@@ -80,6 +80,16 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 - Une alerte envoyée seulement à Telegram se perd si le jeton est révoqué ou l'admin non relié.
 - Le site et le worker peuvent se surveiller l'un l'autre, mais pas une panne des deux (VPS) : sonde externe.
 
+## Domaines, edge
+
+- **La route Caddy sert trois noms** (`opencop.org, www.opencop.org, cop31.akimx.fr`), mémorisés dans
+  `deploy/edge/.env` sur le VPS. Réinstaller la route avec un seul nom retire les autres : plus servis, plus
+  renouvelés ; sans `cop31.akimx.fr`, le courrier entrant perd son certificat. → Toujours la liste complète.
+- **`MAIL_DOMAIN` est déduit de `COP_PUBLIC_BASE` s'il n'est pas fixé** : changer l'adresse publique déplacerait la
+  réception du courrier. → `COP_MAIL_DOMAIN` fixé explicitement dans `.env`.
+- **Domaine neuf : réponse négative en cache** chez le résolveur du poste (jusqu'à 1 h) même une fois la délégation
+  publiée. → Vérifier avec `dig @1.1.1.1` et `curl --resolve`, pas avec le résolveur local.
+
 ## Confidentialité, sécurité
 
 - Telegram n'est pas chiffré de bout en bout : jamais de titre ni d'extrait de document restreint (alertes,

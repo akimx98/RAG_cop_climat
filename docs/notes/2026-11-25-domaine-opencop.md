@@ -1,6 +1,6 @@
 # 2026-11-25 — Passage au domaine opencop.org
 
-*Taille : M · Statut : revu (tour 1), à valider*
+*Taille : M · Statut : phase A livrée (19c31ed, déployée le 25/11/2026) ; phase B à faire (#9)*
 *Fichiers concernés : `deploy/edge/sites/cop31.caddy.template`, `scripts/install-edge-site.sh`, `scripts/ship.sh`,
 `deploy/.env.example`, `deploy/.env` (VPS), `README.md`, `.claude-plugin/marketplace.json`*
 
@@ -181,16 +181,43 @@ Tour 1 (reviewer, 25/11) : à reprendre, aucun bloquant. Constats acceptés et r
 
 Constats refusés : aucun. Tour 2 : seulement si la note change de conception.
 
+## Résultats de la phase A (25/11/2026, en production)
+
+- DNS : zone OVH d'opencop.org nettoyée (A et TXT de la page d'accueil OVH retirés) ; `@` et `www` → VPS, pas
+  d'AAAA ni de CAA. Délégation .org publiée environ 20 min après la création du domaine.
+- Route : `DOMAIN=opencop.org, www.opencop.org, cop31.akimx.fr` mémorisé dans `deploy/edge/.env` (VPS) ; validation
+  et rechargement à chaud ; certificats Let's Encrypt obtenus pour les trois noms en quelques secondes. Copie de
+  l'ancienne route : `/home/debian/cop31.caddy.avant-opencop`. Voisins inchangés (fichiers de route, conteneurs).
+- `.env` : `COP_PUBLIC_BASE=https://opencop.org`, `MCP_ALLOWED_HOSTS=opencop.org,www.opencop.org,cop31.akimx.fr`,
+  `COP_MAIL_DOMAIN=cop31.akimx.fr`, expéditeur « OpenCOP » ; copie : `deploy/.env.avant-opencop`.
+- Critère 1 : `/healthz` 200 sur les trois noms, certificat valide pour chacun.
+- Critère 2 : consignes MCP → `https://opencop.org/connect` ; page `/connect` connectée → `https://opencop.org/u/<jeton>/mcp`
+  (sur les deux domaines).
+- Critère 3 : même jeton sur les trois hôtes : `initialize` 200, 21 outils, `etat_corpus` sans erreur ; hôte inconnu
+  → 421, faux jeton → 401, `/mcp` nu → 401.
+- Critère 4 : contrôle d'origine (POST `/signin`, e-mail vide, aucun envoi) : 200 pour chaque domaine avec sa propre
+  origine, 403 pour une origine croisée ou étrangère. Connexion complète par code **non testée** (aurait envoyé un
+  e-mail réel).
+- Critère 5 : port 25, STARTTLS avec certificat vérifié pour `cop31.akimx.fr` ; `RCPT veille@cop31.akimx.fr` → 250,
+  `veille@opencop.org` → 550 (attendu). Arrêt avant `DATA` : aucune lettre de test déposée.
+- Critère 6 : zone `akimx.fr` non modifiée. Critère 7 : `ship.sh` contrôle la nouvelle adresse et l'ancienne.
+- Critère 8 : `grep -rn "akimx.fr" src/` vide ; 179 tests verts.
+- Pages (`/`, `/about`, `/connect`, `/database`, `/try`, `/doc/1`…) : 200 sur les trois noms ; HSTS présent ; journaux
+  des trois conteneurs sans erreur, aucun redémarrage.
+- Écart : le résolveur DNS du poste gardait en cache la réponse négative d'avant la publication (jusqu'à 1 h) ;
+  `ship.sh` lancé avec `COP_URL=https://www.opencop.org`, le domaine nu vérifié avec `curl --resolve`.
+
 ## Suites
 
-- Courrier entrant et sortant sur opencop.org.
-- Renommage MCP / plugin / instructions clients / dépôt.
-- Inventaire `mcp-edge`.
+- Phase B, redirection : #9.
+- Courrier entrant et sortant sur opencop.org : #10.
+- Renommage MCP / plugin / instructions clients / dépôt : #11.
+- Inventaire `mcp-edge` : #12.
 
 ## Promotion (à la livraison)
 
-- [ ] pièges → PITFALLS (route réinstallée avec un seul domaine) ; faits → architecture §7 (valeurs de production
+- [x] pièges → PITFALLS (route réinstallée avec un seul domaine) ; faits → architecture §7 (valeurs de production
       de `COP_PUBLIC_BASE`, `MCP_ALLOWED_HOSTS`, `COP_MAIL_DOMAIN` figé), README (adresse, MX) ; inventaire
       `mcp-edge/CONVENTIONS.md`
-- [ ] suites → issues `suite`
+- [x] suites → issues `suite` (#9 à #12)
 - [ ] statut « livré » ici et dans l'index
