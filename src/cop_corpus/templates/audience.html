@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}COP Tracker · {{ {'delegations': L('Délégations', 'Delegations'), 'presse': L('Presse', 'Press'), 'militants': L('Militants et ONG', 'Activists and NGOs')}[who] }}{% endblock %}
+{% block title %}OpenCOP · {{ {'delegations': L('Délégations', 'Delegations'), 'presse': L('Presse', 'Press'), 'militants': L('Militants et ONG', 'Activists and NGOs')}[who] }}{% endblock %}
 {% block body %}
 {% set P = {
  'delegations': {

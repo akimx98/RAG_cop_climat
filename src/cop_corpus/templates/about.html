@@ -1,9 +1,11 @@
-{% extends "base.html" %}{% from "_photo.html" import photo %}{% block title %}{{ L('Qu\'est-ce que COP Tracker ?', 'What is COP Tracker?') }}{% endblock %}{% block body %}
+{% extends "base.html" %}{% from "_photo.html" import photo %}{% block title %}{{ L('Qu\'est-ce qu\'OpenCOP ?', 'What is OpenCOP?') }}{% endblock %}{% block body %}
 <style>
 .about{max-width:760px;margin:0 auto;font-size:16.5px;line-height:1.65}
 .about h1{font-size:clamp(28px,4vw,40px);margin:6px 0 14px}
 .about .lede{font-size:19px;color:var(--ink-2);margin:0 0 14px}
 .about p{margin:0 0 14px}
+.about .now{font-size:14px;color:var(--muted)}
+.about h2{font-size:20px;margin:26px 0 8px}
 .about .next{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:26px 0 0;padding:0;list-style:none}
 .about .next a{display:block;border:1px solid var(--line);border-radius:8px;padding:12px 14px;text-decoration:none;color:var(--ink);background:var(--surface);font-size:14px;line-height:1.45}
 .about .next a b{display:block;font-size:15px}
@@ -17,16 +19,27 @@
  L('Consultations informelles autour de la table des pays les moins avancés, Antalya, 14 novembre 2026.', 'Informal consultations at the least developed countries\' table, Antalya, 14 November 2026.'),
  'https://www.flickr.com/photos/unfccc/55652458184', '50% 82%', 'clamp(150px,22vw,240px)') }}
 <div class="eyebrow">{{ L('À propos', 'About') }}</div>
-<h1>{{ L('Qu\'est-ce que COP Tracker ?', 'What is COP Tracker?') }}</h1>
-<p class="lede">{{ L('Un outil gratuit pour suivre les négociations de la COP31 à partir des textes eux-mêmes, et pas de ce qu\'on en dit.', 'A free tool to follow the COP31 negotiations from the texts themselves, not from what people say about them.') }}</p>
-<p>{{ L('Pendant une COP, des dizaines de projets de texte sortent chaque jour, souvent tard le soir, en anglais, pleins de crochets et d\'options. Les comptes rendus arrivent le lendemain, et des centaines d\'événements se tiennent en même temps. COP Tracker rassemble tout cela : les projets de texte et leurs versions successives, le droit déjà adopté, les positions des pays et des groupes, leurs soumissions officielles, les comptes rendus de référence et le programme de toutes les salles et de tous les pavillons.',
- 'During a COP, dozens of draft texts come out every day, often late at night, full of brackets and options. Reports arrive the next day, and hundreds of events run at the same time. COP Tracker brings it all together: draft texts and their successive versions, the law already adopted, the positions of countries and groups, their official submissions, reference reports, and the programme of every room and pavilion.') }}</p>
+<h1>{{ L('Qu\'est-ce qu\'OpenCOP ?', 'What is OpenCOP?') }}</h1>
+<p class="lede">{{ L('OpenCOP est un outil libre et gratuit pour suivre les négociations des COP climat directement dans les textes : projets de décision et leurs versions successives, décisions adoptées, positions des pays et des groupes.',
+ 'OpenCOP is a free and open-source tool for following the UN climate COP negotiations directly in the texts: draft decisions and their successive versions, adopted decisions, positions of countries and groups.') }}</p>
+<p class="now">{{ L('Sur ce site : la COP31, Antalya, 9–20 novembre 2026.', 'On this site: COP31, Antalya, 9–20 November 2026.') }}</p>
+<h2>{{ L('Pourquoi', 'Why') }}</h2>
+<p>{{ L('Les COP sont des négociations très techniques. Pendant deux semaines, des dizaines de projets de texte sortent chaque jour, souvent tard le soir, en anglais, pleins de crochets, d\'options et de renvois à des décisions antérieures. Les grandes délégations ont des équipes entières pour les suivre. Les petites délégations, les ONG et les observateurs de la société civile n\'en ont pas les moyens.',
+ 'COPs are highly technical negotiations. For two weeks, dozens of draft texts come out every day, often late at night, in English, full of brackets, options and references to earlier decisions. Large delegations have whole teams to follow them. Small delegations, NGOs and civil society observers do not have the means.') }}</p>
+<p>{{ L('Akim Viennet et Alix de Thoisy ont créé OpenCOP pour les aider à dépasser cette barrière de la technicité : comprendre ce qui se négocie, construire et défendre un plaidoyer, et faire entendre dans ces instances des voix qui ne sont pas celles des professionnels de la négociation. L\'objectif est de démocratiser les COP.',
+ 'Akim Viennet and Alix de Thoisy created OpenCOP to help them get past this technical barrier: understand what is being negotiated, build and defend their advocacy, and bring into these forums voices that are not those of professional negotiators. The aim is to democratise the COPs.') }}</p>
+<h2>{{ L('Ce que fait l\'outil', 'What the tool does') }}</h2>
+<p>{{ L('OpenCOP rassemble les projets de texte et leurs versions successives, le droit déjà adopté, les positions des pays et des groupes, leurs soumissions officielles, les comptes rendus de référence et le programme de toutes les salles et de tous les pavillons.',
+ 'OpenCOP brings together draft texts and their successive versions, the law already adopted, the positions of countries and groups, their official submissions, reference reports, and the programme of every room and pavilion.') }}</p>
 <p>{{ L('Il sert à trois choses. Demander : votre LLM (Claude, ChatGPT, Le Chat) interroge le corpus et répond en citant le passage exact. Planifier : repérer les événements et les négociations utiles à vos sujets. Être alerté : un message dès qu\'un texte de vos dossiers bouge, et un récapitulatif matin et soir.',
  'It does three things. Ask: your LLM (Claude, ChatGPT, Le Chat) queries the corpus and answers by quoting the exact passage. Plan: spot the events and negotiations that matter for your topics. Get alerted: a message as soon as a text on your negotiations moves, and a digest morning and evening.') }}</p>
-<p>{{ L('C\'est un projet personnel, indépendant, gratuit et non commercial, sans lien avec la CCNUCC, la présidence de la COP ni aucune délégation. Pas de publicité. Votre e-mail sert uniquement à vous connecter et à vous envoyer ce que vous demandez ; il n\'est jamais partagé.',
- 'It is a personal project: independent, free and non-commercial, not affiliated with the UNFCCC, the COP Presidency or any delegation. No ads. Your e-mail is only used to sign you in and send what you ask for; it is never shared.') }}</p>
+<h2>{{ L('La suite', 'What comes next') }}</h2>
+<p>{{ L('OpenCOP a été construit pour la COP31, mais il doit servir à toutes les COP. Nous voulons aussi en faire un outil d\'enseignement en dehors des négociations : un support pédagogique pour le lycée, et pour les programmes qui forment des jeunes et les emmènent aux COP, comme les caravanes africaines pour la justice climatique. Ces deux chantiers ne sont pas encore en ligne.',
+ 'OpenCOP was built for COP31, but it is meant to serve every COP. We also want to make it a teaching tool outside the negotiations: classroom material for secondary schools, and for programmes that train young people and take them to COPs, such as the African caravans for climate justice. Neither of these is online yet.') }}</p>
+<p>{{ L('OpenCOP est un projet indépendant, gratuit et non commercial, sans lien avec la CCNUCC, la présidence de la COP ni aucune délégation. Pas de publicité. Votre e-mail sert uniquement à vous connecter et à vous envoyer ce que vous demandez ; il n\'est jamais partagé.',
+ 'OpenCOP is an independent, free and non-commercial project, not affiliated with the UNFCCC, the COP Presidency or any delegation. No ads. Your e-mail is only used to sign you in and send what you ask for; it is never shared.') }}</p>
 <div class="oss">
-<p style="margin:0"><b>{{ L('Open source.', 'Open source.') }}</b> {{ L('Le code est public, sous licence libre MIT : les sources suivies, la façon dont les documents sont découpés, classés et comparés, et les consignes données aux LLM sont consultables et réutilisables.', 'The code is public, under the free MIT licence: the sources tracked, how documents are split, labelled and compared, and the instructions given to LLMs can all be read and reused.') }}
+<p style="margin:0"><b>{{ L('Libre.', 'Open source.') }}</b> {{ L('Le code est public, sous licence libre MIT : les sources suivies, la façon dont les documents sont découpés, classés et comparés, et les consignes données aux LLM sont consultables et réutilisables.', 'The code is public, under the free MIT licence: the sources tracked, how documents are split, labelled and compared, and the instructions given to LLMs can all be read and reused.') }}
 {% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ SOURCE_URL.split('://')[-1] }}</a>{% endif %}</p>
 </div>
 <ul class="next">

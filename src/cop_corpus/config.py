@@ -66,7 +66,7 @@ LOCAL_ADMIN = os.environ.get("COP_LOCAL_ADMIN", "1") == "1"  # MCP en stdio (usa
 # --- Courrier sortant (code de connexion par e-mail) ----------------------------------------------------------------
 MAIL_PROVIDER = os.environ.get("COP_MAIL_PROVIDER", "").strip().lower()   # resend | brevo | vide
 MAIL_API_KEY = os.environ.get("COP_MAIL_API_KEY", "").strip()
-MAIL_FROM = os.environ.get("COP_MAIL_FROM", f"COP31 tracker <noreply@{MAIL_DOMAIN}>")
+MAIL_FROM = os.environ.get("COP_MAIL_FROM", f"OpenCOP <noreply@{MAIL_DOMAIN}>")
 
 # --- Modèle de langage (positions, briefs, analyses de soumissions ; sources publiques seulement) --------------------
 LLM_EXTRACT_MODEL = os.environ.get("COP_LLM_EXTRACT_MODEL", "gpt-5.4-mini")

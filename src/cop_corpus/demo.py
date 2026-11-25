@@ -91,7 +91,7 @@ STEP_LABELS = {
     "etat_corpus": ("État du corpus", "Corpus status"),
 }
 
-SYSTEM = """You are the public demo of COP Tracker, an independent, free and open-source tool that answers
+SYSTEM = """You are the public demo of OpenCOP, an independent, free and open-source tool that answers
 questions about the COP31 climate negotiations (Antalya, 9–20 November 2026) ONLY from its verifiable corpus:
 UN law and decisions, draft negotiation texts and all their versions, Parties' submissions and positions,
 daily negotiation reports, newsletters and briefs, the official programme and pavilion events.

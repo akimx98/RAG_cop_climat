@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}{% if mode == 'ask' %}{{ (conv.title ~ ' · ') if conv }}{{ L('Mes questions', 'My questions') }} · COP Tracker{% else %}{{ L('Essayer COP Tracker', 'Try COP Tracker') }}{% endif %}{% endblock %}{% block body %}{% set ask_mode = mode == 'ask' %}
+{% extends "base.html" %}{% block title %}{% if mode == 'ask' %}{{ (conv.title ~ ' · ') if conv }}{{ L('Mes questions', 'My questions') }} · OpenCOP{% else %}{{ L('Essayer OpenCOP', 'Try OpenCOP') }}{% endif %}{% endblock %}{% block body %}{% set ask_mode = mode == 'ask' %}
 <style>
 main{max-width:1320px}
 .try [hidden]{display:none!important}
@@ -438,7 +438,7 @@ function downloadIcs(a){
   const tx=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/([,;])/g,'\\$1');
   const enc=new TextEncoder();const fold=l=>{const out=[];let cur='';for(const ch of l){if(enc.encode(cur+ch).length>(out.length?73:75)){out.push(cur);cur='';}cur+=ch;}out.push(cur);return out.join('\r\n ');};
   const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
-  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//COP Tracker//COP31//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//OpenCOP//COP31//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
   const tm=x=>/^\d{1,2}:\d{2}$/.test(x||'');
   (a.events||[]).forEach((e,i)=>{const days=(e.days&&e.days.length?e.days:[e.day]).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d||''));
    days.forEach((day,j)=>{
@@ -448,7 +448,7 @@ function downloadIcs(a){
       L.push('DTSTART:'+utc(day,e.start),'DTEND:'+utc(day,end));}
     else{L.push('DTSTART;VALUE=DATE:'+day.replace(/-/g,''));}
     L.push(fold('SUMMARY:'+tx(e.title)));if(e.place)L.push(fold('LOCATION:'+tx([e.place,e.zone].filter(Boolean).join(', '))));
-    L.push(fold('DESCRIPTION:'+tx([e.organiser,T('Salles et horaires peuvent changer','Rooms and times may change')+(e.url?' : '+e.url:''),'COP Tracker'].filter(Boolean).join('\n'))));
+    L.push(fold('DESCRIPTION:'+tx([e.organiser,T('Salles et horaires peuvent changer','Rooms and times may change')+(e.url?' : '+e.url:''),'OpenCOP'].filter(Boolean).join('\n'))));
     if(e.url&&/^https?:/.test(e.url))L.push(fold('URL:'+e.url));L.push('END:VEVENT');});});
   L.push('END:VCALENDAR');
   const blob=new Blob([L.join('\r\n')+'\r\n'],{type:'text/calendar;charset=utf-8'});

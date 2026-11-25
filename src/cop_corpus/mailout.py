@@ -1,7 +1,7 @@
 """Envoi d'e-mails (codes de connexion) par un service transactionnel gratuit : Resend ou Brevo.
 
 Réglages (deploy/.env) : COP_MAIL_PROVIDER=resend|brevo, COP_MAIL_API_KEY=…, et facultativement
-COP_MAIL_FROM="COP31 tracker <noreply@cop31.akimx.fr>" (domaine à vérifier chez le service).
+COP_MAIL_FROM="OpenCOP <noreply@cop31.akimx.fr>" (domaine à vérifier chez le service).
 Sans réglage, rien n'est envoyé et l'appelant le signale à l'utilisateur.
 """
 
@@ -40,7 +40,7 @@ def send(to: str, subject: str, text: str, idempotency_key: str | None = None, r
     else:
         name, addr = parseaddr(FROM)
         url, headers = "https://api.brevo.com/v3/smtp/email", {"api-key": API_KEY, "accept": "application/json"}
-        body = {"sender": {"name": name or "COP31 tracker", "email": addr}, "to": [{"email": to}],
+        body = {"sender": {"name": name or "OpenCOP", "email": addr}, "to": [{"email": to}],
                 "subject": subject, "textContent": text}
         if reply_to:
             body["replyTo"] = {"email": reply_to}

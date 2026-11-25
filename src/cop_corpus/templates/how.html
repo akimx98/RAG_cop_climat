@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}{{ L('Comment ça marche', 'How it works') }} · COP Tracker{% endblock %}{% block body %}
+{% extends "base.html" %}{% block title %}{{ L('Comment ça marche', 'How it works') }} · OpenCOP{% endblock %}{% block body %}
 <style>
 .how{max-width:900px;margin:0 auto;font-size:16px;line-height:1.65}
 .how h1{font-size:clamp(28px,4vw,40px);margin:6px 0 12px}
@@ -27,10 +27,10 @@
 <article class="how">
 <div class="eyebrow">{{ L('À propos', 'About') }}</div>
 <h1>{{ L('Comment ça marche', 'How it works') }}</h1>
-<p class="lede">{{ L('COP Tracker collecte les textes de la COP31, les découpe en passages citables, compare leurs versions, et les met à disposition de votre LLM, de votre agenda et de vos alertes. Voici le chemin, sans jargon.', 'COP Tracker collects the COP31 texts, splits them into citable passages, compares their versions, and makes them available to your LLM, your schedule and your alerts. Here is the path, without jargon.') }}</p>
+<p class="lede">{{ L('OpenCOP collecte les textes de la COP31, les découpe en passages citables, compare leurs versions, et les met à disposition de votre LLM, de votre agenda et de vos alertes. Voici le chemin, sans jargon.', 'OpenCOP collects the COP31 texts, splits them into citable passages, compares their versions, and makes them available to your LLM, your schedule and your alerts. Here is the path, without jargon.') }}</p>
 
 <figure class="schema" style="margin-left:0;margin-right:0">
-<svg viewBox="0 0 900 380" role="img" aria-label="{{ L('Schéma : sources, traitement par COP Tracker, usages', 'Diagram: sources, processing by COP Tracker, uses') }}">
+<svg viewBox="0 0 900 380" role="img" aria-label="{{ L('Schéma : sources, traitement par OpenCOP, usages', 'Diagram: sources, processing by OpenCOP, uses') }}">
 <defs><marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="tip"/></marker></defs>
 <text x="20" y="28" class="h">{{ L('SOURCES', 'SOURCES') }}</text>
 <rect x="20" y="42" width="220" height="56" rx="7" class="box"/><text x="32" y="65" class="b">{{ L('Textes de l\'ONU', 'UN texts') }}</text><text x="32" y="84" class="s">{{ L('projets de texte, décisions, NDC', 'drafts, decisions, NDCs') }}</text>
@@ -39,7 +39,7 @@
 <rect x="20" y="234" width="220" height="56" rx="7" class="box"/><text x="32" y="257" class="b">{{ L('Droit de l\'UE, science', 'EU law, science') }}</text><text x="32" y="276" class="s">{{ L('GIEC, PNUE, données d\'émissions', 'IPCC, UNEP, emissions data') }}</text>
 <rect x="20" y="298" width="220" height="56" rx="7" class="box"/><text x="32" y="321" class="b">{{ L('Programmes', 'Programmes') }}</text><text x="32" y="340" class="s">{{ L('side events, pavillons, réunions', 'side events, pavilions, meetings') }}</text>
 <path d="M240 70H262M240 134H262M240 198H262M240 262H262M240 326H262M262 70V326" class="arr"/><path d="M262 198H292" class="arr" marker-end="url(#tip)"/>
-<text x="298" y="28" class="h">COP TRACKER</text>
+<text x="298" y="28" class="h">OPENCOP</text>
 <rect x="298" y="42" width="290" height="312" rx="10" class="core"/>
 <text x="316" y="72" class="b">1 · {{ L('Collecter', 'Collect') }}</text><text x="316" y="90" class="s">{{ L('en continu, sans forcer les protections', 'continuously, never forcing protections') }}</text>
 <text x="316" y="124" class="b">2 · {{ L('Découper et classer', 'Split and label') }}</text><text x="316" y="142" class="s">{{ L('passages citables, niveau de fiabilité', 'citable passages, reliability level') }}</text>
@@ -74,7 +74,7 @@
 <p>{{ L('Pour retrouver un passage, la recherche combine les mots exacts et le sens (un passage sur « les combustibles fossiles » est trouvé avec « fossil fuels »). À pertinence égale, le texte qui fait foi passe devant.', 'To find a passage, search combines exact words and meaning (a passage on “combustibles fossiles” is found with “fossil fuels”). When two results are equally relevant, the authoritative text comes first.') }}</p>
 
 <h2>{{ L('Ce que votre LLM peut faire', 'What your LLM can do') }}</h2>
-<p>{{ L('Une fois connecté, votre LLM dispose d\'outils pour interroger COP Tracker. Il ne voit que ce que ces outils renvoient, et doit citer le passage exact.', 'Once connected, your LLM has tools to query COP Tracker. It only sees what these tools return, and must quote the exact passage.') }}</p>
+<p>{{ L('Une fois connecté, votre LLM dispose d\'outils pour interroger OpenCOP. Il ne voit que ce que ces outils renvoient, et doit citer le passage exact.', 'Once connected, your LLM has tools to query OpenCOP. It only sees what these tools return, and must quote the exact passage.') }}</p>
 <div class="tools">
 <div><b>{{ L('Chercher et lire', 'Search and read') }}</b>{{ L('Retrouver un passage, lire ses voisins, ouvrir un document et ses versions.', 'Find a passage, read around it, open a document and its versions.') }}</div>
 <div><b>{{ L('Suivre un texte', 'Follow a text') }}</b>{{ L('Ce qui a changé entre deux versions, ce qui reste entre crochets sur un thème.', 'What changed between two versions, what is still in brackets on a theme.') }}</div>
@@ -85,8 +85,8 @@
 </div>
 
 <h2>{{ L('Où intervient l\'IA', 'Where AI comes in') }}</h2>
-<p>{{ L('Les réponses sont rédigées par votre LLM, chez vous : COP Tracker ne reçoit que ses recherches. Côté serveur, l\'IA sert à deux choses seulement : calculer le « sens » des passages pour la recherche (documents publics uniquement), et repérer dans les comptes rendus de négociation qui a dit quoi, une position n\'étant gardée que si sa citation figure mot pour mot dans la source. Les alertes, les comparaisons de versions, le calendrier et les récapitulatifs se font sans IA.',
- 'Answers are written by your LLM, on your side: COP Tracker only receives its searches. On the server, AI is used for two things only: computing the “meaning” of passages for search (public documents only), and spotting who said what in negotiation reports, a position being kept only if its quote appears word for word in the source. Alerts, version comparisons, the calendar and digests use no AI.') }}</p>
+<p>{{ L('Les réponses sont rédigées par votre LLM, chez vous : OpenCOP ne reçoit que ses recherches. Côté serveur, l\'IA sert à deux choses seulement : calculer le « sens » des passages pour la recherche (documents publics uniquement), et repérer dans les comptes rendus de négociation qui a dit quoi, une position n\'étant gardée que si sa citation figure mot pour mot dans la source. Les alertes, les comparaisons de versions, le calendrier et les récapitulatifs se font sans IA.',
+ 'Answers are written by your LLM, on your side: OpenCOP only receives its searches. On the server, AI is used for two things only: computing the “meaning” of passages for search (public documents only), and spotting who said what in negotiation reports, a position being kept only if its quote appears word for word in the source. Alerts, version comparisons, the calendar and digests use no AI.') }}</p>
 
 <div class="cols2">
 <div><h2>{{ L('Forces', 'Strengths') }}</h2><ul>
@@ -104,7 +104,7 @@
 </div>
 
 <h2>{{ L('Code ouvert', 'Open code') }}</h2>
-<p>{{ L('COP Tracker est open source, sous licence libre MIT. Le code, la liste des sources, la documentation technique et les consignes données aux LLM sont publics.', 'COP Tracker is open source, under the free MIT licence. The code, the list of sources, the technical documentation and the instructions given to LLMs are public.') }}
+<p>{{ L('OpenCOP est open source, sous licence libre MIT. Le code, la liste des sources, la documentation technique et les consignes données aux LLM sont publics.', 'OpenCOP is open source, under the free MIT licence. The code, the list of sources, the technical documentation and the instructions given to LLMs are public.') }}
 {% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ SOURCE_URL.split('://')[-1] }}</a> · <a href="{{ SOURCE_URL }}/blob/main/docs/architecture.md" rel="noopener">{{ L('documentation technique', 'technical documentation') }}</a>{% endif %}</p>
 </article>
 {% endblock %}

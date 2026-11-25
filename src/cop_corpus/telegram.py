@@ -53,7 +53,7 @@ def download(file_id: str) -> bytes | None:
 
 
 HELP_EN = (
-    "<b>COP31 Tracker</b> · alerts on your topics\n"
+    "<b>OpenCOP</b> · COP31 · alerts on your topics\n"
     "You get an alert for each new text on the negotiations you follow (draft → forwarded for adoption → "
     "adopted), alerts on your keyword topics, and a digest of your topics at 7am and 7pm (Antalya time).\n\n"
     "/brief — digest of my topics since this morning\n"
@@ -65,7 +65,7 @@ HELP_EN = (
     "💬 To decode the texts, ask your connected LLM: {base}/connect"
 )
 HELP_FR = (
-    "<b>COP31 Tracker</b> · alertes sur vos sujets\n"
+    "<b>OpenCOP</b> · COP31 · alertes sur vos sujets\n"
     "Vous recevez une alerte à chaque nouveau texte des dossiers suivis (projet → proposé pour adoption → adopté), "
     "les alertes de vos sujets par mots-clés, et un récapitulatif de vos sujets à 7 h et 19 h (heure d'Antalya).\n\n"
     "/brief — récapitulatif de mes sujets depuis ce matin\n"

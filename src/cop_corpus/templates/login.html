@@ -9,7 +9,7 @@
 {% else %}
 <form class="card" method="post" action="/signin" style="padding:32px 28px;text-align:left">
 <h1 style="margin-bottom:10px">{{ L('Se connecter', 'Sign in') }}</h1>
-<p class="muted" style="margin-top:0">COP Tracker · COP31 · Antalya, 9–20 {{ L('novembre', 'November') }} 2026</p>
+<p class="muted" style="margin-top:0">OpenCOP · COP31 · Antalya, 9–20 {{ L('novembre', 'November') }} 2026</p>
 {% if error %}<p class="banner warn">{{ error }}</p>{% endif %}
 {% if sent %}<p class="banner">{{ L('Code envoyé', 'Code sent') }} {{ sent }} {{ L('à', 'to') }} <b>{{ email }}</b>. {{ L('Pensez aux indésirables.', 'Check your spam folder too.') }}</p>{% endif %}
 <input type="hidden" name="next" value="{{ next or '/' }}">

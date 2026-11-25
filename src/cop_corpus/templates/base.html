@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#17456b" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1418" media="(prefers-color-scheme: dark)">
-<title>{% block title %}COP Tracker · COP31{% endblock %}</title>
+<title>{% block title %}OpenCOP · COP31{% endblock %}</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%2317456b'/%3E%3Cpath d='M12 8H8v16h4M20 8h4v16h-4' stroke='%23fff' stroke-width='2.6' fill='none'/%3E%3C/svg%3E">
 <style>
 /* Polices système uniquement : aucune requête vers un tiers (documents internes). */
@@ -230,7 +230,7 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 <header><div class="bar">
 <a class="brand" href="/">
 <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="4" fill="#17456b"/><path d="M12 8H8v16h4M20 8h4v16h-4" stroke="#fff" stroke-width="2.6" fill="none"/></svg>
-<span><b>COP Tracker</b><small>{{ L('COP31 · Antalya · projet indépendant', 'COP31 · Antalya · independent project') }}</small></span>
+<span><b>OpenCOP</b><small>{{ L('COP31 · Antalya · projet indépendant', 'COP31 · Antalya · independent project') }}</small></span>
 </a>
 <span class="countdown" id="countdown" hidden data-day="{{ L('Jour', 'Day') }}" data-before="{{ L('J-', 'D-') }}"></span>
 <nav class="main" aria-label="{{ L('Navigation principale', 'Main navigation') }}">
@@ -241,7 +241,7 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 <a href="/topics" class="{{ 'on' if path.startswith('/topics') }}">{{ L('Mes sujets', 'My topics') }}</a>
 <details class="menu {{ 'on' if about_on }}"><summary>{{ L('À propos', 'About') }}</summary>
 <div class="menu-list">
-<a href="/about" class="{{ 'on' if path == '/about' }}">{{ L("Qu'est-ce que COP Tracker", 'What is COP Tracker') }}</a>
+<a href="/about" class="{{ 'on' if path == '/about' }}">{{ L("Qu'est-ce qu'OpenCOP", 'What is OpenCOP') }}</a>
 <a href="/how-it-works" class="{{ 'on' if path == '/how-it-works' }}">{{ L('Comment ça marche', 'How it works') }}</a>
 <a href="/database" class="{{ 'on' if path.startswith('/database') }}">{{ L('Base de données', 'Database') }}</a>
 <a href="/contact" class="{{ 'on' if path == '/contact' }}">Contact</a>
@@ -265,7 +265,7 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 </div></header>
 <main>{% block body %}{% endblock %}</main>
 <footer class="site"><div class="in">
-<span>COP Tracker · {{ L('projet indépendant, gratuit et open source, sans lien avec la CCNUCC ni avec une délégation', 'an independent, free and open-source project, not affiliated with the UNFCCC or any delegation') }}</span>
+<span>OpenCOP · {{ L('projet indépendant, gratuit et open source, sans lien avec la CCNUCC ni avec une délégation', 'an independent, free and open-source project, not affiliated with the UNFCCC or any delegation') }}</span>
 {% if SOURCE_URL %}<a href="{{ SOURCE_URL }}" rel="noopener">{{ L('Code source (licence MIT)', 'Source code (MIT licence)') }}</a>{% endif %}
 <a href="/how-it-works">{{ L('Comment ça marche', 'How it works') }}</a>
 <a href="/contact">Contact</a>

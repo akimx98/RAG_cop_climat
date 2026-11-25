@@ -278,7 +278,7 @@ def _send_login_code(user: dict, code: str) -> tuple[bool, bool]:
     from . import mailout, telegram
 
     en = i18n.default_for(user) == "en"
-    subject = (f"Your COP31 tracker sign-in code: {code}" if en else f"Votre code de connexion à la veille COP31 : {code}")
+    subject = (f"Your OpenCOP sign-in code: {code}" if en else f"Votre code de connexion à OpenCOP : {code}")
     text = (f"Your sign-in code: {code}\n\nIt is valid for {auth.CODE_MINUTES} minutes. If you did not ask for it, ignore this e-mail.\n\n{config.PUBLIC_BASE}/"
             if en else
             f"Votre code de connexion : {code}\n\nValable {auth.CODE_MINUTES} minutes. Si vous ne l'avez pas demandé, ignorez cet e-mail.\n\n{config.PUBLIC_BASE}/")
@@ -540,7 +540,7 @@ async def home(request: Request):
 
 
 async def about_page(request: Request):
-    """À propos : qu'est-ce que COP Tracker (court, renvoie vers les autres pages)."""
+    """À propos : qu'est-ce qu'OpenCOP (court, renvoie vers les autres pages)."""
     return render(request, "about.html", user=current_user(request), stats=search.stats(db.get()))
 
 
@@ -595,7 +595,7 @@ async def contact_page(request: Request):
                     f"Organisation: {(form.get('organisation') or '').strip()[:120] or '—'}\n\n{message[:5000]}")
             from starlette.concurrency import run_in_threadpool
 
-            ok = await run_in_threadpool(lambda: mailout.send(config.CONTACT_EMAIL, f"[COP Tracker] {name or reply}"[:120],
+            ok = await run_in_threadpool(lambda: mailout.send(config.CONTACT_EMAIL, f"[OpenCOP] {name or reply}"[:120],
                                                               body, reply_to=reply))
             _contact_hits[ip] = recent + [now]
             sent = ok or None
