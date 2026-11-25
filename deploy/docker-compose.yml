@@ -28,10 +28,13 @@ services:
       web:
         aliases: [cop31-app]
     mem_limit: 700m
+    stop_grace_period: 30s   # arrêt propre d'uvicorn (5 s) noté par le chien de garde
 
   worker:
     <<: *common
     command: ["cop", "worker"]
+    # Arrêt propre noté dès SIGTERM (chien de garde) ; marge si le fil principal attend la base (busy_timeout 30 s).
+    stop_grace_period: 45s
     healthcheck:
       disable: true
     networks: [default]

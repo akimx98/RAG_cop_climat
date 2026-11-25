@@ -13,6 +13,8 @@ from urllib.parse import unquote, urlparse
 from . import catalog, config, db, extract, fetch
 
 _write_lock = threading.Lock()  # sérialise les écritures SQLite lourdes dans un même processus
+_indexing: set[int] = set()     # documents en cours d'indexation dans ce processus (reindex_pending les laisse)
+_indexing_lock = threading.Lock()
 
 GENERIC_LINK_TEXT = {
     "download", "télécharger", "telecharger", "read more", "en savoir plus", "english", "français",
@@ -97,7 +99,18 @@ def register(
 
 
 def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
-    """Extrait, découpe et indexe un document. Renvoie le statut final."""
+    """Extrait, découpe et indexe un document. Renvoie le statut final. Les PDF sont lus dans un sous-processus
+    (extract.extract) : un PDF piégé finit en 'error', il ne fait pas tomber le processus."""
+    with _indexing_lock:
+        _indexing.add(doc_id)
+    try:
+        return _index_document(conn, doc_id)
+    finally:
+        with _indexing_lock:
+            _indexing.discard(doc_id)
+
+
+def _index_document(conn: sqlite3.Connection, doc_id: int) -> str:
     doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
     path = config.DATA_DIR / doc["raw_path"]
     if doc["doc_type"] == "donnees" or path.suffix in (".csv", ".json", ".xlsx", ".zip", ".bin"):
@@ -106,6 +119,8 @@ def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
         return "data"
     try:
         found_title, pages = extract.extract(path, doc["mime"] or "")
+    except extract.Deferred:
+        return "pending"   # site : le fil d'indexation du worker s'en charge (≈ 15 s)
     except Exception as exc:
         conn.execute("UPDATE documents SET status='error', error=? WHERE id=?", (f"{type(exc).__name__}: {exc}"[:400], doc_id))
         conn.commit()
@@ -411,14 +426,24 @@ def run_source(source: catalog.Source, client: fetch.Client, recheck: bool = Fal
         except Exception:
             pass
         bump("crash")
+    failed = bool(counts) and all(k in FAIL_KEYS for k in counts)
     with _write_lock:
+        now = db.now()
         conn.execute(
-            """INSERT INTO source_state(source_id,last_run,last_result) VALUES(?,?,?)
-               ON CONFLICT(source_id) DO UPDATE SET last_run=excluded.last_run, last_result=excluded.last_result""",
-            (source.id, db.now(), str(counts)),
+            """INSERT INTO source_state(source_id,last_run,last_result,failing_since) VALUES(?,?,?,?)
+               ON CONFLICT(source_id) DO UPDATE SET last_run=excluded.last_run, last_result=excluded.last_result,
+                 failing_since=CASE WHEN excluded.failing_since IS NULL THEN NULL
+                                    ELSE COALESCE(source_state.failing_since, excluded.failing_since) END""",
+            (source.id, now, str(counts), now if failed else None),
         )
         conn.commit()
     return counts
+
+
+REINDEX_MAX_TRIES = 2
+
+# Bilan d'un passage : échec s'il n'y a que des erreurs (chien de garde : sources en échec continu).
+FAIL_KEYS = ("error", "crash", "antibot", "unknown_type")
 
 
 def run_many(sources: list[catalog.Source], workers: int = 6, recheck: bool = False,
@@ -438,10 +463,52 @@ def run_many(sources: list[catalog.Source], workers: int = 6, recheck: bool = Fa
     return results
 
 
+def _attempts_dir() -> Path:
+    return config.DATA_DIR / "run" / "reindex"
+
+
+def clear_attempts() -> None:
+    """Arrêt demandé : une tentative interrompue par un arrêt propre ne compte pas (fichiers : pas de verrou base)."""
+    for f in _attempts_dir().glob("*"):
+        f.unlink(missing_ok=True)
+
+
 def reindex_pending(conn) -> dict[str, int]:
+    """Documents en 'pending' : déposés sur le site (PDF laissés au worker) ou indexation interrompue. Quarantaine :
+    un document dont le traitement a été interrompu deux fois par un arrêt anormal du processus (mémoire, plantage
+    hors extraction…) passe en 'error' sans être retouché, pour ne pas relancer le plantage à chaque démarrage.
+    Les tentatives sont notées dans des fichiers (data/run/reindex), effacés par un arrêt propre."""
     counts: dict[str, int] = {}
+    _attempts_dir().mkdir(parents=True, exist_ok=True)
     for row in conn.execute("SELECT id FROM documents WHERE status='pending'").fetchall():
-        st = index_document(conn, row["id"])
+        with _indexing_lock:
+            if row["id"] in _indexing:   # un autre fil de ce processus l'indexe en ce moment
+                continue
+            # Liste lue au début du passage : le document a pu être indexé entre-temps par un autre fil.
+            if conn.execute("SELECT status FROM documents WHERE id=?", (row["id"],)).fetchone()[0] != "pending":
+                continue
+        marker = _attempts_dir() / str(row["id"])
+        try:
+            tries = int(marker.read_text() or 0)
+        except (OSError, ValueError):
+            tries = 0
+        if tries >= REINDEX_MAX_TRIES:
+            conn.execute("UPDATE documents SET status='error', error=? WHERE id=?",
+                         (f"indexation abandonnée : processus arrêté pendant {tries} tentatives", row["id"]))
+            conn.commit()
+            marker.unlink(missing_ok=True)
+            from . import monitor
+
+            monitor.report("indexation : quarantaine", f"Quarantaine: document {row['id']} abandonné après {tries} "
+                                                       "tentatives interrompues (statut error)", conn=conn,
+                           background=False)
+            st = "error"
+        else:
+            marker.write_text(str(tries + 1))   # noté AVANT : si le processus meurt, la tentative compte
+            try:
+                st = index_document(conn, row["id"])
+            finally:   # une exception Python n'est pas un arrêt du processus : elle ne compte pas
+                marker.unlink(missing_ok=True)
         counts[st] = counts.get(st, 0) + 1
     if counts:
         fix_titles(conn)

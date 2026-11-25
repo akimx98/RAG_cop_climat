@@ -487,7 +487,9 @@ def test_mcp_guest_tools_and_prompts(env, monkeypatch):
     uid, _ = auth.create_user(conn, "g@x.org", "G", restricted=False)
     guest = auth.by_id(conn, uid)
     monkeypatch.setattr(mcp_server, "_user", lambda ctx: guest)
-    assert "reserved for contributors" in mcp_server.deposer_url("https://example.org")["erreur"]
+    import asyncio
+
+    assert "reserved for contributors" in asyncio.run(mcp_server.deposer_url("https://example.org"))["erreur"]
     assert not hasattr(mcp_server, "noter")                               # notes de terrain retirées
     assert mcp_server.suivre(dossier="ace")["dossier"] == "ace"
     assert "erreur" in mcp_server.suivre(mots_cles="x", dossier="ace")

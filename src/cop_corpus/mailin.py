@@ -481,11 +481,17 @@ def process_spool(conn: sqlite3.Connection) -> int:
         return 0
     archive = config.MAIL_DIR / ARCHIVE / time.strftime("%Y-%m")
     done = 0
+    inflight = config.MAIL_DIR / INFLIGHT
+    inflight.mkdir(parents=True, exist_ok=True)
     for path in sorted(spool.glob("*.eml")):
         archive.mkdir(parents=True, exist_ok=True)
         target = archive / path.name
-        path.rename(target)
         rel = str(target.relative_to(config.DATA_DIR))
+        tries = int(path.name.count(RETRY_TAG))
+        # Marqueur AVANT de déplacer la lettre, effacé une fois traitée : sinon reprise au démarrage.
+        marker = inflight / f"{path.name}.json"
+        marker.write_text(json.dumps({"rel": rel, "spool": path.name, "tries": tries}))
+        path.rename(target)
         try:
             msg = load(rel)
             for rcpt in (msg.get("X-Cop-Rcpt", "") or "").split(","):
@@ -501,16 +507,67 @@ def process_spool(conn: sqlite3.Connection) -> int:
         except Exception as exc:  # un mail illisible ne bloque pas les suivants
             _record(conn, "?", None, "", path.name, rel, "erreur", repr(exc)[:300])
             print(f"[mail] erreur sur {path.name} : {exc!r}", file=sys.stderr, flush=True)
+        marker.unlink(missing_ok=True)
     if done:
         alerts.run(conn)
     return done
 
 
+INFLIGHT = "en_cours"
+RETRY_TAG = "-reprise"
+
+
+def requeue_interrupted(conn) -> int:
+    """Au démarrage : lettres dont le traitement a été interrompu (arrêt du worker) remises dans la file, une fois ;
+    interrompues deux fois, enregistrées en erreur (et signalées) au lieu d'être perdues en silence."""
+    inflight = config.MAIL_DIR / INFLIGHT
+    if not inflight.exists():
+        return 0
+    n = 0
+    for marker in sorted(inflight.glob("*.json")):
+        try:
+            info = json.loads(marker.read_text())
+            src = config.DATA_DIR / info["rel"]
+            if not src.exists():
+                if (config.MAIL_DIR / SPOOL / info.get("spool", "")).is_file():
+                    continue   # arrêt entre le marqueur et le déplacement : la lettre est encore dans la file
+                from . import monitor
+
+                monitor.report("worker : courrier entrant", f"Interruption: lettre {info['rel'][-40:]} introuvable "
+                                                            "après un traitement interrompu", conn=conn)
+                continue
+            if info.get("tries", 0) >= 1:
+                _record(conn, "?", None, "", src.name, info["rel"], "erreur", "traitement interrompu deux fois")
+                from . import monitor
+
+                monitor.report("worker : courrier entrant", f"Interruption: lettre {src.name[:40]} abandonnée après "
+                                                            "deux traitements interrompus (voir /admin/courrier)",
+                               conn=conn)
+            else:
+                spool = config.MAIL_DIR / SPOOL
+                spool.mkdir(parents=True, exist_ok=True)
+                src.rename(spool / f"{src.stem}{RETRY_TAG}{src.suffix}")
+                n += 1
+        finally:
+            marker.unlink(missing_ok=True)
+    return n
+
+
 def watch_forever(stop=None, interval: int = 10) -> None:
     conn = db.connect()
+    try:
+        if requeue_interrupted(conn):
+            print("[mail] lettres interrompues remises dans la file", file=sys.stderr, flush=True)
+    except Exception as exc:
+        from . import monitor
+
+        monitor.report("worker : courrier entrant", exc, conn=conn)
     while not (stop and stop.is_set()):
         try:
             process_spool(conn)
+            from . import watchdog
+
+            watchdog.beat("courrier", conn)
         except Exception as exc:
             from . import monitor
 

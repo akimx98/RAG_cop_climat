@@ -317,10 +317,58 @@ def test_deposer_url_checks_date_and_title(env, monkeypatch):
             return fetch.FetchResult(url=url, status=200, content=page.encode(), mime="text/html")
 
     monkeypatch.setattr(fetch, "Client", FakeClient)
-    out = mcp_server.deposer_url("https://enb.test/enb12909e.html", titre="ENB Daily report for 17 November 2026 (COP31)",
-                                 niveau="4", type="compte_rendu", organisation="Earth Negotiations Bulletin")
+    import asyncio
+
+    out = asyncio.run(mcp_server.deposer_url("https://enb.test/enb12909e.html",
+                                             titre="ENB Daily report for 17 November 2026 (COP31)", niveau="4",
+                                             type="compte_rendu", organisation="Earth Negotiations Bulletin"))
     v = out["verification"]
     assert v["date_lue_dans_le_document"] == "2026-11-18"
     assert any("2026-11-17" in e for e in v["ecarts"])
     row = conn.execute("SELECT published, title FROM documents WHERE id=?", (out["doc_id"],)).fetchone()
     assert row["published"] == "2026-11-18" and "2026-11-18" in row["title"] and "17 November" not in row["title"]
+
+
+def test_depot_pdf_sur_le_site_indexe_par_le_worker(env, monkeypatch):
+    """Le site ne lit jamais un PDF (mémoire) : le document reste 'pending', le fil d'indexation du worker le lit,
+    et deposer_url attend ce résultat pour vérifier date et titre."""
+    import asyncio
+    import threading
+    import time
+
+    import pymupdf
+
+    from cop_corpus import extract, fetch, ingest, mcp_server
+
+    pdf = pymupdf.open()
+    pdf.new_page().insert_text((72, 72), "Earth Negotiations Bulletin - Wednesday, 18 November 2026\n"
+                                         "Parties discussed the cover decision in informal consultations.")
+    data = pdf.tobytes()
+
+    class FakeClient:
+        def get(self, url, *_, **__):
+            return fetch.FetchResult(url=url, status=200, content=data, mime="application/pdf")
+
+    monkeypatch.setattr(fetch, "Client", FakeClient)
+    monkeypatch.setattr(extract, "DEFER_PDF", True)
+    monkeypatch.setattr(mcp_server, "DEPOSIT_WAIT_SECONDS", 20)
+    seen = []
+
+    def worker():   # le fil d'indexation du worker, dans un autre processus en production
+        from cop_corpus import db
+
+        conn = db.connect()
+        for _ in range(100):
+            if conn.execute("SELECT 1 FROM documents WHERE status='pending'").fetchone():
+                seen.append("pending")
+                extract.DEFER_PDF = False
+                ingest.reindex_pending(conn)
+                return
+            time.sleep(0.1)
+
+    t = threading.Thread(target=worker)
+    t.start()
+    out = asyncio.run(mcp_server.deposer_url("https://enb.test/enb.pdf", niveau="4", type="compte_rendu"))
+    t.join()
+    assert seen == ["pending"] and out["statut"] == "indexed"
+    assert out["verification"]["date_lue_dans_le_document"] == "2026-11-18"

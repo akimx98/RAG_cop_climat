@@ -69,14 +69,45 @@ def admin_chats(conn) -> list[str]:
     return [r[0] for r in rows]
 
 
-def _send(chats: list[str], text: str) -> None:
-    from . import telegram
+def admin_emails(conn) -> list[str]:
+    return [r[0] for r in conn.execute("SELECT email FROM users WHERE is_admin=1 AND active=1 AND email LIKE '%@%'")]
 
-    for chat in chats:
-        try:
-            telegram.send(chat, text)
-        except Exception:
-            log.exception("alerte Telegram non envoyée")
+
+def _send(chats: list[str], text: str, emails: list[str] | None = None) -> bool:
+    """Telegram d'abord ; si aucun message n'est parti (pas de compte relié, jeton révoqué, Telegram injoignable),
+    e-mail aux administrateurs. Vrai si au moins un message est parti. Une alerte ne doit jamais se perdre en silence."""
+    from . import mailout, telegram
+
+    sent = False
+    if config.TELEGRAM_TOKEN:
+        for chat in chats:
+            try:
+                sent = telegram.send(chat, text) or sent
+            except Exception:
+                log.exception("alerte Telegram non envoyée")
+    if not sent and emails and mailout.enabled():
+        plain = html.unescape(re.sub(r"<[^>]+>", "", text))
+        for to in emails:
+            try:
+                sent = mailout.send(to, "[COP31] " + plain.splitlines()[0][:120], plain) or sent
+            except Exception:
+                log.exception("alerte e-mail non envoyée")
+    if not sent:
+        log.error("ALERTE NON TRANSMISE (ni Telegram ni e-mail) : %s", re.sub(r"<[^>]+>", "", text)[:300])
+    return sent
+
+
+def notify_admins(text: str, conn=None, background: bool = True) -> None:
+    """Message aux administrateurs (Telegram, à défaut e-mail), hors regroupement des erreurs."""
+    try:
+        conn = conn or db.get()
+        args = (admin_chats(conn), text, admin_emails(conn))
+        if background:
+            _spawn(_send, *args)
+        else:
+            _send(*args)
+    except Exception:
+        log.exception("notify_admins a échoué")
 
 
 def _spawn(fn, *args) -> None:
@@ -109,18 +140,15 @@ def report(place: str, err: BaseException | str, *, conn=None, background: bool 
         n = (row["unsent"] if row else 0) + 1
         conn.execute("UPDATE error_events SET unsent=0, sent_at=? WHERE key=?", (_fmt(now), key))
         conn.commit()
-        chats = admin_chats(conn)
-        if not chats or not config.TELEGRAM_TOKEN:
-            return False
+        chats, emails = admin_chats(conn), admin_emails(conn)
         times = f" ({n} fois depuis la dernière alerte)" if n > 1 else ""
         text = (f"⚠️ <b>Erreur en production</b> : {html.escape(place)}{times}\n"
                 f"<code>{html.escape(kind)}: {html.escape(msg[:300])}</code>\n"
                 f"Détails : docker logs cop31-app-1 / cop31-worker-1")
         if background:
-            _spawn(_send, chats, text)
-        else:
-            _send(chats, text)
-        return True
+            _spawn(_send, chats, text, emails)
+            return True
+        return _send(chats, text, emails)
     except Exception:
         log.exception("monitor.report a échoué")
         return False

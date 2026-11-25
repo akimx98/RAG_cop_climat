@@ -102,8 +102,17 @@ def build_app() -> Starlette:
 
     @contextlib.asynccontextmanager
     async def lifespan(app):
-        async with mcp.session_manager.run():
-            yield
+        import asyncio
+
+        from . import watchdog
+
+        beat = asyncio.create_task(watchdog.loop_heartbeat(watchdog.ACTIVE)) if watchdog.ACTIVE else None
+        try:
+            async with mcp.session_manager.run():
+                yield
+        finally:
+            if beat:
+                beat.cancel()
 
     app = Starlette(routes=[*web.routes, *web_live.routes, Mount("/", app=mcp_app)], lifespan=lifespan,
                     exception_handlers={Exception: server_error})
@@ -118,7 +127,13 @@ def run(host: str = "127.0.0.1", port: int = 8000, with_worker: bool = False) ->
         from . import worker
 
         threading.Thread(target=worker.run_forever, kwargs={"bot": True, "watch": True}, daemon=True).start()
+    from . import extract, watchdog
     from .logs import uvicorn_log_config
 
+    if not with_worker:
+        extract.DEFER_PDF = True   # ~250 Mo par lecture de PDF : jamais dans le conteneur du site, le worker s'en charge
+    watchdog.start_thread("app")   # battement du site, et surveillance du worker (qui surveille le site)
+
     uvicorn.run(build_app(), host=host, port=port, proxy_headers=True, forwarded_allow_ips="*",
-                log_config=uvicorn_log_config())
+                log_config=uvicorn_log_config(), timeout_graceful_shutdown=5)   # flux MCP ouverts : pas d'attente sans fin
+    watchdog.process_stopping("app")   # uvicorn rend la main après un arrêt demandé (SIGTERM) : arrêt propre

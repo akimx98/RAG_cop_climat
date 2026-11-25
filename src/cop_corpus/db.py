@@ -181,6 +181,9 @@ def now() -> str:
 
 
 _COLUMNS = {
+    "source_state": {
+        "failing_since": "TEXT",   # premier passage d'une série d'échecs ; NULL dès un succès (chien de garde)
+    },
     "users": {
         "password_hash": "TEXT",   # scrypt ; NULL = pas de mot de passe défini
         "token_enc": "TEXT",       # jeton MCP chiffré (clé dérivée de COP_SECRET) pour pouvoir le réafficher

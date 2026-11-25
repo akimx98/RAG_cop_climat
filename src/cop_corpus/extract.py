@@ -32,12 +32,16 @@ class Chunk:
     text: str
 
 
-def extract(path: Path, mime: str = "") -> tuple[str | None, list[Page]]:
-    """Renvoie (titre détecté, pages)."""
+def extract(path: Path, mime: str = "", tables: bool = True) -> tuple[str | None, list[Page]]:
+    """Renvoie (titre détecté, pages). `tables=False` : PDF lu sans détection des tableaux (repli après plantage)."""
     suffix = path.suffix.lower()
     data = path.read_bytes()
     if suffix == ".pdf" or data[:5] == b"%PDF-":
-        return _pdf(data)
+        if DEFER_PDF and not _IN_CHILD:
+            raise Deferred(path.name)
+        if ISOLATE and not _IN_CHILD:
+            return _pdf_safely(path, tables)
+        return _pdf(data, tables)
     if suffix == ".docx":
         return _docx(data)
     if suffix in (".html", ".htm", ".xml") or "html" in mime:
@@ -47,13 +51,13 @@ def extract(path: Path, mime: str = "") -> tuple[str | None, list[Page]]:
     return None, []
 
 
-def _pdf(data: bytes) -> tuple[str | None, list[Page]]:
+def _pdf(data: bytes, with_tables: bool = True) -> tuple[str | None, list[Page]]:
     import pymupdf
 
     pages = []
     with pymupdf.open(stream=data, filetype="pdf") as doc:
         title = (doc.metadata or {}).get("title") or None
-        tables = doc.page_count <= TABLE_MAX_PAGES  # notes et projets courts ; jamais les gros rapports à graphiques
+        tables = with_tables and doc.page_count <= TABLE_MAX_PAGES  # notes et projets courts ; jamais les gros rapports à graphiques
         for i, page in enumerate(doc, start=1):
             text = _table_text(page) if tables else None
             if text is None:
@@ -462,3 +466,90 @@ def detect_date(pages: list[Page], head_chars: int = 1500) -> str | None:
     if not pages:
         return None
     return parse_date(pages[0].text[:head_chars])
+
+
+# --- extraction isolée ------------------------------------------------------------------------------------------------
+# PyMuPDF (détection des tableaux : modèle de mise en page natif) peut planter le processus entier sur un PDF mal formé
+# (segfault, rien à rattraper en Python). Le worker redémarrait alors en boucle sur le même document resté 'pending'.
+# Les documents repris (status 'pending' au tour suivant, donc suspects) sont extraits dans un processus à part.
+
+ISOLATE = True      # PDF lus dans un sous-processus
+DEFER_PDF = False   # site : PDF jamais lus sur place (mémoire : ~250 Mo par lecture) ; le worker les indexe (Deferred)
+_IN_CHILD = False
+EXTRACT_TIMEOUT = 180
+EXTRACT_TIMEOUT_NO_TABLES = 60
+# Une extraction à la fois par processus : le sous-processus pèse ~250 Mo (PyMuPDF et son modèle de mise en page),
+# dans des conteneurs limités à 600-700 Mo.
+_slots = __import__("threading").BoundedSemaphore(1)
+
+
+class Deferred(Exception):
+    """PDF laissé au worker : le document reste 'pending' et sera indexé par son fil d'indexation."""
+
+
+class NativeCrash(RuntimeError):
+    """Le processus d'extraction est mort (signal, mémoire) au lieu de rendre un résultat."""
+
+
+def extract_isolated(path: Path, mime: str = "", tables: bool = True, timeout: int = EXTRACT_TIMEOUT
+                     ) -> tuple[str | None, list[Page]]:
+    """Comme extract(), dans un sous-processus. NativeCrash si ce processus meurt ; les erreurs Python ordinaires
+    sont relevées comme RuntimeError(« Type: message »)."""
+    import json
+    import subprocess
+    import sys
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".json") as out:
+        try:
+            proc = subprocess.run([sys.executable, "-m", "cop_corpus.extract", str(path), mime,
+                                   "1" if tables else "0", out.name],
+                                  capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise NativeCrash(f"extraction interrompue après {timeout} s") from exc
+        raw = Path(out.name).read_bytes()
+    if proc.returncode != 0 or not raw:
+        tail = proc.stderr.decode("utf-8", "replace").strip().splitlines()[-1:] or [""]
+        raise NativeCrash(f"processus d'extraction mort (code {proc.returncode}) {tail[0][:200]}".strip())
+    res = json.loads(raw)
+    if res.get("error"):
+        raise RuntimeError(res["error"])
+    return res["title"], [Page(n, t) for n, t in res["pages"]]
+
+
+def _pdf_safely(path: Path, tables: bool) -> tuple[str | None, list[Page]]:
+    """PDF en sous-processus : complet, puis sans tableaux si le processus meurt. En cas d'échec, une exception
+    ordinaire (le document passe en 'error'), jamais un plantage de l'appelant ; l'administrateur est prévenu.
+    Une lecture à la fois, place rendue entre les deux essais (les autres fils ne restent pas bloqués)."""
+    from . import monitor
+
+    if tables:
+        try:
+            with _slots:
+                return extract_isolated(path, tables=True)
+        except NativeCrash as first:
+            monitor.report("extraction PDF", f"NativeCrash: {path.name[:16]} : {first} ; nouvel essai sans tableaux")
+    try:
+        with _slots:
+            return extract_isolated(path, tables=False, timeout=EXTRACT_TIMEOUT_NO_TABLES)
+    except NativeCrash as second:
+        raise RuntimeError(f"plantage de l'extraction, même sans tableaux : {second}") from second
+
+
+def _child(argv: list[str]) -> None:
+    import json
+
+    path, mime, tables, out = argv
+    try:
+        title, pages = extract(Path(path), mime, tables == "1")
+        res = {"title": title, "pages": [[p.number, p.text] for p in pages]}
+    except Exception as exc:  # noqa: BLE001
+        res = {"error": f"{type(exc).__name__}: {exc}"[:400]}
+    Path(out).write_text(json.dumps(res, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    import sys
+
+    _IN_CHILD = True
+    _child(sys.argv[1:])

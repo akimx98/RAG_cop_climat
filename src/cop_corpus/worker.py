@@ -8,7 +8,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
-from . import alerts, catalog, config, db, embed, fetch, ingest, monitor, telegram
+from . import alerts, catalog, config, db, embed, fetch, ingest, monitor, telegram, watchdog
 
 
 def _due(conn, source: catalog.Source) -> bool:
@@ -30,7 +30,6 @@ def watch_once(conn, client: fetch.Client) -> int:
         results = ingest.run_many(sources, workers=4)
         new = sum(r.get("new", 0) for r in results.values() if isinstance(r.get("new", 0), int))
         print(f"[veille] {len(sources)} sources, {new} nouveaux", file=sys.stderr, flush=True)
-    ingest.reindex_pending(conn)
     if embed.enabled():
         try:
             embed.embed_pending(conn, limit=5000)
@@ -70,13 +69,63 @@ def submissions_forever(stop: threading.Event, interval: int = 60) -> None:
     while not stop.is_set():
         try:
             submissions_once(conn, client)
+            watchdog.beat("soumissions", conn)
         except Exception as exc:
             monitor.report("worker : soumissions", exc, conn=conn)
         stop.wait(interval)
 
 
+def indexing_forever(stop: threading.Event, interval: int = 15) -> None:
+    """Fil dédié aux documents 'pending' : PDF déposés sur le site (qui ne les lit jamais lui-même), indexations
+    interrompues (quarantaine). Ils bloquent les alertes, qui s'arrêtent au premier document 'pending'."""
+    conn = db.connect()
+    while not stop.is_set():
+        try:
+            out = ingest.reindex_pending(conn)
+            if out:
+                print(f"[indexation] {out}", file=sys.stderr, flush=True)
+            watchdog.beat("indexation", conn)
+        except Exception as exc:
+            monitor.report("worker : indexation", exc, conn=conn)
+        stop.wait(interval)
+
+
+def _install_stop_handler() -> None:
+    """docker stop (SIGTERM) : noté comme arrêt propre DANS le gestionnaire, puis sortie immédiate (sans attendre les
+    collectes en cours, que Docker couperait par SIGKILL). Tout autre arrêt (exception, segfault, mémoire) reste
+    « anormal » et sera signalé au démarrage suivant. Python en PID 1 ignore SIGTERM sans gestionnaire."""
+    import os
+    import signal
+
+    def stop(*_):
+        watchdog.process_stopping("worker")   # fichier, pas la base : jamais bloqué par une transaction en cours
+        ingest.clear_attempts()
+        os._exit(0)
+
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGTERM, stop)
+        signal.signal(signal.SIGINT, stop)
+
+
 def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> None:
     stop = threading.Event()
+    boot = db.connect()
+    _install_stop_handler()
+    try:
+        watchdog.process_started(boot, "worker")   # arrêt anormal précédent, arrêts anormaux en boucle
+    except Exception as exc:
+        monitor.report("worker : démarrage", exc, conn=boot)
+    loops = {"veille": 90, "courrier": 15, "indexation": 30}   # délai maximal entre deux tours, en minutes
+    if bot and config.TELEGRAM_TOKEN:
+        loops["telegram"] = 10
+    if config.LIVE:
+        loops["direct"] = 90
+    if watch and config.SUB:
+        loops["soumissions"] = 60
+    try:
+        watchdog.expect("worker", loops, boot)
+    except Exception as exc:
+        monitor.report("worker : démarrage", exc, conn=boot)
     if bot and config.TELEGRAM_TOKEN:
         threading.Thread(target=telegram.poll_forever, args=(stop,), daemon=True, name="telegram").start()
         print("[bot] Telegram actif", file=sys.stderr, flush=True)
@@ -88,10 +137,11 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
     threading.Thread(target=live_worker.run_forever, args=(stop,), daemon=True, name="direct").start()
     if watch and config.SUB:
         threading.Thread(target=submissions_forever, args=(stop,), daemon=True, name="soumissions").start()
+    threading.Thread(target=indexing_forever, args=(stop,), daemon=True, name="indexation").start()
     conn = db.connect()
     client = fetch.Client()
     alerts.run(conn, notify=False)  # initialise le curseur sans alerter sur l'existant
-    last_purge = last_check = 0.0
+    last_purge = last_check = last_watch = 0.0
     while True:
         try:
             if watch:
@@ -109,6 +159,10 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
             if time.time() - last_check > 900:  # les dernières questions du site ont-elles toutes échoué ?
                 last_check = time.time()
                 monitor.check_answers(conn)
+            watchdog.beat("veille", conn)
         except Exception as exc:
             monitor.report("worker : veille", exc, conn=conn)
+        if time.time() - last_watch >= watchdog.CHECK_EVERY:  # surveille aussi le site (et inversement)
+            last_watch = time.time()
+            watchdog.check(conn, "worker")
         time.sleep(interval)

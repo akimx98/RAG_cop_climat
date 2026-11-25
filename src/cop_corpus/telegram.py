@@ -250,7 +250,12 @@ def poll_forever(stop=None) -> None:
         {"command": "aide", "description": "aide"},
     ])
     while not (stop and stop.is_set()):
-        updates = call("getUpdates", offset=offset, timeout=50, allowed_updates=["message"]) or []
+        updates = call("getUpdates", offset=offset, timeout=50, allowed_updates=["message"])
+        if updates is not None:   # Telegram a répondu : le bot est vivant (jeton valide, réseau)
+            from . import watchdog
+
+            watchdog.beat("telegram", conn)
+        updates = updates or []
         for upd in updates:
             offset = upd["update_id"] + 1
             try:

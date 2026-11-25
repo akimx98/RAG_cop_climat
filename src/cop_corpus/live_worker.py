@@ -112,6 +112,9 @@ def run_forever(stop=None, interval: int = 60) -> None:
     while not (stop and stop.is_set()):
         try:
             tick(conn, client, last)
+            from . import watchdog
+
+            watchdog.beat("direct", conn)
         except Exception as exc:
             from . import monitor
 

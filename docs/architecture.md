@@ -235,6 +235,12 @@ de sortie (ceux-ci sont dans les descriptions d'outils, toujours à jour).
 | Groupes de négociation | `live_worker` | 24 h |
 | Briefs par dossier (si `COP_BRIEFS=1`) | `live_worker` | 7 h et 19 h |
 | Bot Telegram, courrier entrant | fils dédiés | en continu |
+| Chien de garde (`watchdog`) : battements de chaque boucle, arrêt anormal et arrêts anormaux en boucle (worker et site), boucle d’événements du site figée, documents bloqués en attente, curseur des alertes, récapitulatif manqué, sources sans succès depuis 24 h, mémoire et disque | fil du site **et** boucle du worker (chacun surveille l'autre) | 5 min ; bloquant → Telegram admin (à défaut e-mail), rappel toutes les 30 min, puis « rétabli » ; dégradé → 1 message par jour |
+| Indexation des documents `pending` : PDF déposés sur le site (qui ne lit jamais de PDF : `extract.DEFER_PDF`), indexations interrompues (quarantaine après 2 tentatives) ; tout PDF est lu dans un sous-processus (`extract.extract_isolated`, un à la fois, repli sans tableaux, sinon `error`) | fil dédié `worker.indexing_forever` | 15 s |
+
+Sonde externe : `GET /healthz/deep` répond 503 (noms des problèmes bloquants, sans détail) quand le worker est arrêté
+ou bloqué ; `GET /healthz` reste la sonde de vie du conteneur du site. Un service d'uptime externe sur `/healthz/deep`
+couvre le seul cas que le chien de garde interne ne voit pas : le site et le worker arrêtés en même temps (VPS).
 
 ## 7. Réglages
 
@@ -265,6 +271,7 @@ tableau couvre toutes les variables lues.
 | `COP_LIVE` | 1 | 0 = pas de veille en direct (textes, positions, briefs, programme, pavillons, groupes, analyses) |
 | `COP_LIVE_SINCE`, `COP_LIVE_UNDATED_SINCE` | 2026-11-01, 2026-11-07T18:00Z | sources prises pour l'extraction des positions |
 | `COP_BRIEFS` | 0 | 1 = briefs IA par dossier (Telegram, page dossier, outil `dossier`) ; 0 = désactivés et masqués |
+| `COP_WATCHDOG` | 1 | 0 = pas de fil de surveillance dans le site (battements, blocages, `/healthz/deep`) ; le worker vérifie toujours |
 | `COP_BRIEF_HOURS` | 7,19 | heures des briefs, s'ils sont activés (fuseau `COP_TZ`) |
 | `COP_SUB` | 1 | 0 = ni collecte ni analyse des soumissions |
 | `COP_SUB_AUTO_ANALYSE` | 0 | 1 = analyser en tâche de fond les soumissions de Parties récentes (sinon à la demande seulement) |

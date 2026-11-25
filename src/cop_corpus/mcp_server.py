@@ -738,10 +738,13 @@ def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
 
     doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
     out: dict[str, Any] = {"ecarts": []}
-    try:
-        found_title, pages = extract.extract(config.DATA_DIR / doc["raw_path"], doc["mime"] or "")
-    except Exception as exc:
-        return {"ecarts": [f"content unreadable for verification: {type(exc).__name__}"]}
+    # Texte relu dans les passages indexés (le site ne relit jamais un PDF lui-même : voir extract.DEFER_PDF).
+    found_title = None
+    pages = [extract.Page(r[0] or 1, r[1] or "") for r in conn.execute(
+        "SELECT page, group_concat(text, char(10)) FROM (SELECT page, text FROM passages WHERE doc_id=? ORDER BY seq) "
+        "GROUP BY page ORDER BY page", (doc_id,))]
+    if not pages:
+        return {"ecarts": ["content unreadable for verification: no indexed text"]}
     detect = getattr(extract, "detect_date", None)
     date_read = detect(pages) if detect else _parse_date(pages[0].text[:1500] if pages else "")
     title_read = extract.guess_title(pages, found_title)
@@ -775,18 +778,30 @@ def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
 
 
 @mcp.tool(annotations=WRITE)
-def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, type: str | None = None,
-                organisation: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
+async def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, type: str | None = None,
+                      organisation: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
     """Add to the (public) corpus a web page or PDF available online: press release, statement, analysis…
     Specify the level (2 official, 4 daily report, 5 actor's position). Publication date and title are READ FROM
     THE DOCUMENT and compared with what was entered: `verification.ecarts` says what was corrected (date in the
     title contradicted by the header, unrelated title). Blocked page (anti-bot): look for the PDF version of the
     same document, otherwise upload the file via the dashboard or Telegram. Contributors only."""
-    from . import fetch
+    import anyio
 
     user = _need_user(ctx)
     if not auth.can_contribute(user):
         return {"erreur": "reserved for contributors: guest accounts can search the corpus but not add documents"}
+    # Hors de la boucle d'événements : téléchargement et attente de l'indexation ne figent pas le site.
+    return await anyio.to_thread.run_sync(lambda: _deposer_url(url, titre, niveau, type, organisation, user))
+
+
+DEPOSIT_WAIT_SECONDS = 90
+
+
+def _deposer_url(url, titre, niveau, type, organisation, user) -> dict[str, Any]:
+    import time
+
+    from . import fetch
+
     res = fetch.Client().get(url)
     if not res.ok or fetch.is_antibot(res):
         return {"erreur": f"unreachable ({res.status}{', anti-bot' if res.ok else ''}): look for the PDF version of the "
@@ -796,9 +811,16 @@ def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, t
     conn = db.get()
     doc_id, new, status = ingest.ingest_bytes(conn, res.content, url=res.url, mime=res.mime, meta=meta,
                                               source_id="depot-mcp", uploaded_by=user.get("id") or None)
+    deadline = time.monotonic() + DEPOSIT_WAIT_SECONDS
+    while status == "pending" and time.monotonic() < deadline:   # PDF : lu par le worker (≈ 15 s), pas par le site
+        time.sleep(3)
+        status = conn.execute("SELECT status FROM documents WHERE id=?", (doc_id,)).fetchone()["status"]
     check = verify_deposit(conn, doc_id, titre) if status == "indexed" else None
     alerts.run(conn)
     out = {"doc_id": doc_id, "nouveau": new, "statut": status, "lien": f"{config.PUBLIC_BASE}/doc/{doc_id}"}
+    if status == "pending":
+        out["message"] = ("indexing in progress (the server reads PDFs in the background): text, date and title "
+                          "checks will be available in a few minutes at the link; call `document` again later")
     if check:
         out["verification"] = check
     return out

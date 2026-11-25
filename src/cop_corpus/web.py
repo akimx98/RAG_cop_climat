@@ -1505,6 +1505,17 @@ async def health(request: Request):
     return JSONResponse({"ok": True})
 
 
+async def health_deep(request: Request):
+    """Sonde externe (uptime) : 503 si un problème bloquant est en cours (worker arrêté, alertes bloquées…).
+    Seulement des noms de problèmes, aucun contenu. /healthz reste la sonde de vie du conteneur."""
+    from starlette.concurrency import run_in_threadpool
+
+    from . import watchdog
+
+    st = await run_in_threadpool(watchdog.status)
+    return JSONResponse(st, status_code=200 if st["ok"] else 503)
+
+
 routes = [
     Route("/", home, methods=["GET", "POST"]),
     Route("/connect", connect_page, methods=["GET", "POST"]),
@@ -1552,6 +1563,7 @@ routes = [
     Route("/for/{who}", audience_page),
     Route("/pour/{who}", audience_page),
     Route("/healthz", health),
+    Route("/healthz/deep", health_deep),
     Route("/robots.txt", robots),
     # anciennes adresses (liens dans les alertes, favoris)
     Route("/compte", account_redirect),

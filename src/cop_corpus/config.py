@@ -108,6 +108,7 @@ def llm_enabled() -> bool:
 LIVE = os.environ.get("COP_LIVE", "1") != "0"                       # fil de la veille en direct
 LIVE_SINCE = os.environ.get("COP_LIVE_SINCE", "2026-11-01")         # positions : sources publiées depuis
 LIVE_UNDATED_SINCE = os.environ.get("COP_LIVE_UNDATED_SINCE", "2026-11-07T18:00:00Z")  # … ou reçues depuis (sans date)
+WATCHDOG = os.environ.get("COP_WATCHDOG", "1") != "0"   # chien de garde (battements, blocages, alertes admin)
 BRIEFS = os.environ.get("COP_BRIEFS", "0") == "1"   # briefs IA par dossier (7 h / 19 h) ; désactivés par défaut
 BRIEF_HOURS = [int(h) for h in os.environ.get("COP_BRIEF_HOURS", "7,19").split(",") if h.strip()]
 
