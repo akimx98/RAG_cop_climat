@@ -1,0 +1,106 @@
+# PITFALLS.md — pièges déjà payés
+
+Chaque entrée : ce qui s'est passé ou ce qui trompe, la règle, comment vérifier. On ajoute une entrée après chaque
+incident ou chaque constat bloquant de revue ; on n'en retire que si le code rend le piège impossible (et testé).
+
+## Liste à passer sur un diff avant revue
+
+- [ ] Un plantage natif, une exception non rattrapée, un arrêt brutal (SIGKILL, mémoire) pendant ce code : qui le
+      voit, en combien de temps ? Que reste-t-il à moitié fait (fichier déplacé, statut intermédiaire) ?
+- [ ] Un traitement qui peut échouer sur une entrée précise : est-il réessayé sans fin ? Bloque-t-il la suite ?
+- [ ] Mémoire : quel conteneur, quelle marge **mesurée** (mémoire anonyme, pas `docker stats`) ?
+- [ ] Code synchrone appelé depuis la boucle d'événements du site (outil MCP `def`, route `async def`) ?
+- [ ] Transaction SQLite ouverte pendant un appel réseau, une attente ou un sous-processus ?
+- [ ] Deux processus (site, worker) ou deux fils écrivent-ils la même clé `meta`, la même ligne, le même fichier ?
+- [ ] Ce qui part vers Telegram, l'e-mail, les journaux : aucun titre ou extrait restreint, aucune question
+      d'utilisateur, aucun secret, aucune IP en clair ?
+- [ ] Premier déploiement : fausses alertes (données anciennes, colonnes NULL), rattrapage d'un arriéré
+      (salve de notifications) ?
+- [ ] Arrêt pendant un déploiement (SIGTERM, 10 s par défaut) : l'état est-il cohérent, est-ce compté comme panne ?
+- [ ] Réglage nouveau : dans `config.py` et dans architecture.md §7 ? Outil MCP : dans le tableau de la doc ?
+
+## Processus, Docker, signaux
+
+- **Un plantage natif (segfault) ne passe par aucun `except`.** PyMuPDF (`find_tables`, modèle de mise en page) a
+  planté le worker sur un PDF, 50 fois en 3 jours (19–22/11/2026). → Tout code natif sur une entrée externe (PDF)
+  s'exécute dans un sous-processus ; l'appelant ne voit qu'une exception.
+- **`restart: unless-stopped` masque les boucles de plantage.** `docker inspect` montre l'état du conteneur
+  *relancé* (ExitCode 0, OOMKilled false). → Les vrais codes : `sudo journalctl -u docker | grep exitCode`
+  (139 = segfault, 137 = SIGKILL/mémoire). Un redémarrage non demandé doit être détecté par l'application.
+- **Python en PID 1 ignore SIGTERM sans gestionnaire** : Docker attend 10 s puis SIGKILL. → Gestionnaire explicite,
+  `stop_grace_period` suffisant.
+- **`atexit` tourne aussi après une exception non rattrapée** : ne s'en servir pour noter un « arrêt propre ».
+  → Seul le gestionnaire de SIGTERM (ou le retour normal d'uvicorn) note un arrêt voulu ; dans un fichier, pas
+  dans SQLite (un gestionnaire de signal ne doit pas attendre un verrou).
+- **uvicorn attend sans fin la fermeture des connexions** (flux MCP ouverts) à l'arrêt. → `timeout_graceful_shutdown`.
+- **`docker compose up --build worker` tue les `docker compose exec` en cours dans ce conteneur** (calcul
+  d'embeddings, réindexation). → Expériences risquées dans un conteneur jetable : `docker compose run --rm --no-deps`.
+
+## Mémoire
+
+- **Mesurer la mémoire anonyme** (`/sys/fs/cgroup/memory.stat` : `anon`), pas `docker stats` (inclut le cache).
+  Mesures du 22/11/2026 : site ≈ 490 Mo / 700, worker ≈ 130 Mo / 600.
+- **Les vecteurs sont chargés dans chaque processus qui cherche** (≈ 200 000 × 512 × 4 octets ≈ 410 Mo) : c'est
+  l'essentiel de la mémoire du site.
+- **Un sous-processus PyMuPDF pèse ≈ 245 Mo** (modèle de mise en page). Il compte dans la limite du conteneur ;
+  le tueur OOM du cgroup tue le plus gros processus, souvent le parent. → Jamais d'extraction de PDF dans le site ;
+  une seule à la fois dans le worker.
+
+## Boucle d'événements du site
+
+- **Le SDK MCP appelle les outils `def` directement dans la boucle d'événements** : un outil lent fige tout le
+  site (pages, MCP, /healthz). → Outil lent ou bloquant : `async def` + `anyio.to_thread.run_sync`.
+- Une route Starlette `async def` qui appelle du code bloquant (base, extraction, réseau) fige aussi la boucle.
+- Un battement de cœur écrit par un fil séparé ne prouve pas que la boucle tourne : il doit partir de la boucle.
+
+## SQLite partagée (site + worker + fils)
+
+- **« database is locked »** déjà vu (collecte, 20/11). Une base, plusieurs conteneurs, `busy_timeout` 30 s. →
+  Transactions courtes ; jamais d'appel réseau (Telegram, LLM, HTTP) ni de sous-processus transaction ouverte.
+- **La table `meta` sert de coordination** (curseurs, créneaux, état) : lecture-modification-écriture non
+  atomique entre processus. → Une clé = un seul écrivain, ou un écrasement sans conséquence.
+- **Horodatages** : texte UTC `YYYY-MM-DDTHH:MM:SSZ` (`db.now()`), comparés comme chaînes ; créneaux et affichage
+  à l'heure de la COP (`config.TIMEZONE`).
+
+## Collecte, indexation, alertes
+
+- **Le curseur des alertes s'arrête au premier document `pending`** (`alerts.run`) : un seul document coincé
+  arrête toutes les alertes, en silence. → Un document ne doit pas pouvoir rester `pending` (quarantaine).
+- **Un document `pending` peut être en cours d'indexation par un autre fil** (enregistrement puis indexation).
+- **`fetch_log` ne journalise que `new`, `error`, `crash`** (pas `unchanged`) : on ne peut pas y lire le dernier
+  succès d'une source.
+- Plusieurs URL de sources officielles renvoient 404 ou 500 depuis des jours sans que rien ne le signale
+  (22/11 : `unfccc-cop31-auv-draft-texts`, `-outcomes`, `-presidency-consultations`, `-daily-programme`).
+- Le courrier entrant est archivé **avant** traitement : un arrêt pendant le traitement perd la lettre en silence.
+
+## Surveillance
+
+- **`monitor.report` ne voit que les exceptions Python** : ni segfault, ni arrêt mémoire, ni boucle arrêtée, ni
+  blocage. Table `error_events` vide ≠ tout va bien.
+- Une alerte envoyée seulement à Telegram se perd si le jeton est révoqué ou l'admin non relié.
+- Le site et le worker peuvent se surveiller l'un l'autre, mais pas une panne des deux (VPS) : sonde externe.
+
+## Confidentialité, sécurité
+
+- Telegram n'est pas chiffré de bout en bout : jamais de titre ni d'extrait de document restreint (alertes,
+  /cherche, /nouveau, récapitulatif, alertes d'erreur).
+- `login_codes.sent_at` garde l'adresse IP en clair (constaté le 22/11/2026, à corriger), contre la règle.
+- Chemins à secret (`/u/<jeton>`, `/entrer/`, `/join/`…) masqués dans les journaux d'accès (`logs.py`, Caddy).
+
+## Tests
+
+- La fixture `env` recharge `config`, `db` et plusieurs modules : un module importé ailleurs garde l'ancien état
+  (recharger aussi celui qu'on teste).
+- Pas de test dépendant de l'heure réelle : passer `now=`.
+- Tester l'échec, pas seulement le succès : un faux interpréteur qui se tue (SIGSEGV) reproduit un plantage natif
+  (`tests/test_extraction_isolee.py`).
+
+## Méthode (agents)
+
+- **Coder avant de mesurer** a coûté trois tours de revue le 22/11 : mémoire du site, outils MCP synchrones,
+  `atexit`, arrêt d'uvicorn, tous vérifiables en cinq minutes. → Faits mesurés dans la note, avant le code.
+- **Corriger un constat de revue localement** en crée d'autres (isoler partout → risque mémoire sur le site). →
+  Reporter d'abord le constat dans la note, revérifier tous les critères.
+- **Un relecteur repris d'un tour à l'autre s'ancre** sur ses constats ; « trouve des problèmes » ne rend jamais
+  rien de vide. → Relecteur neuf, jugement contre les critères d'acceptation, deux tours au plus.
+- **Laisser la prod bloquée pendant qu'on conçoit** : la mitigation manuelle (un `UPDATE`) passe d'abord.
