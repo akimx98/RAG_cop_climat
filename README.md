@@ -80,7 +80,8 @@ Mode dégradé : version PDF de la même page, `deposer_url` d'une autre adresse
 
 ## Déploiement sur le VPS (en production depuis le 6 novembre 2026)
 
-- Adresse : **https://cop31.akimx.fr** (tableau de bord `/`, MCP personnel `/u/<jeton>/mcp`), bot **@AssistantCOP31Bot**.
+- Adresse : **https://opencop.org** (ancienne adresse `cop31.akimx.fr` toujours servie : connecteurs MCP existants,
+  QR codes, courrier entrant ; note [docs/notes/2026-11-25-domaine-opencop.md](docs/notes/2026-11-25-domaine-opencop.md)) (tableau de bord `/`, MCP personnel `/u/<jeton>/mcp`), bot **@AssistantCOP31Bot**.
 - VPS `debian@<vps>`, dépôt dans `/home/debian/RAG_cop_climat` (même convention que les autres corpus),
   conteneurs `cop31-app-1` (web + MCP, alias `cop31-app` sur le réseau `web`) et `cop31-worker-1` (veille, alertes, bot,
   récapitulatif 7 h), TLS par l'edge Caddy partagé (`/opt/mcp-edge/conf.d/cop31.caddy`).
@@ -88,7 +89,7 @@ Mode dégradé : version PDF de la même page, `deposer_url` d'une autre adresse
 - Comptes invités : lien ou QR d'invitation (`/admin`, `/inviter`), inscription sans mot de passe (nom + e-mail),
   session d'un an. Sur un autre appareil, code à 6 chiffres envoyé par e-mail (et par Telegram si le compte est
   relié), sauf si le compte a choisi un mot de passe. Envoi par un service gratuit, réglé dans `deploy/.env` :
-  `COP_MAIL_PROVIDER=resend` (ou `brevo`), `COP_MAIL_API_KEY=…`, `COP_MAIL_FROM="COP31 tracker <cop31@mail.akimx.fr>"`
+  `COP_MAIL_PROVIDER=resend` (ou `brevo`), `COP_MAIL_API_KEY=…`, `COP_MAIL_FROM="OpenCOP <cop31@mail.akimx.fr>"`
   (domaine vérifié chez le service, enregistrements DNS qu'il fournit). Sans ces réglages, la connexion par code
   passe seulement par Telegram ; à défaut, un admin génère un lien de connexion 24 h.
 
@@ -105,7 +106,8 @@ ssh debian@<vps> 'cd RAG_cop_climat && sudo docker compose -f deploy/docker-comp
 Première installation (pour mémoire) : `deploy/.env` depuis `deploy/.env.example` (renseigner au moins
 `COP_SECRET`, non vide), `HOST=debian@… bash scripts/transfer-data.sh`,
 `mv data/cop.incoming.sqlite3 data/cop.sqlite3`, `sudo docker compose -f deploy/docker-compose.yml up -d --build`,
-`sudo DOMAIN=cop31.akimx.fr bash scripts/install-edge-site.sh`.
+`sudo -E DOMAIN="opencop.org, www.opencop.org, cop31.akimx.fr" bash scripts/install-edge-site.sh` (toujours les trois noms : le
+courrier entrant a besoin du certificat de `cop31.akimx.fr`).
 
 ### Courrier entrant
 

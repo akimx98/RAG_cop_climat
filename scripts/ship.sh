@@ -13,7 +13,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 VPS="${COP_VPS:-debian@152.228.141.68}"
 DIR="/home/debian/RAG_cop_climat"
-URL="${COP_URL:-https://cop31.akimx.fr}"
+URL="${COP_URL:-https://opencop.org}"
+# Ancienne adresse, toujours servie (connecteurs MCP, QR codes, courrier entrant) : contrôlée aussi. Vide = ignorée.
+OLD_URL="${COP_OLD_URL-https://cop31.akimx.fr}"
 COMPOSE="sudo docker compose -f deploy/docker-compose.yml"
 SERVICES="app worker mail"
 
@@ -30,6 +32,10 @@ check_prod() {
     [ "$i" = 30 ] && { red "  le site ne répond pas après 60 s"; return 1; }
     sleep 2
   done
+  if [ -n "$OLD_URL" ] && [ "$OLD_URL" != "$URL" ]; then
+    curl -fsS -m 10 "$OLD_URL/healthz" >/dev/null 2>&1 && green "  l'ancienne adresse répond ($OLD_URL)" \
+      || { red "  l'ancienne adresse ne répond pas ($OLD_URL)"; return 1; }
+  fi
   step "Contrôle : une vraie question de bout en bout"
   remote "$COMPOSE exec -T app cop smoke" || return 1
 }

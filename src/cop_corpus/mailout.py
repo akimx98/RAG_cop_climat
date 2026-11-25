@@ -1,7 +1,7 @@
 """Envoi d'e-mails (codes de connexion) par un service transactionnel gratuit : Resend ou Brevo.
 
 Réglages (deploy/.env) : COP_MAIL_PROVIDER=resend|brevo, COP_MAIL_API_KEY=…, et facultativement
-COP_MAIL_FROM="OpenCOP <noreply@cop31.akimx.fr>" (domaine à vérifier chez le service).
+COP_MAIL_FROM="OpenCOP <noreply@exemple.org>" (domaine à vérifier chez le service).
 Sans réglage, rien n'est envoyé et l'appelant le signale à l'utilisateur.
 """
 
