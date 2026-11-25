@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 from starlette.requests import Request
@@ -53,8 +55,44 @@ def _frises(conn, texts: list[dict], user: dict) -> list[dict]:
     return out[:4]
 
 
+# --- cache des parties lourdes de la page dossier -----------------------------------------------------------------
+# « Nouveautés » (recherche hybride, 6 à 12 s mesurées) et frises (3 à 7 s) ne dépendent de l'utilisateur que par
+# son accès aux documents restreints (search._filters_sql, formulations.lineage). Clé : (dossier, accès) ; au plus
+# 2 × nombre de dossiers entrées (slug vérifié avant). Invalidées au bout d'une heure ou dès que la signature du
+# corpus change (nouveau passage indexé, document passé public ↔ restreint ou supprimé) : jamais un document devenu
+# restreint montré à un visiteur.
+
+DOSSIER_TTL = 3600   # s : la fenêtre « 7 derniers jours » glisse lentement
+_heavy_cache: dict[tuple[str, bool], tuple[float, tuple, dict]] = {}   # clé → (instant, signature, valeurs)
+_heavy_locks: dict[tuple[str, bool], threading.Lock] = {}
+_heavy_guard = threading.Lock()
+
+
+def _signature(conn) -> tuple:
+    """Ce qui change quand le corpus visible change (≈ 1 ms)."""
+    last = conn.execute("SELECT MAX(id) FROM passages").fetchone()[0]
+    pub = conn.execute("SELECT COUNT(*), TOTAL(id) FROM documents WHERE access='public'").fetchone()
+    n_docs = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+    return (last, pub[0], pub[1], n_docs)
+
+
+def _heavy(conn, slug: str, d: dict, ts: list[dict], user: dict | None) -> dict:
+    key = (slug, auth.can_restricted(user))
+    with _heavy_guard:
+        lock = _heavy_locks.setdefault(key, threading.Lock())
+    with lock:   # un seul calcul par clé : les fils suivants attendent puis lisent le résultat
+        sig = _signature(conn)
+        hit = _heavy_cache.get(key)
+        if hit and hit[1] == sig and time.time() - hit[0] < DOSSIER_TTL:
+            return hit[2]
+        value = {"hits": search.search(conn, d["requete"], {"added_since": _since(24 * 7)}, user, limit=10, per_doc=1),
+                 "frises": _frises(conn, ts, user)}
+        _heavy_cache[key] = (time.time(), sig, value)
+        return value
+
+
 @public_page
-async def dossier_page(request: Request):
+def dossier_page(request: Request):
     conn = db.get()
     user = request.state.user
     slug = request.path_params["slug"]
@@ -68,18 +106,17 @@ async def dossier_page(request: Request):
         if t["doc_id"]:
             v = conn.execute("SELECT version FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
             t["version"] = v["version"] if v else None
+    heavy = _heavy(conn, slug, d, ts, user)
     extracted = [p for p in positions.for_dossier(conn, slug, limit=200) if p["source_kind"] not in ("carbonbrief", "soumission")]
     ref = [p for p in positions.for_dossier(conn, slug, limit=400) if p["source_kind"] == "carbonbrief"]
     by_actor: dict[str, list[dict]] = {}
     for p in ref:
         by_actor.setdefault(p["actor"], []).append(p)
-    hits = search.search(conn, d["requete"], {"added_since": _since(24 * 7)}, user, limit=10, per_doc=1)
-    frises = _frises(conn, ts, user)
     return render(
         request, "dossier.html", d=d, texts=ts, spark=_spark(live.bracket_series(conn, slug)),
         etat=live.status_by_dossier(conn).get(slug, []), extracted=extracted[:60],
         ref_actors=sorted(by_actor.items(), key=lambda kv: (-len(kv[1]), kv[0])),
-        hits=hits, frises=frises,
+        hits=heavy["hits"], frises=heavy["frises"],
         social=live.social(conn, live.dossier_words(d), since=_since(24 * 4), limit=15),
         subs=_sub_section(conn, slug),
         suivi=bool(user) and slug in live.followed(conn, user["id"]), credit=live.CB_CREDIT, cb_www=live.CB_WWW_PAGE,
@@ -87,7 +124,7 @@ async def dossier_page(request: Request):
 
 
 @login_required
-async def dossier_follow(request: Request):
+def dossier_follow(request: Request):
     conn = db.get()
     slug = request.path_params["slug"]
     if live.dossier(slug):

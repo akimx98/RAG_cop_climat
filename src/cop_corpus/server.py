@@ -97,6 +97,9 @@ async def server_error(request, exc):
     return PlainTextResponse("Erreur interne / Internal error", status_code=500)
 
 
+THREADS = 12   # fils du pool d'anyio (40 par défaut) ; cf. docs/notes/2026-11-25-lenteur-du-site.md
+
+
 def build_app() -> Starlette:
     mcp_app = mcp.streamable_http_app()
 
@@ -104,8 +107,12 @@ def build_app() -> Starlette:
     async def lifespan(app):
         import asyncio
 
+        import anyio.to_thread
+
         from . import watchdog
 
+        # Pages `def`, `deposer_url` et le journal MCP passent par ce pool : borné (une connexion SQLite par fil).
+        anyio.to_thread.current_default_thread_limiter().total_tokens = THREADS
         beat = asyncio.create_task(watchdog.loop_heartbeat(watchdog.ACTIVE)) if watchdog.ACTIVE else None
         try:
             async with mcp.session_manager.run():

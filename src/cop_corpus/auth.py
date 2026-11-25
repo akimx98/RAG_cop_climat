@@ -322,10 +322,13 @@ def by_login_link(conn: sqlite3.Connection, value: str) -> dict[str, Any] | None
         return None
     if not user or e < time.time() or not hmac.compare_digest(_login_sig(user, e), sig):
         return None
-    used = f"login_link_used:{sig}"
-    if db.meta_get(conn, used):   # usage unique : un e-mail transféré ou une capture d'écran ne rouvrent rien
+    # Usage unique : un e-mail transféré ou une capture d'écran ne rouvrent rien. Consommation atomique (les pages
+    # tournent dans des fils : « lire puis écrire » laisserait passer deux envois simultanés du même lien).
+    cur = conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES(?, ?)",
+                       (f"login_link_used:{sig}", str(int(time.time()))))
+    conn.commit()
+    if cur.rowcount != 1:
         return None
-    db.meta_set(conn, used, str(int(time.time())))
     mark_verified(conn, user)
     return user
 

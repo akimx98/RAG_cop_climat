@@ -3,6 +3,8 @@ données, contact), compte, documents et versions, administration. Anglais par d
 
 from __future__ import annotations
 
+import functools
+import inspect
 import json
 import mimetypes
 import re
@@ -11,6 +13,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup, escape
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
@@ -162,7 +165,7 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     return resp
 
 
-async def set_lang(request: Request):
+def set_lang(request: Request):
     """Lien EN · FR : mémorisé dans un cookie et, si connecté, dans le compte."""
     code = request.path_params["code"]
     nxt = _safe_next(request.query_params.get("next"))
@@ -208,9 +211,29 @@ def _next_url(request: Request) -> str:
     return request.url.path + (f"?{q}" if q else "")
 
 
+def _wrap(handler, before):
+    """Enveloppe une page avec un contrôle préalable `before(request)` (réponse de refus, ou None pour continuer).
+
+    Une page `def` reste synchrone : Starlette l'exécute dans son pool de fils, hors de la boucle d'événements.
+    Une page `async def` (qui attend un formulaire) reste dans la boucle. Règle : une page sans `await` s'écrit
+    `def` (tests/test_lenteur.py), sinon ses requêtes SQLite figent tout le site."""
+    if inspect.iscoroutinefunction(handler):
+        @functools.wraps(handler)
+        async def awrapper(request: Request):
+            refused = before(request)
+            return refused if refused is not None else await handler(request)
+        return awrapper
+
+    @functools.wraps(handler)
+    def wrapper(request: Request):
+        refused = before(request)
+        return refused if refused is not None else handler(request)
+    return wrapper
+
+
 def login_required(handler):
     """Page réservée aux comptes : sinon l'accueil, avec la fenêtre de connexion ouverte et un retour ici."""
-    async def wrapper(request: Request):
+    def before(request: Request):
         user = current_user(request)
         if not user:
             from urllib.parse import quote
@@ -218,17 +241,17 @@ def login_required(handler):
             back = _next_url(request) if request.method == "GET" else "/"
             return RedirectResponse(f"/?signin=1&next={quote(back)}", status_code=303)
         request.state.user = user
-        return await handler(request)
-    return wrapper
+        return None
+    return _wrap(handler, before)
 
 
 def public_page(handler):
     """Page ouverte à tous, sans compte : `request.state.user` vaut l'utilisateur connecté ou None.
     Les documents internes (restreint) restent filtrés par search.document / search.versions / can_restricted."""
-    async def wrapper(request: Request):
+    def before(request: Request):
         request.state.user = current_user(request)
-        return await handler(request)
-    return wrapper
+        return None
+    return _wrap(handler, before)
 
 
 def _signin_redirect(request: Request) -> Response:
@@ -239,13 +262,13 @@ def _signin_redirect(request: Request) -> Response:
 
 
 def admin_required(handler):
-    async def wrapper(request: Request):
+    def before(request: Request):
         user = current_user(request)
         if not user or not user.get("is_admin"):
             return Response("Réservé aux administrateurs", status_code=403)
         request.state.user = user
-        return await handler(request)
-    return wrapper
+        return None
+    return _wrap(handler, before)
 
 
 def _session(resp: Response, user: dict, token: str | None = None) -> Response:
@@ -265,7 +288,7 @@ def _client(request: Request) -> str:
     return fwd.split(",")[-1].strip() if fwd else (request.client.host if request.client else "")
 
 
-async def login(request: Request):
+def login(request: Request):
     """Ancien lien /login/<jeton>, retiré : il ouvrait une session du site à partir de l'adresse du connecteur MCP
     (enregistrée chez les fournisseurs de LLM), ce qui permettait, si elle fuyait, de prendre le compte. Le jeton
     n'est même pas lu : la page de connexion s'affiche, avec une explication."""
@@ -424,7 +447,7 @@ async def login_form(request: Request):
     return page("code", sent=where)
 
 
-async def login_link(request: Request):
+def login_link(request: Request):
     """Lien de connexion signé, 24 h, à usage unique, généré par un administrateur. GET affiche un bouton ; seul le
     POST consomme le lien (les antivirus de messagerie ouvrent les liens avant la personne)."""
     value = request.path_params["value"]
@@ -456,8 +479,9 @@ async def join(request: Request):
     lang = lang_of(request)
     if request.method == "GET":
         if code and not auth.invite_valid(conn, code):
-            return await _landing(request, None, signup_error=i18n.pick(lang, *auth.SIGNUP_ERRORS["bad_code"]))
-        return await _landing(request, None, invite_code=code if code else "", open_modal="signup")
+            return await run_in_threadpool(_landing, request, None,
+                                           signup_error=i18n.pick(lang, *auth.SIGNUP_ERRORS["bad_code"]))
+        return await run_in_threadpool(_landing, request, None, invite_code=code if code else "", open_modal="signup")
     if not _same_origin(request):
         return _forbidden(request)
     form = await request.form()
@@ -469,8 +493,8 @@ async def join(request: Request):
         invited = bool(code) and auth.invite_valid(conn, code)
         if _wants_json(request):
             return JSONResponse({"error": msg, "invited": invited})
-        return await _landing(request, None, invite_code=code if invited else "", open_modal="signup",
-                              signup_error=msg, form=form)
+        return await run_in_threadpool(_landing, request, None, invite_code=code if invited else "",
+                                       open_modal="signup", signup_error=msg, form=form)
 
     if form.get("check_code"):  # saisie manuelle d'un code d'invitation
         if auth.throttled(invite_key):
@@ -495,7 +519,7 @@ async def join(request: Request):
 STATIC_DIR = Path(__file__).parent / "static"
 
 
-async def static_file(request: Request):
+def static_file(request: Request):
     """Images du site (photos sous licence, crédit affiché à côté). Noms simples seulement."""
     name = request.path_params["name"]
     path = STATIC_DIR / name
@@ -514,8 +538,8 @@ def _onboarding(conn, user: dict) -> dict[str, bool]:
             "telegram": bool(user.get("telegram_chat_id"))}
 
 
-async def _landing(request: Request, user: dict | None, invite_code: str = "", open_modal: str = "",
-                   signup_error: str = "", form=None) -> HTMLResponse:
+def _landing(request: Request, user: dict | None, invite_code: str = "", open_modal: str = "",
+             signup_error: str = "", form=None) -> HTMLResponse:
     """Accueil, connecté ou non : les trois usages, l'appel à l'action principal, et la fenêtre de connexion."""
     conn = db.get()
     open_ = auth.open_signup_settings(conn)
@@ -526,7 +550,7 @@ async def _landing(request: Request, user: dict | None, invite_code: str = "", o
             open_modal = "signup"
     from . import demo
 
-    return render(request, "home.html", user=user, stats=search.stats(conn),
+    return render(request, "home.html", user=user, stats=_stats(conn),
                   counts=None if user else _corpus_counts(conn), demo_on=demo.enabled(),
                   steps=_onboarding(conn, user) if user else None, welcome=bool(request.query_params.get("welcome")),
                   invite_code=invite_code, open_modal=open_modal, signup_error=signup_error, form=form or {},
@@ -534,30 +558,30 @@ async def _landing(request: Request, user: dict | None, invite_code: str = "", o
                   next=_safe_next(request.query_params.get("next")))
 
 
-async def home(request: Request):
+def home(request: Request):
     user = current_user(request)
     if user:
         request.state.user = user
-    return await _landing(request, user)
+    return _landing(request, user)
 
 
-async def about_page(request: Request):
+def about_page(request: Request):
     """À propos : qu'est-ce qu'OpenCOP (court, renvoie vers les autres pages)."""
-    return render(request, "about.html", user=current_user(request), stats=search.stats(db.get()))
+    return render(request, "about.html", user=current_user(request), stats=_stats(db.get()))
 
 
-async def how_page(request: Request):
+def how_page(request: Request):
     """Comment ça marche : schéma et explications pour un non-développeur, forces et limites."""
     from . import catalog
 
     conn = db.get()
     try:
-        n_sources = len(catalog.load())
+        n_sources = _ttl_cached("sources", lambda: len(catalog.load()))   # 0,8 s : lecture de tous les YAML
     except Exception:
         n_sources = None
     pav = conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE name='pav_events'").fetchone()[0]
     n_events = conn.execute("SELECT COUNT(*) FROM pav_events WHERE cancelled=0").fetchone()[0] if pav else None
-    return render(request, "how.html", user=current_user(request), stats=search.stats(conn), n_sources=n_sources,
+    return render(request, "how.html", user=current_user(request), stats=_stats(conn), n_sources=n_sources,
                   n_events=n_events)
 
 
@@ -630,7 +654,7 @@ def _shots() -> dict[str, str]:
     return out
 
 
-async def connect_page(request: Request):
+def connect_page(request: Request):
     conn = db.get()
     user = current_user(request)
     token = regenerated = None
@@ -660,7 +684,7 @@ def _today_day() -> int:
     return agenda.FIRST_DAY
 
 
-async def plan_page(request: Request):
+def plan_page(request: Request):
     """Calendrier géant : tous les événements connus, filtrables (jour, mots, type, zone, pavillon, mes sujets)."""
     from . import events
 
@@ -727,7 +751,7 @@ async def topics_page(request: Request):
 
 
 @login_required
-async def topic_delete(request: Request):
+def topic_delete(request: Request):
     alerts.remove_subscription(db.get(), request.state.user["id"], int(request.path_params["sid"]))
     return RedirectResponse("/topics?ok=removed", status_code=303)
 
@@ -735,7 +759,7 @@ async def topic_delete(request: Request):
 # --- base de données ----------------------------------------------------------------------------------------------
 
 @public_page
-async def database_page(request: Request):
+def database_page(request: Request):
     """Base de données : recherche, dossiers de négociation, textes de session, derniers documents."""
     from . import live
 
@@ -765,11 +789,11 @@ async def database_page(request: Request):
         level = qp.get("niveau")
         ctx["level"] = level
         ctx["latest"] = search.latest(conn, user, {"levels": [level]} if level else {}, limit=60)
-    ctx["stats"] = search.stats(conn)
+    ctx["stats"] = _stats(conn)
     return render(request, "database.html", **ctx)
 
 
-async def account_redirect(request: Request):
+def account_redirect(request: Request):
     return RedirectResponse("/account" + (f"?{request.url.query}" if request.url.query else ""), status_code=303)
 
 
@@ -802,7 +826,7 @@ async def account_page(request: Request):
             done = "telegram"
         elif action == "delete":
             if (form.get("confirm") or "").strip().lower() in ("delete", "supprimer") and auth.delete_guest(conn, user["id"]):
-                return await logout(request)
+                return logout(request)
             error = "delete"
         elif action == "password":
             pw, pw2 = form.get("password") or "", form.get("password2") or ""
@@ -834,7 +858,7 @@ async def account_page(request: Request):
                   token=_token_for(request, conn, user), invite=auth.invite_settings(conn))
 
 
-async def logout(request: Request):
+def logout(request: Request):
     resp = RedirectResponse("/", status_code=303)
     resp.delete_cookie(COOKIE)
     resp.delete_cookie(TOKEN_COOKIE)
@@ -842,14 +866,14 @@ async def logout(request: Request):
 
 
 @login_required
-async def invite_page(request: Request):
+def invite_page(request: Request):
     """Écran à montrer à quelqu'un qu'on croise : QR code + lien court de l'invitation."""
     inv = auth.invite_settings(db.get())
     return render(request, "invite.html", invite=inv)
 
 
 def _redirect(target: str):
-    async def handler(request: Request):
+    def handler(request: Request):
         url, _, frag = target.format(**request.path_params).partition("#")
         q = request.url.query
         url += (("&" if "?" in url else "?") + q) if q else ""
@@ -858,7 +882,7 @@ def _redirect(target: str):
 
 
 @public_page
-async def doc_page(request: Request):
+def doc_page(request: Request):
     conn = db.get()
     user = request.state.user
     doc_id = int(request.path_params["doc_id"])
@@ -894,7 +918,7 @@ async def doc_page(request: Request):
 
 
 @public_page
-async def diff_page(request: Request):
+def diff_page(request: Request):
     conn = db.get()
     user = request.state.user
     new_id = int(request.path_params["doc_id"])
@@ -919,7 +943,7 @@ async def diff_page(request: Request):
     return render(request, "diff.html", doc=new, old=old, result=result, versions=versions, grille=grille)
 
 
-async def file_page(request: Request):
+def file_page(request: Request):
     conn = db.get()
     doc_id = int(request.path_params["doc_id"])
     row = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
@@ -952,7 +976,7 @@ def _zip_dir(folder: Path, arc_root: str = "") -> bytes:
     return buf.getvalue()
 
 
-async def download_page(request: Request):
+def download_page(request: Request):
     """Plugin Claude (zip), skills un par un (zip), instructions ChatGPT (texte)."""
     name = request.path_params["name"]
     plugin = CLIENTS_DIR / "claude-plugin"
@@ -1076,7 +1100,7 @@ async def admin_page(request: Request):
 
 
 @admin_required
-async def usage_page(request: Request):
+def usage_page(request: Request):
     """Statistiques d'usage agrégées (MCP, Telegram, site, démo)."""
     qp = request.query_params
     days = int(qp.get("jours")) if (qp.get("jours") or "").isdigit() else 7
@@ -1084,7 +1108,7 @@ async def usage_page(request: Request):
     return render(request, "usage.html", s=s)
 
 
-async def privacy_page(request: Request):
+def privacy_page(request: Request):
     return render(request, "privacy.html", user=current_user(request), contact=bool(config.CONTACT_EMAIL),
                   text_days=usage.TEXT_DAYS, keep_days=usage.KEEP_DAYS, demo_days=usage.DEMO_KEEP_DAYS)
 
@@ -1121,7 +1145,7 @@ async def mail_page(request: Request):
 
 
 @admin_required
-async def admin_toggle(request: Request):
+def admin_toggle(request: Request):
     conn = db.get()
     uid = int(request.path_params["uid"])
     conn.execute("UPDATE users SET active=1-active WHERE id=? AND id<>? AND COALESCE(source,'')<>'supprime'",
@@ -1131,7 +1155,7 @@ async def admin_toggle(request: Request):
 
 
 @admin_required
-async def admin_delete(request: Request):
+def admin_delete(request: Request):
     """Suppression définitive d'un compte invité (comptes de test, demandes de suppression)."""
     auth.delete_guest(db.get(), int(request.path_params["uid"]))
     return RedirectResponse("/admin#utilisateurs", status_code=303)
@@ -1210,7 +1234,7 @@ def _demo_public(payload: dict) -> dict:
     return {k: payload.get(k) for k in ("html", "sources", "events", "checks", "trace", "model", "diffs", "trajectoires")}
 
 
-async def demo_page(request: Request):
+def demo_page(request: Request):
     """Essayer : quelques questions sans compte, avec exemples par public, réponse sourcée et vérifiée."""
     from . import demo
 
@@ -1231,7 +1255,7 @@ async def demo_page(request: Request):
     return _set_demo_cookie(resp, session) if new else resp
 
 
-async def demo_answer_page(request: Request):
+def demo_answer_page(request: Request):
     """Lien permanent d'une réponse de la démo (à partager, à citer)."""
     from . import demo
 
@@ -1251,7 +1275,7 @@ async def demo_answer_page(request: Request):
     return _set_demo_cookie(resp, session) if new else resp
 
 
-async def ask_page(request: Request):
+def ask_page(request: Request):
     """Questions des comptes : conversations, historique, réponses sourcées (mêmes outils que la démo)."""
     from . import demo
 
@@ -1277,7 +1301,7 @@ async def ask_page(request: Request):
                   convs=demo.conv_list(conn, user["id"]), KEEP_DAYS=usage.DEMO_KEEP_DAYS)
 
 
-async def ask_delete(request: Request):
+def ask_delete(request: Request):
     from . import demo
 
     user = current_user(request)
@@ -1431,7 +1455,7 @@ AUDIENCE_SLUGS = {"delegations": "delegations", "press": "presse", "presse": "pr
                   "militants": "militants"}
 
 
-async def audience_page(request: Request):
+def audience_page(request: Request):
     """Pages par public : petites délégations, presse indépendante, militants et ONG."""
     from . import demo
 
@@ -1446,6 +1470,32 @@ async def audience_page(request: Request):
 
 
 _COUNTS: dict[str, object] = {"at": 0.0, "value": None}
+
+
+_TTL: dict[str, tuple[float, object]] = {}   # clé → (instant du calcul, valeur)
+_TTL_LOCK = threading.Lock()
+
+
+def _ttl_cached(key: str, compute, ttl: float = 600):
+    """Valeur recalculée au plus toutes les `ttl` secondes (pages servies par plusieurs fils). Un échec du calcul
+    remonte et n'est pas mis en cache : la requête suivante recalcule."""
+    import time
+
+    hit = _TTL.get(key)
+    if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    with _TTL_LOCK:   # un seul calcul à la fois : les autres fils attendent puis relisent
+        hit = _TTL.get(key)
+        if hit and time.time() - hit[0] < ttl:
+            return hit[1]
+        value = compute()
+        _TTL[key] = (time.time(), value)
+        return value
+
+
+def _stats(conn) -> dict:
+    """search.stats (0,2 à 0,3 s : COUNT des vecteurs) pour l'accueil, /database et /how-it-works, à 10 min près."""
+    return _ttl_cached("stats", lambda: search.stats(conn))
 
 
 def _corpus_counts(conn) -> dict[str, int]:
@@ -1552,7 +1602,7 @@ NOT_INDEXED = {
 }
 
 
-async def robots(request: Request):
+def robots(request: Request):
     """Pages publiques, mais les robots d'indexation restent hors des pages coûteuses ou sans fin
     (comparaisons de versions deux à deux, recherches, fichiers bruts) et des pages personnelles."""
     return Response(ROBOTS + f"\nSitemap: {config.PUBLIC_BASE}/sitemap.xml\n", media_type="text/plain")
@@ -1646,7 +1696,7 @@ Pages en français : ajouter `?lang=fr` à l'adresse, par exemple {b}/about?lang
 """
 
 
-async def llms(request: Request):
+def llms(request: Request):
     return Response(llms_text(), media_type="text/plain; charset=utf-8")
 
 

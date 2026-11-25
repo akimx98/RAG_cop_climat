@@ -127,6 +127,11 @@ def _refresh(conn) -> None:
         _cache["max"] = int(ids[-1])
 
 
+SEARCH_STEP = 8192          # lignes par bloc converti en float32 (8 192 × 512 × 4 octets = 16 Mo)
+SEARCH_CONCURRENCY = 2      # produits vectoriels simultanés dans un processus
+_search_slots = threading.BoundedSemaphore(SEARCH_CONCURRENCY)
+
+
 def search(conn, query: str, k: int = 100) -> list[tuple[int, float]]:
     if not enabled():
         return []
@@ -134,12 +139,13 @@ def search(conn, query: str, k: int = 100) -> list[tuple[int, float]]:
     mat = _cache["mat"]
     if not len(mat):  # type: ignore[arg-type]
         return []
-    q = encode([query])[0].astype(np.float32)
-    # numpy n'a pas de produit matriciel float16 rapide : conversion float32 par blocs.
+    q = encode([query])[0].astype(np.float32)   # appel réseau : hors du sémaphore
+    # numpy n'a pas de produit matriciel float16 rapide : conversion float32 par blocs (16 Mo par bloc). Les pages
+    # tournent dans des fils : au plus SEARCH_CONCURRENCY produits à la fois, pour borner la mémoire du site.
     scores = np.empty(len(mat), dtype=np.float32)  # type: ignore[arg-type]
-    step = 32768
-    for i in range(0, len(mat), step):  # type: ignore[arg-type]
-        scores[i:i + step] = mat[i:i + step].astype(np.float32) @ q  # type: ignore[index]
+    with _search_slots:
+        for i in range(0, len(mat), SEARCH_STEP):  # type: ignore[arg-type]
+            scores[i:i + SEARCH_STEP] = mat[i:i + SEARCH_STEP].astype(np.float32) @ q  # type: ignore[index]
     k = min(k, len(scores))
     top = np.argpartition(-scores, k - 1)[:k]
     top = top[np.argsort(-scores[top])]
