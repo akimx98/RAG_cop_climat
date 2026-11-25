@@ -1493,11 +1493,41 @@ Disallow: /topics
 Disallow: /lang/
 """
 
+# Pages fixes proposées aux moteurs (les pages personnelles et coûteuses restent exclues par ROBOTS).
+SITEMAP_PAGES = ("/", "/about", "/how-it-works", "/connect", "/plan", "/try", "/database", "/contact",
+                 "/confidentialite", "/for/delegations", "/for/press", "/for/activists")
+
 
 async def robots(request: Request):
     """Pages publiques, mais les robots d'indexation restent hors des pages coûteuses ou sans fin
     (comparaisons de versions deux à deux, recherches, fichiers bruts) et des pages personnelles."""
-    return Response(ROBOTS, media_type="text/plain")
+    return Response(ROBOTS + f"\nSitemap: {config.PUBLIC_BASE}/sitemap.xml\n", media_type="text/plain")
+
+
+def sitemap_urls(conn) -> list[tuple[str, str | None]]:
+    """(chemin, date) proposés aux moteurs : pages fixes, dossiers de négociation, documents **publics** indexés
+    (jamais un document restreint, en attente ou doublon : seulement ce qu'un visiteur anonyme peut ouvrir)."""
+    from . import live
+
+    urls: list[tuple[str, str | None]] = [(p, None) for p in SITEMAP_PAGES]
+    urls += [(f"/database/negotiations/{d['slug']}", None) for d in live.dossiers()]
+    rows = conn.execute("SELECT id, fetched_at FROM documents WHERE access='public' AND status='indexed' "
+                        "AND duplicate_of IS NULL ORDER BY id LIMIT 45000").fetchall()   # plafond du format : 50 000
+    urls += [(f"/doc/{r['id']}", (r["fetched_at"] or "")[:10] or None) for r in rows]
+    return urls
+
+
+async def sitemap(request: Request):
+    from xml.sax.saxutils import escape
+
+    from starlette.concurrency import run_in_threadpool
+
+    urls = await run_in_threadpool(sitemap_urls, db.get())
+    body = "".join(f"<url><loc>{escape(config.PUBLIC_BASE + p)}</loc>" + (f"<lastmod>{d}</lastmod>" if d else "")
+                   + "</url>\n" for p, d in urls)
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+           + body + "</urlset>\n")
+    return Response(xml, media_type="application/xml")
 
 
 async def health(request: Request):
@@ -1565,6 +1595,7 @@ routes = [
     Route("/healthz", health),
     Route("/healthz/deep", health_deep),
     Route("/robots.txt", robots),
+    Route("/sitemap.xml", sitemap),
     # anciennes adresses (liens dans les alertes, favoris)
     Route("/compte", account_redirect),
     Route("/sujets", _redirect("/topics")),

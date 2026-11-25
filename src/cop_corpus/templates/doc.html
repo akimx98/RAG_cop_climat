@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% from "_doc.html" import lvl, when with context %}{% block title %}{{ doc.titre }}{% endblock %}{% block body %}
+{% extends "base.html" %}{% from "_doc.html" import lvl, when with context %}{% block title %}{{ doc.titre }}{% endblock %}{% block description %}{{ (doc.cote ~ ' · ') if doc.cote and doc.cote not in (doc.titre or '') }}{{ doc.titre }}{{ (' (' ~ doc.publie_le[:10] ~ ')') if doc.publie_le }}. {{ L('Texte intégral découpé en passages citables, versions successives et lien vers la source officielle, sur OpenCOP.', 'Full text split into citable passages, successive versions and a link to the official source, on OpenCOP.') }}{% endblock %}{% block body %}
 <div class="card doc-head">
 {{ lvl(doc.niveau, doc.acces) }}<span class="small muted">{{ LEVELS.get((doc.niveau or ('R' if doc.acces == 'restreint' else '?'))|string, 'unclassified') if lang == 'en' else doc.niveau_sens }}</span>
 <div class="title-xl">{{ doc.titre }}</div>

@@ -6,6 +6,17 @@
 <meta name="theme-color" content="#17456b" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1418" media="(prefers-color-scheme: dark)">
 <title>{% block title %}OpenCOP · COP31{% endblock %}</title>
+{# Indexation : adresse de référence sur le domaine public (les autres noms servent le même contenu), description
+   et aperçu de partage. La langue suit un cookie : les robots voient l'anglais. #}
+{% set desc %}{% block description %}{{ L("OpenCOP est un outil libre et gratuit pour suivre les négociations des COP climat directement dans les textes : projets de décision et leurs versions successives, décisions adoptées, positions des pays et des groupes.", "OpenCOP is a free and open-source tool for following the UN climate COP negotiations directly in the texts: draft decisions and their successive versions, adopted decisions, positions of countries and groups.") }}{% endblock %}{% endset %}
+<meta name="description" content="{{ desc|trim }}">
+<link rel="canonical" href="{{ base }}{{ path }}">
+<meta property="og:site_name" content="OpenCOP">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ self.title()|trim }}">
+<meta property="og:description" content="{{ desc|trim }}">
+<meta property="og:url" content="{{ base }}{{ path }}">
+<meta property="og:locale" content="{{ 'fr_FR' if lang == 'fr' else 'en_GB' }}">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%2317456b'/%3E%3Cpath d='M12 8H8v16h4M20 8h4v16h-4' stroke='%23fff' stroke-width='2.6' fill='none'/%3E%3C/svg%3E">
 <style>
 /* Polices système uniquement : aucune requête vers un tiers (documents internes). */
