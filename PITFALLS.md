@@ -84,7 +84,7 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 
 - Telegram n'est pas chiffré de bout en bout : jamais de titre ni d'extrait de document restreint (alertes,
   /cherche, /nouveau, récapitulatif, alertes d'erreur).
-- `login_codes.sent_at` garde l'adresse IP en clair (constaté le 22/11/2026, à corriger), contre la règle.
+- `login_codes.sent_at` garde l'adresse IP en clair (constaté le 22/11/2026), contre la règle : issue #3.
 - Chemins à secret (`/u/<jeton>`, `/entrer/`, `/join/`…) masqués dans les journaux d'accès (`logs.py`, Caddy).
 
 ## Tests

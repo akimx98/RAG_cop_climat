@@ -456,7 +456,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--with-worker", action="store_true")
     s.set_defaults(func=cmd_serve)
 
-    s = sub.add_parser("mail-server", help="réception SMTP (veille@, depot-…@)")
+    s = sub.add_parser("mail-server", help="réception SMTP (veille@ ; dépôt par depot-…@ retiré)")
     s.add_argument("--host", default="0.0.0.0")
     s.add_argument("--port", type=int, default=2525)
     s.set_defaults(func=cmd_mail_server)

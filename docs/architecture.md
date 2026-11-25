@@ -264,7 +264,7 @@ tableau couvre toutes les variables lues.
 | `COP_DEMO` | 1 | 0 = démo publique « Essayer » (/try) désactivée ; active seulement si une clé OpenAI est posée |
 | `COP_DEMO_MODEL`, `COP_DEMO_EFFORT` | `gpt-6.1-terra`, `low` | modèle des questions sur le site, /try et /ask (API Responses, outils MCP en lecture seule, documents publics seulement) |
 | `COP_DEMO_PER_SESSION`, `COP_DEMO_PER_IP_DAY`, `COP_DEMO_PER_ACCOUNT_DAY` | 3, 20, 3 | invités : questions par visiteur et par adresse IP et par jour ; comptes : questions par jour (jour d'Antalya), hors période renforcée |
-| `COP_DEMO_BOOST_UNTIL`, `COP_DEMO_BOOST_PER_ACCOUNT_DAY` | `2026-11-21T23:59:59+03:00`, 40 | fin de COP : questions par compte et par jour jusqu'à cette date (sans fuseau : heure d'Antalya), puis retour à `COP_DEMO_PER_ACCOUNT_DAY` |
+| `COP_DEMO_BOOST_UNTIL`, `COP_DEMO_BOOST_PER_ACCOUNT_DAY` | `2026-11-21T23:59:59+03:00`, 40 | fin de COP : questions par compte et par jour jusqu'à cette date (sans fuseau : heure d'Antalya), puis retour à `COP_DEMO_PER_ACCOUNT_DAY` — **échu** depuis le 22/11/2026 (sans effet) |
 | `COP_DEMO_DAILY_USD`, `COP_DEMO_ACCOUNT_DAILY_USD`, `COP_DEMO_BUDGET_USD` | 10, 40, 150 | plafonds de dépense : par jour pour les invités (`purpose='demo'`), par jour pour les comptes (`'demo-account'`), au total pour les deux ; distincts de `COP_LLM_BUDGET_USD` qu'ils n'entament pas |
 | `COP_LLM_EXTRACT_MODEL`, `COP_LLM_WRITE_MODEL` | `gpt-5.4-mini`, `gpt-5.6-luna` | extraction et analyses ; briefs |
 | `COP_LLM_BUDGET_USD` | 30 | plafond de dépense cumulée |

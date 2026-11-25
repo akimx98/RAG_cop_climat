@@ -1,8 +1,8 @@
 # CLAUDE.md — COP Tracker (COP31)
 
 Corpus vérifiable et veille des négociations climat. Projet **indépendant**, open source, sans lien avec la CCNUCC
-ni avec une délégation (ne jamais le présenter comme l'outil d'une délégation). En production pendant la COP :
-chaque erreur touche de vrais utilisateurs.
+ni avec une délégation (ne jamais le présenter comme l'outil d'une délégation). En production
+(https://cop31.akimx.fr) : chaque erreur touche de vrais utilisateurs. La COP31 s'est tenue du 9 au 20/11/2026.
 
 À lire selon le besoin :
 - [docs/architecture.md](docs/architecture.md) : référence (données, outils MCP, tâches, réglages, confidentialité, coûts).
@@ -31,9 +31,9 @@ chaque erreur touche de vrais utilisateurs.
 Méthode **canonique**, commune aux services du VPS : `../mcp-edge/DEVELOPING.md` (dépôt privé `mcp-edge`, à
 côté de celui-ci sur le poste de développement). L'essentiel, suffisant sans ce dépôt :
 
-- **Trier** : S (un module, < ~50 lignes, rien de sensible) → coder, tester ; **M/L** (plusieurs modules, ou
-  processus, fils, signaux, Docker, mémoire, base et `meta`, authentification, confidentialité, sorties Telegram /
-  e-mail / MCP, boucle d'événements, collecte et indexation, coûts LLM, déploiement) → note de conception
+- **Trier** : S (un module, < ~50 lignes, rien de sensible) → coder, tester ; **M/L** (plusieurs modules, ou un
+  sujet sensible : processus, fils, signaux, Docker, mémoire ; base et `meta` ; authentification, confidentialité ;
+  sorties Telegram, e-mail, MCP ; boucle d'événements ; collecte et indexation ; coûts LLM ; déploiement) → note de conception
   `docs/notes/AAAA-MM-JJ-sujet.md` d'abord (modèle [docs/notes/_modele.md](docs/notes/_modele.md) : faits
   **mesurés**, modes de panne, critères d'acceptation, hors périmètre) ; **incident** → mitigation manuelle
   réversible d'abord (passer un document en erreur, couper un réglage, `ship.sh --rollback`), puis note.
@@ -52,8 +52,9 @@ côté de celui-ci sur le poste de développement). L'essentiel, suffisant sans 
 
 ## Production (repères)
 
-VPS et chemins : voir `scripts/ship.sh`. Conteneurs `cop31-app-1` (site + MCP, 700 Mo), `cop31-worker-1`
-(veille, alertes, bot, 600 Mo), `cop31-mail-1` (port 25, 150 Mo) ; une base SQLite partagée (`data/`, WAL).
+VPS et chemins : voir `scripts/ship.sh`. Conteneurs `cop31-app-1` (site + MCP), `cop31-worker-1` (veille,
+alertes, bot), `cop31-mail-1` (port 25) ; plafonds mémoire dans `deploy/docker-compose.yml` ; une base SQLite
+partagée (`data/`, WAL).
 Requête en lecture : `ssh … 'cd RAG_cop_climat && sudo docker compose -f deploy/docker-compose.yml exec -T app
 python -'` avec un script sur l'entrée standard. Redémarrages et codes de sortie : `sudo journalctl -u docker |
 grep exitCode` (pas `docker inspect`). Reconstruire le worker tue les `exec` en cours dans ce conteneur.

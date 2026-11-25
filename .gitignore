@@ -6,3 +6,6 @@ deploy/.env
 *.egg-info/
 .pytest_cache/
 .DS_Store
+.claude/launch.json
+.claude/worktrees/
+.claude/settings.local.json

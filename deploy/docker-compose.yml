@@ -1,4 +1,4 @@
-# Service COP31 sur le VPS partagé. Conventions (cf. RAG_programmes_Maths/docs/conventions-vps.md) :
+# Service COP31 sur le VPS partagé. Conventions du VPS (mcp-edge/CONVENTIONS.md, contrôlées par scripts/check_conventions.py) :
 # nom de projet explicite et distinct, alias réseau propre, plafond mémoire. Seul port publié : 25
 # (courrier entrant, service `mail`). L'edge Caddy partagé termine le TLS HTTP et route le
 # sous-domaine vers l'alias `cop31-app`.

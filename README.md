@@ -71,7 +71,7 @@ commande (`cop ingest-file`) ou déposer le PDF d'un texte de session bloqué pa
 ## Sources protégées par un anti-bot
 
 Jamais contournées (`unfccc.int`, SEORS, page « Party groupings » de la CCNUCC). Les documents à cote FCCC passent
-par l'ODS de l'ONU ; le reste se dépose à la main (Telegram ou tableau de bord) ; `cop log --outcome antibot` liste
+par l'ODS de l'ONU ; le reste se dépose à la main (tableau de bord, base de données, onglet « Session texts ») ; `cop log --outcome antibot` liste
 ce qui a été bloqué. SEORS : bouton « Relevé SEORS → COP31 » (Admin → Programme) à cliquer sur la page SEORS
 ouverte dans son navigateur, ou relevé automatique horaire dès que la CCNUCC autorise l'adresse du serveur. ENB : les pages HTML sont bloquées mais les PDF quotidiens passent (source `enb-daily-pdf`).
 Mode dégradé : version PDF de la même page, `deposer_url` d'une autre adresse publique, sinon dépôt manuel. Relevé SEORS des salles des side events : ouvrir SEORS dans un navigateur, coller
@@ -92,12 +92,9 @@ Mode dégradé : version PDF de la même page, `deposer_url` d'une autre adresse
   (domaine vérifié chez le service, enregistrements DNS qu'il fournit). Sans ces réglages, la connexion par code
   passe seulement par Telegram ; à défaut, un admin génère un lien de connexion 24 h.
 
-Mise à jour du code depuis le Mac :
-
-```bash
-rsync -az --exclude data --exclude .venv --exclude .git --exclude __pycache__ ./ debian@<vps>:/home/debian/RAG_cop_climat/
-ssh debian@<vps> 'cd RAG_cop_climat && sudo docker compose -f deploy/docker-compose.yml up -d --build'
-```
+Mise à jour du code : **toujours** par `scripts/ship.sh` depuis le Mac (commit propre, tests, contrôle des
+conventions du VPS, sauvegarde des images, reconstruction, `/healthz`, question de bout en bout, voisins) ;
+`scripts/ship.sh --app` ne reconstruit que le site ; `scripts/ship.sh --rollback` remet les images précédentes.
 
 Comptes (le jeton n'est affiché qu'une fois) :
 
@@ -105,8 +102,9 @@ Comptes (le jeton n'est affiché qu'une fois) :
 ssh debian@<vps> 'cd RAG_cop_climat && sudo docker compose -f deploy/docker-compose.yml exec -T app cop user-add prenom.nom@exemple.fr --name "Prénom Nom"'
 ```
 
-Première installation (pour mémoire) : `deploy/.env` depuis `deploy/.env.example`, `HOST=debian@… bash scripts/transfer-data.sh`,
-`mv data/cop.incoming.sqlite3 data/cop.sqlite3`, `sudo bash scripts/deploy.sh`,
+Première installation (pour mémoire) : `deploy/.env` depuis `deploy/.env.example` (renseigner au moins
+`COP_SECRET`, non vide), `HOST=debian@… bash scripts/transfer-data.sh`,
+`mv data/cop.incoming.sqlite3 data/cop.sqlite3`, `sudo docker compose -f deploy/docker-compose.yml up -d --build`,
 `sudo DOMAIN=cop31.akimx.fr bash scripts/install-edge-site.sh`.
 
 ### Courrier entrant
