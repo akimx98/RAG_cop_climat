@@ -43,8 +43,12 @@ côté de celui-ci sur le poste de développement). L'essentiel, suffisant sans 
   au 2e tour = retour à la note, pas de rustine.
 - **Avant de toucher** à Docker, au compose, à la mémoire ou au déploiement : règles du VPS partagé
   `../mcp-edge/CONVENTIONS.md`.
+- **Avant une M/L** : lire [docs/notes/README.md](docs/notes/README.md) et les issues `suite` ouvertes
+  (`gh issue list -l suite`) qui touchent les mêmes fichiers.
 - **Livrer** : tests, commit en français, `scripts/ship.sh`, vérifications de la note ; dire ce qui n'est pas
   vérifié.
+- **Après livraison** : promouvoir ce qui dure (pièges → PITFALLS, règles, faits → architecture), une issue `suite`
+  par suite, note « livré » dans l'index (méthode canonique §6).
 
 ## Production (repères)
 

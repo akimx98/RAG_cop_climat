@@ -1,6 +1,7 @@
 # 2026-11-22 — Plantage du worker en boucle et pannes silencieuses
 
-*Taille : incident → L · Statut : validé, revu (tour 1 : déployable)*
+*Taille : incident → L · Statut : livré (9e81030, déployé le 25/11/2026, vérifications 1 à 7 faites)*
+*Fichiers concernés : `extract.py`, `ingest.py`, `worker.py`, `watchdog.py`, `monitor.py`, `mailin.py`, `server.py`, `mcp_server.py`, `deploy/docker-compose.yml`*
 
 ## Problème
 
@@ -154,6 +155,12 @@ bien dans le délai d'arrêt laissé par Docker. À vérifier lors du déploieme
   - En suivi : F et G (Suites). Pas de tour 2 : aucun constat bloquant.
 
 ## Suites
+
+Promues en issues `suite` le 25/11/2026 : #1 sonde externe, #2 sources en 404/500, #3 codes de connexion, #4 outils
+synchrones, #5 file d'indexation unique (dont double indexation), #6 délais de boucle en salve, #7 courrier
+(marqueurs, effets rejoués). Leçons promues dans PITFALLS.md ; tâches et réglages dans architecture.md.
+
+Détail d'origine :
 
 - **Sonde externe** sur `/healthz/deep` (service d'uptime) : seule défense quand le site et le worker sont tous
   deux arrêtés. À créer par l'utilisateur, qui seul peut ouvrir le compte.

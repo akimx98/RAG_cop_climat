@@ -32,6 +32,8 @@ d'acceptation, dis-le en premier : c'est un constat bloquant de méthode.
    - gravité : **bloquant** seulement si un critère d'acceptation n'est pas rempli, ou s'il y a perte de données,
      fuite confidentielle, faille de sécurité ou panne de prod probable ; sinon **important** ou **mineur** ;
    - scénario concret (entrée, état → effet), fichier:ligne, correction suggérée en une ligne.
-4. **Vérifié et correct** : ce que tu soupçonnais et qui tient (court).
+4. **Promotion** (si la note est marquée « livré ») : pièges, règles et faits durables promus, une issue `suite`
+   par suite, index à jour ; sinon constat important.
+5. **Vérifié et correct** : ce que tu soupçonnais et qui tient (court).
 
 Une dette existante n'est jamais bloquante pour ce diff ; signale-la pour la section « Suites » de la note.

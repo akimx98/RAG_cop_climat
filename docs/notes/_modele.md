@@ -1,6 +1,8 @@
 # AAAA-MM-JJ — Sujet
 
 *Taille : M / L / incident · Statut : brouillon / validé / livré (commit …)*
+*Fichiers concernés : …* (sert à retrouver la note quand on retouche ces fichiers ; ajouter une ligne à
+[README.md](README.md))
 
 ## Problème
 
@@ -40,4 +42,11 @@ Tour 1 : verdict, constats acceptés (et report dans les critères), refusés (p
 
 ## Suites
 
-Dette repérée, hors périmètre : à traiter plus tard.
+Dette repérée, hors périmètre : à la livraison, **une issue `suite` par point** (lien vers cette note), numéros
+reportés ici.
+
+## Promotion (à la livraison)
+
+- [ ] pièges → PITFALLS ; règles → CONVENTIONS / DEVELOPING ; faits → architecture, commentaires dans le code
+- [ ] suites → issues `suite`
+- [ ] statut « livré » ici et dans l'index

@@ -131,6 +131,9 @@ def check_static(path: Path) -> tuple[list[str], list[str], dict]:
         # §2 alias propre sur le réseau web
         web = _networks(svc).get("web")
         if web is not None:
+            if sname in GENERIC_ALIASES:   # Docker donne d'office le nom du service comme alias sur chaque réseau
+                warnings.append(f"§2 nom de service générique « {sname} » sur web : alias automatique partagé avec "
+                                "tout autre service du même nom (le renommer)")
             aliases = set((web or {}).get("aliases") or [])
             if not aliases:
                 errors.append(f"§2 service « {sname} » sur le réseau web sans alias propre")
