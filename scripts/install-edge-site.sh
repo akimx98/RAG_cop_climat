@@ -6,10 +6,11 @@
 # uniquement le nôtre. Il ne crée pas l'edge et ne redémarre rien : il valide puis
 # recharge à chaud, donc sans coupure pour les autres corpus.
 #
-#   DOMAIN=cop31.akimx.fr sudo -E bash scripts/install-edge-site.sh
+#   DOMAIN="opencop.org, www.opencop.org, cop31.akimx.fr" sudo -E bash scripts/install-edge-site.sh
+#   (toujours les trois noms : un nom omis n'est plus servi ; cop31.akimx.fr porte le certificat du courrier entrant)
 #
 # Variables : DOMAIN (défaut : celui de deploy/edge/.env), BACKEND (défaut
-#             mcp:8000), SITE (nom du fichier, défaut histoire-geographie),
+#             cop31-app:8000), SITE (nom du fichier, défaut cop31),
 #             EDGE_DIR (défaut /opt/mcp-edge).
 #
 # Idempotent : relançable sans casse.

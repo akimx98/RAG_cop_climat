@@ -1,4 +1,4 @@
-# COP Tracker — COP31
+# OpenCOP (ex-COP Tracker) — édition COP31
 
 Corpus vérifiable, veille en temps réel et alertes pour suivre les négociations de la COP31
 (Antalya, 9–20 novembre 2026). Projet indépendant, gratuit et non commercial, sans lien avec la CCNUCC
@@ -80,8 +80,10 @@ Mode dégradé : version PDF de la même page, `deposer_url` d'une autre adresse
 
 ## Déploiement sur le VPS (en production depuis le 6 novembre 2026)
 
-- Adresse : **https://opencop.org** (ancienne adresse `cop31.akimx.fr` toujours servie : connecteurs MCP existants,
-  QR codes, courrier entrant ; note [docs/notes/2026-11-25-domaine-opencop.md](docs/notes/2026-11-25-domaine-opencop.md)) (tableau de bord `/`, MCP personnel `/u/<jeton>/mcp`), bot **@AssistantCOP31Bot**.
+- Adresse : **https://opencop.org** (tableau de bord `/`, MCP personnel `/u/<jeton>/mcp`), bot **@AssistantCOP31Bot**.
+  L'ancienne adresse `cop31.akimx.fr` reste servie (connecteurs MCP existants, QR codes, courrier entrant) ; note
+  [docs/notes/2026-11-25-domaine-opencop.md](docs/notes/2026-11-25-domaine-opencop.md), présentation publique :
+  [docs/architecture.md §10](docs/architecture.md).
 - VPS `debian@<vps>`, dépôt dans `/home/debian/RAG_cop_climat` (même convention que les autres corpus),
   conteneurs `cop31-app-1` (web + MCP, alias `cop31-app` sur le réseau `web`) et `cop31-worker-1` (veille, alertes, bot,
   récapitulatif 7 h), TLS par l'edge Caddy partagé (`/opt/mcp-edge/conf.d/cop31.caddy`).

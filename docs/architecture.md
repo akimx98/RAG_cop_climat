@@ -284,7 +284,7 @@ tableau couvre toutes les variables lues.
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_NAME` | vide | bot Telegram |
 | `COP_TELEGRAM_RESTRICTED_SNIPPETS` | 0 | 1 = titres et extraits des documents internes dans Telegram |
 | `COP_TZ`, `COP_DIGEST_HOURS` | `Europe/Istanbul`, 7,19 | fuseau de la COP, heures du récapitulatif Telegram |
-| `COP_MAIL_DOMAIN`, `COP_MAIL_CERT`, `COP_MAIL_KEY`, `COP_MAIL_MAX_MB` | domaine public, certificat de Caddy, 40 Mo | courrier entrant |
+| `COP_MAIL_DOMAIN`, `COP_MAIL_CERT`, `COP_MAIL_KEY`, `COP_MAIL_MAX_MB` | domaine public, certificat de Caddy, 40 Mo | courrier entrant (`COP_MAIL_DOMAIN` figé à `cop31.akimx.fr` en production, §10) |
 | `COP_MAIL_PROVIDER`, `COP_MAIL_API_KEY`, `COP_MAIL_FROM` | vide | envoi des codes de connexion et du formulaire de contact (resend, brevo) |
 | `MCP_ALLOWED_HOSTS` | vide | hôtes admis par le MCP (protection DNS rebinding) |
 | `COP_LOCAL_ADMIN` | 1 | MCP en stdio : utilisateur administrateur local |
