@@ -63,6 +63,9 @@ BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" = "main" ] || red "  attention : vous déployez la branche $BRANCH, pas main"
 green "  $SHA ($BRANCH) : $(git log -1 --format=%s)"
 
+step "Conventions du VPS partagé (mcp-edge/CONVENTIONS.md)"
+.venv/bin/python scripts/check_conventions.py deploy/docker-compose.yml || fail "compose non conforme aux conventions du VPS"
+
 step "Tests"
 .venv/bin/python -m pytest -q -p no:cacheprovider || fail "des tests échouent : rien n'a été envoyé"
 
@@ -77,9 +80,16 @@ rsync -az \
   ./ "$VPS:$DIR/"
 remote "echo '$SHA $(date -u +%Y-%m-%dT%H:%M:%SZ)' > .deployed"
 
+step "Conventions sur le VPS (noms et alias des voisins) ; état des voisins avant"
+remote "DOCKER='sudo docker' python3 scripts/check_conventions.py deploy/docker-compose.yml --vps && DOCKER='sudo docker' python3 scripts/check_conventions.py snapshot /tmp/cop31-voisins-avant.json" \
+  || fail "conventions non respectées sur le VPS (rien n'a été reconstruit)"
+
 step "Reconstruction : $TARGET"
 remote "$COMPOSE up -d --build $TARGET" || fail "la construction a échoué (les anciens conteneurs tournent encore)"
 
 check_prod || fail "les contrôles après déploiement ne passent pas"
+step "Voisins du VPS (CONVENTIONS §9)"
+remote "DOCKER='sudo docker' python3 scripts/check_conventions.py neighbors /tmp/cop31-voisins-avant.json" \
+  || fail "un autre service du VPS ne tourne plus (ou est unhealthy) après ce déploiement"
 green ""
 green "✔ $SHA en production ($URL)"

@@ -18,3 +18,5 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
+      - name: Conventions du VPS partagé (copie de mcp-edge/scripts/check_conventions.py)
+        run: python scripts/check_conventions.py deploy/docker-compose.yml
