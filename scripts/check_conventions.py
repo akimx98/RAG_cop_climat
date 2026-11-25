@@ -37,10 +37,8 @@ GENERIC_NAMES = {"deploy", "docker", "app", "compose", "default"}
 GENERIC_ALIASES = {"mcp", "app", "web", "api", "server", "service", "backend"}
 AUTO_RESTART = {"always", "unless-stopped", "on-failure"}
 # Exceptions TEMPORAIRES, datées : avertissement au lieu d'erreur. À retirer dès que la condition est vérifiée.
-TRANSITIONAL_ALIASES = {
-    # 25/11/2026 : alias historique gardé pendant la transition vers « mcp-histoire » ; à retirer après avoir
-    # vérifié sur le VPS que /opt/mcp-edge/conf.d/ ne route plus vers « mcp ».
-    "programmes-scolaires": {"mcp"},
+TRANSITIONAL_ALIASES: dict[str, set[str]] = {
+    # ex. "projet": {"alias"} — 25/11/2026 : plus aucune exception (alias « mcp » d'histoire-géo retiré).
 }
 
 
