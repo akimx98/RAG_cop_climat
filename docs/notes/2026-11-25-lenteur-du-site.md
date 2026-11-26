@@ -1,6 +1,6 @@
 # 2026-11-25 — Lenteur du site : pages lourdes dans la boucle d'événements
 
-*Taille : M (boucle d'événements, fils, mémoire du site) · Statut : validé (revue tour 2)*
+*Taille : M (boucle d'événements, fils, mémoire du site) · Statut : livré (92cfbd2, 26/11/2026)*
 *Fichiers concernés : `web.py` (décorateurs, pages sans `await`, `_landing`, `how_page`), `web_live.py`
 (`dossier_page`, cache), `search.py` (`stats`), `embed.py` (`search`), `server.py` (taille du pool de fils),
 `tests/test_lenteur.py`*
@@ -155,12 +155,21 @@ pour les suites : `auth._failures` sans verrou (appelé seulement depuis des pag
 `def` l'utilise) ; jusqu'à 12 calculs à froid de dossiers différents peuvent occuper le pool (à mesurer, critère
 12) ; lien brûlé si `mark_verified` échoue après sa consommation (échec fermé, rare).
 
+## Mesures après livraison (26/11/2026, critère 12)
+
+Durées côté serveur (journal Caddy) : premier affichage de `/database/negotiations/adaptation` après redémarrage
+18,6 s (chargement des vecteurs compris), puis 0,094 s, 0,079 s, et 0,086 s en `?lang=fr` ; `/healthz` entre 0,17
+et 0,26 s (depuis le Mac) pendant le calcul à froid. Sur 15 min (1 019 requêtes) : médiane 0,009 s, p90 0,18 s
+(7,5 s le 25/11). Mémoire anonyme du site : 550 Mo sur 700 Mio (marge ≈ 180 Mo > 100 Mo). Critère 12 tenu.
+
 ## Suites
 
-À créer à la livraison.
+#14 palier FTS lent (recherche libre) · #15 pages `async` avec travail synchrone après l'`await`, `auth._failures`
+· #16 robot de Meta · #17 swap du VPS · #18 signature du cache (`duplicate_of`, titres) · #19 lien brûlé si
+`mark_verified` échoue · #4 outils MCP synchrones (existant).
 
 ## Promotion (à la livraison)
 
-- [ ] pièges → PITFALLS ; faits → architecture, commentaires dans le code
-- [ ] suites → issues `suite`
-- [ ] statut « livré » ici et dans l'index
+- [x] pièges → PITFALLS ; faits → architecture, commentaires dans le code
+- [x] suites → issues `suite`
+- [x] statut « livré » ici et dans l'index

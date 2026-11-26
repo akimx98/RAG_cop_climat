@@ -54,6 +54,15 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
   site (pages, MCP, /healthz). → Outil lent ou bloquant : `async def` + `anyio.to_thread.run_sync`.
 - Une route Starlette `async def` qui appelle du code bloquant (base, extraction, réseau) fige aussi la boucle.
 - Un battement de cœur écrit par un fil séparé ne prouve pas que la boucle tourne : il doit partir de la boucle.
+- **Une page `async def` sans `await` s'exécute dans la boucle** : ses requêtes SQLite figeaient tout le site
+  (p90 7,5 s, 25/11/2026, pages dossier de 8 à 15 s). → Page sans `await` : `def` (Starlette la passe au pool de
+  fils) ; testé par `test_page_async_sans_await_interdite`. Une page `async` qui fait du synchrone après son
+  `await` : `run_in_threadpool` (#15).
+- **Passer du code de la boucle dans des fils révèle des courses que la boucle masquait.** « Lire `meta` puis
+  écrire » laissait un lien de connexion à usage unique ouvrir deux sessions (revue, 25/11). → Avant de passer une
+  page en `def`, chercher les « tester puis écrire » ; écriture atomique (`INSERT OR IGNORE` + `rowcount`).
+- **Un cache ne garde jamais un échec** : un « database is locked » gardé 10 min = une page en 500 pendant
+  10 min. → L'exception remonte, rien n'est mis en cache (`web._ttl_cached`, testé).
 
 ## SQLite partagée (site + worker + fils)
 

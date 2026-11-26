@@ -26,6 +26,14 @@ data/cop.sqlite3 (une seule base SQLite : FTS5 + vecteurs en mémoire)
 Trois conteneurs sur le VPS : `app` (web + MCP), `worker` (toutes les tâches planifiées, bot Telegram), `mail`
 (courrier entrant, port 25).
 
+Site (`app`) : un seul processus uvicorn, une boucle d'événements. Les pages sans `await` sont des `def`, exécutées
+par Starlette dans un pool de 12 fils (`server.THREADS`, une connexion SQLite par fil) ; une page `async def` sans
+`await` est refusée par un test. Caches en mémoire : parties lourdes des pages dossier (« nouveautés », frises ;
+1 h, invalidé par la signature du corpus : passages, accès et nombre de documents), statistiques et nombre de sources
+(10 min, échecs jamais gardés). Produit vectoriel par blocs de 8 192 lignes, deux à la fois au plus. Mesuré le
+26/11 après livraison : p90 des requêtes 0,18 s (7,5 s avant), page dossier en cache 0,08 s, premier calcul
+≈ 19 s sans bloquer les autres pages ; mémoire anonyme 550 Mo sur 700 Mio.
+
 ## 2. Niveaux de fiabilité
 
 Chaque document porte un niveau ; chaque réponse dit de quel niveau vient chaque affirmation.
