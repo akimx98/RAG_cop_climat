@@ -1,6 +1,6 @@
 # 2026-11-27 — Surveillance robuste : alertes sous verrou, WAL, « Rétabli » à tort, lien de connexion
 
-*Taille : M (alertes Telegram, base, authentification) · Statut : brouillon*
+*Taille : M (alertes Telegram, base, authentification) · Statut : livré (8cae8cb, déployé le 27/11)*
 *Fichiers concernés : `monitor.py` (`report`), `watchdog.py` (`issues`, `check`), `db.py` (`connect`),
 `auth.py` (`by_login_link`), `tests/test_watchdog.py`, `tests/test_surveillance.py`*
 *Issues : #19, #20, #21, #23*
@@ -102,4 +102,14 @@ annulerait la transaction de l'appelant) ; destinataires du repli amorcés aussi
 la sortie anticipée du site). Reporté : exiger deux vérifications consécutives avant l'alerte WAL si une fausse
 alerte apparaît (lecteur long légitime + plus de 128 Mo d'écritures concurrentes : jamais observé).
 
+## Mesures après déploiement (27/11, 10:32 UTC)
+
+- WAL : fichier ramené de 321 747 312 à **67 108 864 octets** (64 Mo) au premier checkpoint.
+- `watchdog.issues` sur la production : seul `sources` (dégradé, attendu : voir 2026-11-27-sources-refusees) ;
+  pas d'alerte `wal`.
+- Journaux du worker : 0 « database is locked », 0 trace d'erreur.
+
 ## Suites
+
+#28 rafale possible au retour de la base, mémoire du repli jamais purgée · #29 « Dégradé » renvoyé si l'état ne
+peut pas être écrit. #19, #20, #21, #23 fermées.

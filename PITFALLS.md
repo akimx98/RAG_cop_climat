@@ -71,6 +71,13 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 
 ## SQLite partagée (site + worker + fils)
 
+- **En WAL, la date de la base principale ne change qu'aux checkpoints, et le fichier WAL ne rétrécit pas**
+  (321 Mo gardés après l'incident du 26/11). Ni l'une ni l'autre ne mesure un lecteur coincé. → `journal_size_limit`
+  (64 Mo, `db.connect`) ; mesure directe par `PRAGMA wal_checkpoint(PASSIVE)` (`log − checkpointed`), jamais dans
+  une transaction (`watchdog.issues`).
+- **Annoncer avant d'enregistrer** : une connexion qui lit une version figée croit le problème réglé, envoie
+  « Rétabli », puis ne peut pas écrire son état (26/11). → État écrit d'abord, annonce ensuite (`watchdog.check`).
+
 - **Charger une table entière par `fetchall` puis la convertir** coûte 2 à 3 fois sa taille (lignes Python +
   `join` + `vstack`) : les vecteurs (212 Mo) mettaient le site à son plafond de 700 Mo (27/11/2026). → Lecture par
   `fetchmany` dans des blocs préalloués jamais recopiés (`embed._refresh`, `tests/test_vecteurs.py`).

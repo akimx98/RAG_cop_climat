@@ -28,7 +28,7 @@ Trois conteneurs sur le VPS : `app` (web + MCP), `worker` (toutes les tâches pl
 
 Site (`app`) : un seul processus uvicorn, une boucle d'événements. Les pages sans `await` sont des `def`, exécutées
 par Starlette dans un pool de 12 fils (`server.THREADS`, une connexion SQLite par fil ; toute connexion vient de
-`db.connect`, qui annule sa transaction quand une écriture échoue sur verrou) ; une page `async def` sans
+`db.connect`, qui annule sa transaction quand une écriture échoue sur verrou et limite le WAL à 64 Mo) ; une page `async def` sans
 `await` est refusée par un test ; une page à formulaire est `def` sous `web.body_first` (le corps est lu dans la boucle, la page tourne dans un fil). Les outils MCP synchrones tournent aussi dans un fil (`mcp_server._tool`). Caches en mémoire : parties lourdes des pages dossier (« nouveautés », frises ;
 1 h, invalidé par la signature du corpus : passages, accès et nombre de documents), statistiques et nombre de sources
 (10 min, échecs jamais gardés). Produit vectoriel par blocs de 8 192 lignes, deux à la fois au plus. Mesuré le
