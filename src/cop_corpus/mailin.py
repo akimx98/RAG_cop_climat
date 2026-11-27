@@ -34,7 +34,6 @@ from . import alerts, config, db, ingest, telegram
 SPOOL = "spool"
 ARCHIVE = "archive"
 VEILLE = "veille"
-_DEPOT = re.compile(r"^depot-([a-z0-9]{6,32})$")
 _CONFIRM = re.compile(
     r"confirm|verify|v[ée]rifi|activ|valid|opt.?in|abonnement|subscription|subscribe|inscription|welcome|bienvenue",
     re.I)
@@ -49,20 +48,6 @@ MIN_BODY = 200
 
 
 # --- adresses ----------------------------------------------------------------------------
-
-def deposit_address(conn: sqlite3.Connection, user: dict) -> str:
-    code = user.get("mail_code")
-    if not code:
-        code = new_code(conn, user["id"])
-    return f"depot-{code}@{config.MAIL_DOMAIN}"
-
-
-def new_code(conn: sqlite3.Connection, user_id: int) -> str:
-    code = secrets.token_hex(6)
-    conn.execute("UPDATE users SET mail_code=? WHERE id=?", (code, user_id))
-    conn.commit()
-    return code
-
 
 def veille_address() -> str:
     return f"{VEILLE}@{config.MAIL_DOMAIN}"

@@ -18,8 +18,9 @@ def _due(conn, source: catalog.Source) -> bool:
     last = datetime.strptime(row["last_run"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     minutes = source.watch_minutes
     result = conn.execute("SELECT last_result FROM source_state WHERE source_id=?", (source.id,)).fetchone()
-    if result and "'new'" not in (result[0] or "") and ("antibot" in (result[0] or "") or "'error'" in (result[0] or "")):
-        minutes = max(minutes * 8, 240)  # source bloquée ou en erreur : on espace (pas de martèlement)
+    text = (result[0] or "") if result else ""
+    if text and "'new'" not in text and any(k in text for k in ("antibot", "'error'", "'payant'")):
+        minutes = max(minutes * 8, 240)  # source bloquée, payante ou en erreur : on espace (pas de martèlement)
     return datetime.now(timezone.utc) - last >= timedelta(minutes=minutes)
 
 

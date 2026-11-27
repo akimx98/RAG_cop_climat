@@ -297,6 +297,12 @@ def fetch_one(conn, client: fetch.Client, url: str, source: catalog.Source, meta
     if res.status == 404:
         _touch_url(conn, url, source.id, res, None)  # absent (numéro pas encore paru, lien mort) : pas une panne
         return "absent"
+    if res.status in REFUSED:
+        # Refus du site, pas une panne : 403 = robot refusé (anti-bot, jamais contourné), 402 = article payant.
+        _touch_url(conn, url, source.id, res, None)
+        kind = REFUSED[res.status]
+        db.log(conn, source.id, url, kind, f"{res.status} : {'robot refusé, non contourné' if kind == 'antibot' else 'article payant'}")
+        return kind
     if not res.ok:
         _touch_url(conn, url, source.id, res, None)
         db.log(conn, source.id, url, "error", f"{res.status} {res.error or ''}")
@@ -365,8 +371,11 @@ def run_source(source: catalog.Source, client: fetch.Client, recheck: bool = Fal
         counts[key] = counts.get(key, 0) + 1
 
     def log(url: str, detail: str) -> None:
-        db.log(conn, source.id, url, "error", detail)
-        bump("error")
+        # Page de liste ou flux refusé : même classement que fetch_one (403 → anti-bot, 402 → payant).
+        m = re.match(r"(?:page|rss) (\d{3})\b", detail)
+        kind = REFUSED.get(int(m.group(1)), "error") if m else ("antibot" if detail.startswith("antibot") else "error")
+        db.log(conn, source.id, url, kind, detail)
+        bump(kind)
 
     try:
         if source.type == "doc":
@@ -407,9 +416,9 @@ def run_source(source: catalog.Source, client: fetch.Client, recheck: bool = Fal
                         bump(o)
                         if i == 0:
                             outcome = o
-                            if o in ("absent", "error", "antibot"):
+                            if o in ("absent", "error", "antibot", "payant"):
                                 break
-                    misses = misses + 1 if outcome in ("absent", "error") else 0
+                    misses = misses + 1 if outcome in ("absent", "error", "antibot", "payant") else 0
                     if misses >= stop_after:
                         break
         elif source.type == "enb":
@@ -444,6 +453,9 @@ REINDEX_MAX_TRIES = 2
 
 # Bilan d'un passage : échec s'il n'y a que des erreurs (chien de garde : sources en échec continu).
 FAIL_KEYS = ("error", "crash", "antibot", "unknown_type")
+# Réponses de refus : comptées à part des pannes (le chien de garde ne liste pas les sources bloquées par un anti-bot ;
+# un article payant n'est pas un échec de la source). Issue #2.
+REFUSED = {403: "antibot", 402: "payant"}
 
 
 def run_many(sources: list[catalog.Source], workers: int = 6, recheck: bool = False,

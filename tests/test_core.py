@@ -201,7 +201,7 @@ def test_mail_deposit_and_newsletter(env, monkeypatch):
     conn.execute("UPDATE users SET telegram_chat_id='42' WHERE id=?", (uid,))
     conn.commit()
     user = auth.by_id(conn, uid)
-    addr = mailin.deposit_address(conn, user)
+    addr = f"depot-abcdef123456@{config.MAIL_DOMAIN}"   # ancienne adresse de dépôt (retiré)
     assert mailin.route(conn, addr) is None                               # dépôt par mail retiré
     assert mailin.route(conn, "root@" + config.MAIL_DOMAIN) is None
     assert mailin.route(conn, "veille@" + config.MAIL_DOMAIN)[0] == "veille"
@@ -471,7 +471,8 @@ def test_guest_signup_and_permissions(env, monkeypatch):
     assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == n_docs
 
     # adresse de dépôt par e-mail inactive pour un invité
-    addr = mailin.deposit_address(conn, auth.by_id(conn, guest["id"]))
+    from cop_corpus import config
+    addr = f"depot-0123456789ab@{config.MAIL_DOMAIN}"
     assert mailin.route(conn, addr) is None
 
     # limite de requêtes MCP pour les invités seulement

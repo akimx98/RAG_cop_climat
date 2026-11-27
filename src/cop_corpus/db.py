@@ -187,7 +187,7 @@ _COLUMNS = {
     "users": {
         "password_hash": "TEXT",   # scrypt ; NULL = pas de mot de passe défini
         "token_enc": "TEXT",       # jeton MCP chiffré (clé dérivée de COP_SECRET) pour pouvoir le réafficher
-        "mail_code": "TEXT",       # partie secrète de l'adresse de dépôt depot-<code>@<domaine>
+        "mail_code": "TEXT",       # obsolète (dépôt par courrier retiré, #8) : vidée par _migrate, plus lue
         "organisation": "TEXT",    # déclarée à l'inscription par invitation
         "source": "TEXT",          # comptes invités : 'invitation' (lien/QR) ou 'inscription' (libre) ; NULL = créé par un admin
         "lang": "TEXT",            # 'en' | 'fr' choisi par l'utilisateur ; NULL = anglais
@@ -214,6 +214,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     conn.commit()
+    # Dépôt par courrier retiré (#8) : les codes secrets d'adresse depot-<code>@ ne servent plus (minimisation).
+    if conn.execute("SELECT 1 FROM users WHERE mail_code IS NOT NULL LIMIT 1").fetchone():
+        conn.execute("UPDATE users SET mail_code=NULL WHERE mail_code IS NOT NULL")
+        conn.commit()
     # Une fois (rejouable tant que le drapeau n'est pas posé) : les comptes d'avant la vérification d'adresse sont
     # considérés comme prouvés, et leur Telegram déjà relié reste digne de recevoir les codes (rien ne change pour eux).
     flag = conn.execute("SELECT value FROM meta WHERE key='auth_backfill_v1'").fetchone()
