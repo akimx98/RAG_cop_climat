@@ -66,6 +66,10 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 
 ## SQLite partagée (site + worker + fils)
 
+- **Charger une table entière par `fetchall` puis la convertir** coûte 2 à 3 fois sa taille (lignes Python +
+  `join` + `vstack`) : les vecteurs (212 Mo) mettaient le site à son plafond de 700 Mo (27/11/2026). → Lecture par
+  `fetchmany` dans des blocs préalloués jamais recopiés (`embed._refresh`, `tests/test_vecteurs.py`).
+
 - **« database is locked »** déjà vu (collecte, 20/11). Une base, plusieurs conteneurs, `busy_timeout` 30 s. →
   Transactions courtes ; jamais d'appel réseau (Telegram, LLM, HTTP) ni de sous-processus transaction ouverte.
 - **Une écriture en échec sur verrou laisse la transaction ouverte** (module `sqlite3`) : la connexion lit ensuite

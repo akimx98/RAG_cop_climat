@@ -33,7 +33,7 @@ par Starlette dans un pool de 12 fils (`server.THREADS`, une connexion SQLite pa
 1 h, invalidé par la signature du corpus : passages, accès et nombre de documents), statistiques et nombre de sources
 (10 min, échecs jamais gardés). Produit vectoriel par blocs de 8 192 lignes, deux à la fois au plus. Mesuré le
 26/11 après livraison : p90 des requêtes 0,18 s (7,5 s avant), page dossier en cache 0,08 s, premier calcul
-≈ 19 s sans bloquer les autres pages ; mémoire anonyme 550 Mo sur 700 Mio.
+≈ 19 s sans bloquer les autres pages ; mémoire anonyme 342 Mo sur 700 Mio (vecteurs en blocs fixes de 8 192, chargés par `fetchmany` : pic du chargement ≈ matrice + 30 Mo ; 27/11).
 
 ## 2. Niveaux de fiabilité
 

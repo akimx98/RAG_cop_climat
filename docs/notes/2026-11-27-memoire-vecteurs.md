@@ -1,6 +1,6 @@
 # 2026-11-27 — Mémoire du site : chargement des vecteurs par blocs
 
-*Taille : M (mémoire du site) · Statut : brouillon*
+*Taille : M (mémoire du site) · Statut : livré (49de307, déployé le 27/11)*
 *Fichiers concernés : `embed.py` (`_refresh`, `search`, `_cache`), `tests/test_core.py` ou `tests/test_vecteurs.py`*
 
 ## Problème
@@ -87,5 +87,22 @@ Tour 2 (`reviewer`, nouveau) : **non bloquant**, critères 1 à 5 conformes, 217
 critère 5 testé sans fils concurrents (l'invariant tient par construction : écriture au-delà de `n`, vues `[:k]`
 avec `k ≤ n`) ; le premier chargement garde `_lock` et la lecture SQLite ouverte pendant toute sa durée, comme
 avant avec `fetchall` (les autres recherches attendent) : à mesurer (critère 6).
+
+## Mesures après déploiement (27/11)
+
+| Fait | Avant | Après |
+|---|---|---|
+| Pic du chargement (processus seul, `ru_maxrss`, conteneur jetable `run --rm`) | ≈ 560 Mo anon dans le site | **270 Mo** (27 au départ + 212 de matrice) ; 1,3 s |
+| Mémoire anonyme du site après chargement | 510 Mo | **342 Mo** |
+| Compteur `max` pendant deux recherches | +288 | **+0** |
+| Recherche libre (`/database?q=`) | 8,7 s (1re), 1,1–1,3 s | 4,1 s (1re, encodage compris), 0,8 s |
+
+Le site reste à `memory.current` ≈ 696 Mo : c'est le cache de pages de la base (fichier, récupérable), pas de la
+mémoire anonyme. Le compteur `max` monte au déploiement parce que `cop smoke` (lancé par `ship.sh` dans le
+conteneur du site) charge aussi les vecteurs dans un second processus. Écrire dans `memory.peak` ne le remet à
+zéro que pour le descripteur qui écrit (noyau 6.12) : mesurer par `ru_maxrss` ou par échantillons de `anon`.
+
+Décision sur les plafonds : **aucun changement**. Site 342 Mo anon sur 700, worker ≤ 176 sur 600, courrier 50 sur
+150 ; la VM a 4 Go de swap (l'issue #17 disait le contraire, à tort). Pas de VM plus grosse nécessaire.
 
 ## Suites
