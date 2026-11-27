@@ -140,6 +140,9 @@ def run(host: str = "127.0.0.1", port: int = 8000, with_worker: bool = False) ->
     if not with_worker:
         extract.DEFER_PDF = True   # ~250 Mo par lecture de PDF : jamais dans le conteneur du site, le worker s'en charge
     watchdog.start_thread("app")   # battement du site, et surveillance du worker (qui surveille le site)
+    from . import web_live
+
+    web_live.start_warming()       # pages dossier préchauffées (note 2026-11-27-dossiers)
 
     uvicorn.run(build_app(), host=host, port=port, proxy_headers=True, forwarded_allow_ips="*",
                 log_config=uvicorn_log_config(), timeout_graceful_shutdown=5)   # flux MCP ouverts : pas d'attente sans fin

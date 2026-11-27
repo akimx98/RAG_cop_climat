@@ -91,6 +91,39 @@ def _heavy(conn, slug: str, d: dict, ts: list[dict], user: dict | None) -> dict:
         return value
 
 
+WARM_EVERY = 300    # s entre deux tours de préchauffage (recalcul seulement si la signature ou le délai a changé)
+
+
+def warm_forever(stop: threading.Event | None = None, pause: float = 3.0) -> None:
+    """Préchauffe en arrière-plan les parties lourdes des pages dossier, pour l'accès public (visiteurs et comptes
+    invités) : le premier visiteur après un démarrage ou un nouveau document ne paie plus le calcul (2 à 14 s mesurées
+    le 27/11). Un dossier à la fois, une pause entre deux ; lancé par `cop serve` seulement (pas dans les tests)."""
+    from . import monitor
+
+    stop = stop or threading.Event()
+    stop.wait(20)   # laisser le site démarrer
+    while not stop.is_set():
+        try:
+            conn = db.get()
+            dossiers = live.dossiers()
+        except Exception as exc:  # noqa: BLE001  (base verrouillée…) : réessayé au tour suivant
+            monitor.report("site : préchauffage des dossiers", exc)
+            dossiers = []
+        for d in dossiers:
+            if stop.is_set():
+                break
+            try:   # un dossier en échec n'empêche pas les suivants
+                _heavy(conn, d["slug"], d, live.texts(conn, d["slug"]), None)
+            except Exception as exc:  # noqa: BLE001
+                monitor.report("site : préchauffage des dossiers", exc)
+            stop.wait(pause)
+        stop.wait(WARM_EVERY)
+
+
+def start_warming() -> None:
+    threading.Thread(target=warm_forever, daemon=True, name="prechauffage").start()
+
+
 @public_page
 def dossier_page(request: Request):
     conn = db.get()

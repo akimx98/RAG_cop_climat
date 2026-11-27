@@ -143,15 +143,19 @@ def resolve(notion: str) -> tuple[str, str, list[re.Pattern]]:
 def _doc(conn, doc_id: int) -> structure.Document:
     n = conn.execute("SELECT COUNT(*) FROM passages WHERE doc_id=?", (doc_id,)).fetchone()[0]
     key = (doc_id, n)
-    if key not in _CACHE:
+    doc = _CACHE.get(key)   # une seule lecture : un autre fil peut vider le cache entre un test et une lecture
+    if doc is None:
         if len(_CACHE) > 200:
             _CACHE.clear()
-        _CACHE[key] = structure.load(conn, doc_id)
-    return _CACHE[key]
+        doc = _CACHE[key] = structure.load(conn, doc_id)
+    return doc
 
 
-def _plain(text: str) -> tuple[str, list[int]]:
-    """Texte sans crochets, et pour chaque caractère sa profondeur de crochets dans le texte d'origine."""
+def _plain(text: str) -> tuple[str, list[int] | None]:
+    """Texte sans crochets, et pour chaque caractère sa profondeur de crochets dans le texte d'origine (None : aucun
+    crochet, profondeur nulle partout ; évite une liste d'un entier par caractère dans le cache des documents)."""
+    if "[" not in text and "]" not in text:
+        return text, None
     out, depth, depths = [], 0, []
     for ch in text:
         if ch == "[":
@@ -189,28 +193,37 @@ def _excerpt(text: str, start: int, end: int, words: int = 18) -> str:
 def occurrences(conn, doc_id: int, patterns: list[re.Pattern]) -> list[dict[str, Any]]:
     """Chaque unité du texte où la notion figure, avec son état (crochets, option) et un extrait."""
     doc = _doc(conn, doc_id)
+    # Texte sans crochets de chaque unité, calculé une fois par document (et non une fois par notion : la frise
+    # interroge une dizaine de notions sur chaque version ; 13 s mesurées pour un dossier, note 2026-11-27-dossiers).
+    cached = doc.__dict__.get("_plains")
+    if cached is None:   # (unité, corps, texte sans crochets, profondeurs) ; l'objet unité vit tant que le document est en cache
+        plains = [(u, u.body, *_plain(u.body)) for u in doc.units if u.text]
+        # publié d'un seul coup : document partagé entre fils (pages, préchauffage, outils MCP)
+        cached = doc.__dict__["_plains"] = (plains, "\n".join(p for _u, _b, p, _d in plains))
+    plains, alltext = cached
+    if not any(p.search(alltext) for p in patterns):
+        return []   # notion absente de tout le texte (cas le plus fréquent) : inutile de parcourir les unités
     out = []
-    for u in doc.units:
-        if not u.text:
-            continue
-        plain, depths = _plain(u.body)
+    for u, body, plain, depths in plains:
         hits = [m for p in patterns for m in p.finditer(plain)]
         if not hits:
             continue
-        bracketed = all(any(depths[i] for i in range(m.start(), m.end())) for m in hits)
+        bracketed = depths is not None and all(any(depths[i] for i in range(m.start(), m.end())) for m in hits)
         opt = _in_option(doc, u)
         state = "entre crochets" if bracketed else ("dans une option" if opt else "sans crochets")
         m = min(hits, key=lambda m: m.start())
         # Extrait dans le texte d'origine (crochets visibles) : on retrouve la position par le texte d'avant.
-        raw_start = _raw_pos(u.body, m.start())
-        raw_end = _raw_pos(u.body, m.end())
+        raw_start = _raw_pos(body, m.start())
+        raw_end = _raw_pos(body, m.end())
         out.append({"unite": u.uid, "etat": state, "option": opt.uid if opt else None,
-                    "extrait": _excerpt(u.body, raw_start, raw_end), "passage_id": u.passages[0] if u.passages else None,
+                    "extrait": _excerpt(body, raw_start, raw_end), "passage_id": u.passages[0] if u.passages else None,
                     "page": u.pages[0] if u.pages else None, "n": len(hits)})
     return out
 
 
 def _raw_pos(text: str, plain_pos: int) -> int:
+    if "[" not in text and "]" not in text:   # sans crochets, les positions coïncident
+        return min(plain_pos, len(text))
     k = 0
     for i, ch in enumerate(text):
         if ch in "[]":

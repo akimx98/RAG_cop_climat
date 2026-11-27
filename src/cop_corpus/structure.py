@@ -11,6 +11,7 @@ Sans IA : expressions régulières et heuristiques de mise en page des documents
 
 from __future__ import annotations
 
+import bisect
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -399,18 +400,30 @@ def parse(rows: list[dict[str, Any]], doc_id: int = 0) -> Document:
                     cur.lines.append((off, ln))
 
     # 3. Texte propre, appels de notes, passages et pages.
+    starts = [sp[0] for sp in spans]
     for u in units:
         raw = _clean(" ".join(ln for _, ln in u.lines))
         text, calls = _strip_calls(raw, defined)
         u.text = _clean(text)
         u.notes = [footnotes[n] for n in dict.fromkeys(calls)]
         for off, ln in u.lines:
-            for s, e, pid, page in spans:
-                if s <= off < e or (s <= off + len(ln) - 1 < e and ln.strip()):
-                    if pid not in u.passages:
-                        u.passages.append(pid)
-                    if page not in u.pages:
-                        u.pages.append(page)
+            # Passages contigus et triés par position : recherche dichotomique du passage qui contient le début de la
+            # ligne, puis de celui qui contient sa fin (même ordre qu'un parcours de tous les passages, qui coûtait
+            # lignes × passages : 1,1 s par texte de négociation, note 2026-11-27-dossiers).
+            hit = []
+            i = bisect.bisect_right(starts, off) - 1
+            if i >= 0 and spans[i][0] <= off < spans[i][1]:
+                hit.append(i)
+            if ln.strip():
+                j = bisect.bisect_right(starts, off + len(ln) - 1) - 1
+                if j >= 0 and j not in hit and spans[j][0] <= off + len(ln) - 1 < spans[j][1]:
+                    hit.append(j)
+            for k in sorted(hit):
+                _s, _e, pid, page = spans[k]
+                if pid not in u.passages:
+                    u.passages.append(pid)
+                if page not in u.pages:
+                    u.pages.append(page)
     header = next((u.text for u in units if u.kind == "entete"), "")
     units = [u for u in units if u.kind != "entete"]
     return Document(doc_id, units, footnotes, header)
