@@ -88,6 +88,19 @@ ses écritures. **Le remède est de retirer de la concurrence et de la surface, 
 - **Un service de recherche séparé** : 200 Mo de vecteurs tiennent dans le site.
 - **Réécrire** : non. On procède par phases, chacune livrable, mesurée et réversible.
 
+## Avancement
+
+Tenu à jour à chaque livraison (la tâche programmée « OpenCOP — reprise de la consolidation » le lit).
+
+| Phase | Note | Statut |
+|---|---|---|
+| 0 — rythme hors session, sonde externe, usage des robots | [2026-11-27-phase0-hors-session](2026-11-27-phase0-hors-session.md) | en cours |
+| 1 — un écrivain par donnée | — | à faire |
+| 2 — le site ne calcule plus en fond | — | à faire |
+| 3 — schéma unique et code mort | — | à faire |
+| 5 — surface (décisions §7 acceptées par Akim le 27/11) | — | à faire |
+| 4 — accès de surveillance bridé | — | à faire |
+
 ## Phases
 
 Chaque phase a sa note M (faits, modes de panne, critères), sa revue par `reviewer`, puis `ship.sh`. Aucune ne
@@ -146,7 +159,7 @@ domaine et courrier sur opencop.org (#9–#12 : à reprendre après la consolida
 
 ## 7. Décisions produit pour Akim
 
-À trancher par Akim (usage mesuré depuis le 18/11, fin de la COP comprise) :
+**Décidé le 27/11 : Akim suit les propositions de Claude ci-dessous** (« je te laisse maître »). Usage mesuré depuis le 18/11, fin de la COP comprise :
 
 | Fonction | Usage mesuré | Proposition de Claude |
 |---|---|---|

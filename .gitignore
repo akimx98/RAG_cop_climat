@@ -9,3 +9,4 @@ deploy/.env
 .claude/launch.json
 .claude/worktrees/
 .claude/settings.local.json
+.claude/consolidation.lock
