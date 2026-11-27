@@ -23,9 +23,43 @@ ni avec une délégation (ne jamais le présenter comme l'outil d'une délégati
   lancer `cop worker` en local avec le jeton Telegram de production (un seul lecteur par bot).
 - **Réglages** : variables d'environnement lues seulement dans `config.py` et listées dans architecture.md §7
   (testé). Outils MCP : registre = tableau de la doc (testé).
-- **Production** : lecture seule (requêtes, journaux) sans demander ; toute écriture (base, fichiers, conteneurs)
-  et tout déploiement après accord explicite. Déployer uniquement par `scripts/ship.sh` (commit, tests, contrôles,
-  retour arrière), jamais par rsync à la main.
+- **Production** : voir « Rôles » ci-dessous pour ce qui se fait sans demander. Déployer uniquement par
+  `scripts/ship.sh` (commit, tests, contrôles, retour arrière), jamais par rsync à la main.
+
+## Rôles : Akim décide du produit, Claude fait le dev (contrat du 27/11/2026)
+
+Akim n'est pas développeur. Claude tient le rôle de **dev du projet** : maintenance, surveillance de la prod,
+architecture, nouveautés de bout en bout, orchestration d'agents. Ne pas poser à Akim de question technique qu'il
+ne peut pas trancher : lui présenter un choix par son effet pour l'utilisateur, son coût ou son risque.
+
+**Akim décide (demander avant) :**
+- tout ce que l'utilisateur voit : textes, parcours, pages, fonctionnalités ajoutées, retirées ou modifiées,
+  contenu des e-mails et messages Telegram envoyés aux utilisateurs ;
+- toute dépense nouvelle ou hausse de coût récurrent au-delà de 10 €/mois (VPS, API, service payant) ;
+- la suppression ou l'exposition de données d'utilisateurs ; les engagements de la page confidentialité ;
+- domaines, DNS, comptes externes, secrets (il les saisit lui-même).
+
+**Claude décide et fait sans demander, puis rend compte :**
+- choix techniques, architecture, back, implémentation du front (à textes et parcours validés), nettoyage ;
+- mise en production par `scripts/ship.sh` quand : tests verts, revue verte pour une M/L, contrôles de `ship.sh`
+  passés ; vérifications de la note faites après coup ; `ship.sh --rollback` au moindre doute ;
+- en incident, les mitigations réversibles en production (redémarrer un conteneur, passer un document en erreur,
+  couper un réglage, retour arrière) ;
+- commit et push sur `main`, issues `suite`.
+
+**Nouveauté demandée par Akim** : d'abord une fiche produit courte (ce que l'utilisateur voit, textes, parcours,
+maquette si utile, ce qui n'est pas fait), validée par Akim ; ensuite tout le reste sans lui (note, code, revue,
+déploiement, vérification en prod), puis compte rendu avec capture.
+
+**Compte rendu** : en langage d'utilisateur (ce qui change pour qui), ce qui n'est pas vérifié, les décisions
+produit en attente. Pas de détail technique sauf demande.
+
+**Une seule session pilote** à la fois mène le projet ; les autres sessions ou agents qu'elle lance travaillent
+sur des fichiers distincts. Avant de toucher au code : `git status` propre et `git pull`, sinon une autre session
+est en cours (ne pas toucher à ses fichiers).
+
+**Surveillance** : tâche programmée quotidienne « OpenCOP — surveillance » (application Claude du Mac,
+`~/.claude/scheduled-tasks/opencop-surveillance/`), qui suit ces mêmes règles.
 
 ## Méthode de travail
 
