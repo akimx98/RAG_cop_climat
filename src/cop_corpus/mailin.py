@@ -202,16 +202,6 @@ def links(msg: EmailMessage, limit: int = 40) -> list[tuple[str, str]]:
     return uniq[:limit]
 
 
-def _ingest_body(conn, msg: EmailMessage, title: str, **kwargs) -> int | None:
-    text, html = _body(msg)
-    if len(body_text(msg)) < MIN_BODY:
-        return None
-    content, mime, fname = ((html.encode(), "text/html", "message.html") if html and len(text.strip()) < MIN_BODY
-                            else (text.encode(), "text/plain", "message.txt"))
-    doc_id, _, _ = ingest.ingest_bytes(conn, content, url=None, mime=mime, filename=fname,
-                                       meta=dict(kwargs.pop("meta", {}), title=title), **kwargs)
-    return doc_id
-
 
 def _record(conn, mailbox, user_id, sender, subject, path, status, detail="", doc_ids=None) -> int:
     cur = conn.execute(
@@ -219,30 +209,6 @@ def _record(conn, mailbox, user_id, sender, subject, path, status, detail="", do
         (db.now(), mailbox, user_id, sender, subject, path, status, detail, json.dumps(doc_ids or [])))
     conn.commit()
     return cur.lastrowid
-
-
-def _deposit(conn, msg: EmailMessage, user: dict, rel: str) -> int:
-    subject = msg.get("Subject", "") or ""
-    public = bool(_PUBLIC_TAG.search(subject))
-    access = "public" if public else "restreint"
-    title = _clean_subject(subject)
-    note = f"Transmis par mail par {user.get('name') or user['email']} : {title}"
-    common = dict(source_id="depot-mail", access=access, uploaded_by=user["id"], note=note)
-    ids = []
-    for name, ctype, data in _attachments(msg):
-        doc_id, _, _ = ingest.ingest_bytes(conn, data, url=None, mime=ctype, filename=name,
-                                           meta={"doc_type": None} if public else {"doc_type": "note_interne"}, **common)
-        ids.append(doc_id)
-    body_id = _ingest_body(conn, msg, title, meta={} if public else {"doc_type": "note_interne"}, **common)
-    if body_id:
-        ids.append(body_id)
-    sender = parseaddr(msg.get("From", ""))[1]
-    _record(conn, "depot", user["id"], sender, title, rel, "ingere" if ids else "vide", doc_ids=ids)
-    if user.get("telegram_chat_id"):
-        what = f"{len(ids)} document(s) ajouté(s) au corpus ({'public' if public else 'interne'})" if ids \
-            else "aucun contenu exploitable (ni pièce jointe ni texte)"
-        telegram.send(user["telegram_chat_id"], f"📥 Dépôt par mail reçu : {what}.")
-    return len(ids)
 
 
 # --- lettres d'information : texte complet ------------------------------------------------
@@ -483,11 +449,7 @@ def process_spool(conn: sqlite3.Connection) -> int:
                 routed = route(conn, rcpt)
                 if not routed:
                     continue
-                kind, user = routed
-                if kind == "depot":
-                    _deposit(conn, msg, user, rel)
-                else:
-                    _newsletter(conn, msg, rel)
+                _newsletter(conn, msg, rel)   # seule boîte restante : veille@ (dépôt par courrier retiré, #8)
             done += 1
         except Exception as exc:  # un mail illisible ne bloque pas les suivants
             _record(conn, "?", None, "", path.name, rel, "erreur", repr(exc)[:300])
