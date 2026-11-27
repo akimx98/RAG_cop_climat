@@ -234,14 +234,16 @@ def test_produit_vectoriel_par_blocs(env, monkeypatch):
     from cop_corpus import embed
 
     rng = np.random.default_rng(0)
-    n = embed.SEARCH_STEP * 2 + 123
+    n = embed.BLOCK * 2 + 123
     mat = rng.standard_normal((n, 8)).astype(np.float16)
     q = rng.standard_normal(8).astype(np.float32)
+    ids = np.arange(n, dtype=np.int64) + 1000
     monkeypatch.setattr(embed, "enabled", lambda: True)
     monkeypatch.setattr(embed, "_refresh", lambda conn: None)
     monkeypatch.setattr(embed, "encode", lambda texts: q[None, :])
-    monkeypatch.setitem(embed._cache, "mat", mat)
-    monkeypatch.setitem(embed._cache, "ids", np.arange(n, dtype=np.int64) + 1000)
+    monkeypatch.setitem(embed._cache, "blocks", [(mat[i:i + embed.BLOCK], ids[i:i + embed.BLOCK])
+                                                for i in range(0, n, embed.BLOCK)])
+    monkeypatch.setitem(embed._cache, "n", n)
     got = embed.search(None, "x", k=20)
     ref = mat.astype(np.float32) @ q
     top = np.argsort(-ref)[:20]
@@ -255,24 +257,27 @@ def test_produit_vectoriel_deux_a_la_fois_au_plus(env, monkeypatch):
     state = {"now": 0, "peak": 0}
     guard = threading.Lock()
 
-    class SlowMat:   # chaque bloc lu « dure » 50 ms : on compte les lectures simultanées
+    class SlowMat:   # chaque bloc converti « dure » 50 ms : on compte les produits simultanés
         def __len__(self):
-            return embed.SEARCH_STEP * 2
+            return embed.BLOCK
 
-        def __getitem__(self, sl):
+        def __getitem__(self, sl):   # vue des lignes remplies (_snapshot)
+            return self
+
+        def astype(self, dtype):
             with guard:
                 state["now"] += 1
                 state["peak"] = max(state["peak"], state["now"])
             time.sleep(0.05)
             with guard:
                 state["now"] -= 1
-            return np.ones((sl.stop - sl.start, 4), dtype=np.float16)
+            return np.ones((embed.BLOCK, 4), dtype=np.float32)
 
     monkeypatch.setattr(embed, "enabled", lambda: True)
     monkeypatch.setattr(embed, "_refresh", lambda conn: None)
     monkeypatch.setattr(embed, "encode", lambda texts: np.ones((1, 4), dtype=np.float32))
-    monkeypatch.setitem(embed._cache, "mat", SlowMat())
-    monkeypatch.setitem(embed._cache, "ids", np.arange(embed.SEARCH_STEP * 2, dtype=np.int64))
+    monkeypatch.setitem(embed._cache, "blocks", [(SlowMat(), np.arange(embed.BLOCK, dtype=np.int64)) for _ in range(2)])
+    monkeypatch.setitem(embed._cache, "n", embed.BLOCK * 2)
     threads = [threading.Thread(target=embed.search, args=(None, "x", 5)) for _ in range(5)]
     for t in threads:
         t.start()

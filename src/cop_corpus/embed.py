@@ -17,7 +17,9 @@ import numpy as np
 from . import config, db
 
 _lock = threading.Lock()
-_cache: dict[str, object] = {"ids": np.zeros(0, dtype=np.int64), "mat": np.zeros((0, config.EMBED_DIM), dtype=np.float16), "max": 0}
+# Vecteurs en blocs fixes de BLOCK lignes, jamais recopiés : chaque bloc = (matrice float16, identifiants).
+# Seules les n premières lignes (tous blocs confondus) sont remplies et lues.
+_cache: dict[str, object] = {"blocks": [], "n": 0, "max": 0}
 
 
 def enabled() -> bool:
@@ -112,22 +114,49 @@ def _embed_pending(conn, owner: str, batch: int, limit: int | None, progress) ->
     return done
 
 
+BLOCK = 8192                # lignes par bloc (8 192 × 512 × 2 octets = 8 Mo) : lecture, stockage et produit
+
+
 def _refresh(conn) -> None:
+    """Ajoute les nouveaux vecteurs, lus par blocs (fetchmany) et écrits en place dans des blocs fixes : le pic reste
+    la taille utile plus un bloc, sans copie de la matrice (un fetchall + join + vstack de toute la table montait à
+    2,5 fois ; note 2026-11-27-memoire-vecteurs)."""
     with _lock:
-        last = int(_cache["max"])  # type: ignore[arg-type]
-        rows = conn.execute(
-            "SELECT passage_id, vec FROM vectors WHERE passage_id>? ORDER BY passage_id", (last,)
-        ).fetchall()
-        if not rows:
-            return
-        ids = np.array([r["passage_id"] for r in rows], dtype=np.int64)
-        mat = np.frombuffer(b"".join(r["vec"] for r in rows), dtype=np.float16).reshape(len(rows), config.EMBED_DIM)
-        _cache["ids"] = np.concatenate([_cache["ids"], ids])  # type: ignore[list-item]
-        _cache["mat"] = np.vstack([_cache["mat"], mat])  # type: ignore[list-item]
-        _cache["max"] = int(ids[-1])
+        blocks: list = _cache["blocks"]  # type: ignore[assignment]
+        n, last = int(_cache["n"]), int(_cache["max"])  # type: ignore[arg-type]
+        cur = conn.execute("SELECT passage_id, vec FROM vectors WHERE passage_id>? ORDER BY passage_id", (last,))
+        while rows := cur.fetchmany(BLOCK):
+            vecs = np.frombuffer(b"".join(r["vec"] for r in rows), dtype=np.float16).reshape(len(rows), config.EMBED_DIM)
+            ids = np.fromiter((r["passage_id"] for r in rows), dtype=np.int64, count=len(rows))
+            done = 0
+            while done < len(rows):
+                b, off = divmod(n, BLOCK)
+                if b == len(blocks):
+                    blocks.append((np.empty((BLOCK, config.EMBED_DIM), dtype=np.float16),
+                                   np.empty(BLOCK, dtype=np.int64)))
+                take = min(BLOCK - off, len(rows) - done)
+                blocks[b][0][off:off + take] = vecs[done:done + take]
+                blocks[b][1][off:off + take] = ids[done:done + take]
+                done += take
+                n += take
+            # publié bloc après bloc : les lecteurs ne voient que [:n] (écrit), une erreur plus loin ne perd rien
+            _cache["n"], _cache["max"] = n, int(ids[-1])
 
 
-SEARCH_STEP = 8192          # lignes par bloc converti en float32 (8 192 × 512 × 4 octets = 16 Mo)
+def _snapshot() -> list[tuple[np.ndarray, np.ndarray]]:
+    """Vues des lignes remplies de chaque bloc (sans copie) : un rechargement concurrent écrit au-delà de n."""
+    with _lock:
+        n = int(_cache["n"])  # type: ignore[arg-type]
+        out = []
+        for mat, ids in _cache["blocks"]:  # type: ignore[attr-defined]
+            k = min(BLOCK, n)
+            if k <= 0:
+                break
+            out.append((mat[:k], ids[:k]))
+            n -= k
+        return out
+
+
 SEARCH_CONCURRENCY = 2      # produits vectoriels simultanés dans un processus
 _search_slots = threading.BoundedSemaphore(SEARCH_CONCURRENCY)
 
@@ -136,18 +165,20 @@ def search(conn, query: str, k: int = 100) -> list[tuple[int, float]]:
     if not enabled():
         return []
     _refresh(conn)
-    mat = _cache["mat"]
-    if not len(mat):  # type: ignore[arg-type]
+    blocks = _snapshot()
+    if not blocks:
         return []
     q = encode([query])[0].astype(np.float32)   # appel réseau : hors du sémaphore
-    # numpy n'a pas de produit matriciel float16 rapide : conversion float32 par blocs (16 Mo par bloc). Les pages
+    # numpy n'a pas de produit matriciel float16 rapide : conversion float32 bloc par bloc (16 Mo). Les pages
     # tournent dans des fils : au plus SEARCH_CONCURRENCY produits à la fois, pour borner la mémoire du site.
-    scores = np.empty(len(mat), dtype=np.float32)  # type: ignore[arg-type]
+    scores = np.empty(sum(len(m) for m, _ in blocks), dtype=np.float32)
     with _search_slots:
-        for i in range(0, len(mat), SEARCH_STEP):  # type: ignore[arg-type]
-            scores[i:i + SEARCH_STEP] = mat[i:i + SEARCH_STEP].astype(np.float32) @ q  # type: ignore[index]
+        i = 0
+        for mat, _ in blocks:
+            scores[i:i + len(mat)] = mat.astype(np.float32) @ q
+            i += len(mat)
+    ids = np.concatenate([b for _, b in blocks])
     k = min(k, len(scores))
     top = np.argpartition(-scores, k - 1)[:k]
     top = top[np.argsort(-scores[top])]
-    ids = _cache["ids"]
     return [(int(ids[i]), float(scores[i])) for i in top]  # type: ignore[index]
