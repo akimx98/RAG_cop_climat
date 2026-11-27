@@ -95,7 +95,12 @@ Classement de la recherche ; `/diff` et `/how-it-works` à froid ; vecteurs arri
 
 ## Revue
 
-(à venir)
+Tour 1 (`reviewer`, 27/11) : **non bloquant**, critères 1–9 et 11 remplis ; aucune fuite d'une version restreinte
+vers un visiteur. Corrigés avant livraison : `frises.read` ne lève jamais (ligne illisible ou d'un autre format =
+absente, signalée) ; un dossier en échec n'est réessayé qu'après 30 min ou un changement de signature (il tenait
+`extract._slots` chaque minute). Accepté : une bascule entre deux versions encadrant une version devenue
+restreinte disparaît jusqu'au recalcul (transitoire, sans fuite). Écart à la note accepté : signature élargie à la
+cote, aux dates, `n_passages`, `lineage_key` (affichés dans la frise).
 
 ## Suites
 

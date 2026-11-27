@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -10,9 +12,8 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
-from . import auth, db, ingest, live, positions, search, usage
+from . import auth, db, frises, ingest, live, positions, search, usage
 from .web import _form, admin_required, body_first, login_required, public_page, render
-
 
 
 def _since(hours: int) -> str:
@@ -35,93 +36,44 @@ def _spark(series: list[dict], width: int = 260, height: int = 48) -> str | None
             f'<g fill="currentColor">{dots}</g></svg>')
 
 
-def _frises(conn, texts: list[dict], user: dict) -> list[dict]:
-    """Une frise par texte du dossier qui a au moins deux versions accessibles (crochets, options, notions)."""
-    from . import formulations
+# --- « Nouveautés » de la page dossier (recherche hybride, ≈ 0,5 à 1 s) ----------------------------------------------
+# Calculées à la demande (le site ne calcule plus rien en fond ; frises : table `dossier_frises`, écrite par le worker).
+# Elles ne dépendent de l'utilisateur que par son accès aux documents restreints (search._filters_sql). Clé :
+# (dossier, accès) ; au plus 2 × nombre de dossiers entrées (slug vérifié avant). Invalidées au bout d'une heure ou
+# dès que la signature change (nouveau passage, document passé public ↔ restreint ou supprimé, titre, doublon ou
+# statut d'un document récent : #18) : jamais un document devenu restreint montré à un visiteur. Un échec n'est
+# jamais gardé (l'exception remonte avant l'écriture).
 
-    out, seen = [], set()
-    for t in texts:
-        if not t.get("doc_id"):
-            continue
-        row = conn.execute("SELECT * FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
-        if not row or not row["lineage_key"] or row["lineage_key"] in seen:
-            continue
-        seen.add(row["lineage_key"])
-        if row["access"] != "public" and not auth.can_restricted(user):
-            continue
-        rows = formulations.lineage(conn, row, user)
-        if len(rows) >= 2:
-            out.append({"titre": rows[-1]["title"], "cote": rows[-1]["symbol"], "grille": formulations.grid(conn, rows)})
-    return out[:4]
+NEWS_TTL = 3600   # s : la fenêtre « 7 derniers jours » glisse lentement
+_news_cache: dict[tuple[str, bool], tuple[float, tuple, list]] = {}   # clé → (instant, signature, résultats)
+_news_locks: dict[tuple[str, bool], threading.Lock] = {}
+_news_guard = threading.Lock()
 
 
-# --- cache des parties lourdes de la page dossier -----------------------------------------------------------------
-# « Nouveautés » (recherche hybride, 6 à 12 s mesurées) et frises (3 à 7 s) ne dépendent de l'utilisateur que par
-# son accès aux documents restreints (search._filters_sql, formulations.lineage). Clé : (dossier, accès) ; au plus
-# 2 × nombre de dossiers entrées (slug vérifié avant). Invalidées au bout d'une heure ou dès que la signature du
-# corpus change (nouveau passage indexé, document passé public ↔ restreint ou supprimé) : jamais un document devenu
-# restreint montré à un visiteur.
-
-DOSSIER_TTL = 3600   # s : la fenêtre « 7 derniers jours » glisse lentement
-_heavy_cache: dict[tuple[str, bool], tuple[float, tuple, dict]] = {}   # clé → (instant, signature, valeurs)
-_heavy_locks: dict[tuple[str, bool], threading.Lock] = {}
-_heavy_guard = threading.Lock()
-
-
-def _signature(conn) -> tuple:
-    """Ce qui change quand le corpus visible change (≈ 1 ms)."""
+def _signature(conn, since: str) -> tuple:
+    """Ce qui change quand les nouveautés visibles peuvent changer (quelques ms)."""
     last = conn.execute("SELECT MAX(id) FROM passages").fetchone()[0]
     pub = conn.execute("SELECT COUNT(*), TOTAL(id) FROM documents WHERE access='public'").fetchone()
     n_docs = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
-    return (last, pub[0], pub[1], n_docs)
+    recent = hashlib.sha256(json.dumps([list(r) for r in conn.execute(
+        "SELECT id, title, duplicate_of, access, status FROM documents WHERE fetched_at >= ? ORDER BY id", (since,))],
+        ensure_ascii=False, default=str).encode()).hexdigest()
+    return (last, pub[0], pub[1], n_docs, recent)
 
 
-def _heavy(conn, slug: str, d: dict, ts: list[dict], user: dict | None) -> dict:
+def _news(conn, slug: str, d: dict, user: dict | None) -> list[dict]:
     key = (slug, auth.can_restricted(user))
-    with _heavy_guard:
-        lock = _heavy_locks.setdefault(key, threading.Lock())
+    with _news_guard:
+        lock = _news_locks.setdefault(key, threading.Lock())
     with lock:   # un seul calcul par clé : les fils suivants attendent puis lisent le résultat
-        sig = _signature(conn)
-        hit = _heavy_cache.get(key)
-        if hit and hit[1] == sig and time.time() - hit[0] < DOSSIER_TTL:
+        since = _since(24 * 7)
+        sig = _signature(conn, since)
+        hit = _news_cache.get(key)
+        if hit and hit[1] == sig and time.time() - hit[0] < NEWS_TTL:
             return hit[2]
-        value = {"hits": search.search(conn, d["requete"], {"added_since": _since(24 * 7)}, user, limit=10, per_doc=1),
-                 "frises": _frises(conn, ts, user)}
-        _heavy_cache[key] = (time.time(), sig, value)
-        return value
-
-
-WARM_EVERY = 300    # s entre deux tours de préchauffage (recalcul seulement si la signature ou le délai a changé)
-
-
-def warm_forever(stop: threading.Event | None = None, pause: float = 3.0) -> None:
-    """Préchauffe en arrière-plan les parties lourdes des pages dossier, pour l'accès public (visiteurs et comptes
-    invités) : le premier visiteur après un démarrage ou un nouveau document ne paie plus le calcul (2 à 14 s mesurées
-    le 27/11). Un dossier à la fois, une pause entre deux ; lancé par `cop serve` seulement (pas dans les tests)."""
-    from . import monitor
-
-    stop = stop or threading.Event()
-    stop.wait(20)   # laisser le site démarrer
-    while not stop.is_set():
-        try:
-            conn = db.get()
-            dossiers = live.dossiers()
-        except Exception as exc:  # noqa: BLE001  (base verrouillée…) : réessayé au tour suivant
-            monitor.report("site : préchauffage des dossiers", exc)
-            dossiers = []
-        for d in dossiers:
-            if stop.is_set():
-                break
-            try:   # un dossier en échec n'empêche pas les suivants
-                _heavy(conn, d["slug"], d, live.texts(conn, d["slug"]), None)
-            except Exception as exc:  # noqa: BLE001
-                monitor.report("site : préchauffage des dossiers", exc)
-            stop.wait(pause)
-        stop.wait(WARM_EVERY)
-
-
-def start_warming() -> None:
-    threading.Thread(target=warm_forever, daemon=True, name="prechauffage").start()
+        hits = search.search(conn, d["requete"], {"added_since": since}, user, limit=10, per_doc=1)
+        _news_cache[key] = (time.time(), sig, hits)
+        return hits
 
 
 @public_page
@@ -139,7 +91,6 @@ def dossier_page(request: Request):
         if t["doc_id"]:
             v = conn.execute("SELECT version FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
             t["version"] = v["version"] if v else None
-    heavy = _heavy(conn, slug, d, ts, user)
     extracted = [p for p in positions.for_dossier(conn, slug, limit=200) if p["source_kind"] not in ("carbonbrief", "soumission")]
     ref = [p for p in positions.for_dossier(conn, slug, limit=400) if p["source_kind"] == "carbonbrief"]
     by_actor: dict[str, list[dict]] = {}
@@ -149,7 +100,7 @@ def dossier_page(request: Request):
         request, "dossier.html", d=d, texts=ts, spark=_spark(live.bracket_series(conn, slug)),
         etat=live.status_by_dossier(conn).get(slug, []), extracted=extracted[:60],
         ref_actors=sorted(by_actor.items(), key=lambda kv: (-len(kv[1]), kv[0])),
-        hits=heavy["hits"], frises=heavy["frises"],
+        hits=_news(conn, slug, d, user), frises=frises.read(conn, slug, user),
         social=live.social(conn, live.dossier_words(d), since=_since(24 * 4), limit=15),
         subs=_sub_section(conn, slug),
         suivi=bool(user) and slug in live.followed(conn, user["id"]), credit=live.CB_CREDIT, cb_www=live.CB_WWW_PAGE,

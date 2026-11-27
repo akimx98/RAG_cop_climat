@@ -1,52 +1,9 @@
-"""Pages dossier (note docs/notes/2026-11-27-dossiers.md) : préchauffage en arrière-plan, frises plus rapides à
-résultat identique."""
+"""Pages dossier (note docs/notes/2026-11-27-dossiers.md) : frises plus rapides à résultat identique. Le préchauffage
+du site a disparu en phase 2 (frises calculées par le worker : tests/test_frises.py)."""
 
 import threading
 
 from test_lenteur import env  # noqa: F401  (fixture)
-
-
-def test_prechauffage_remplit_le_cache_public(env, monkeypatch):  # noqa: F811
-    from cop_corpus import live, web_live
-
-    ds = live.dossiers()[:3]   # liste figée d'abord : live.dossier appelle lui-même live.dossiers
-    slugs = [d["slug"] for d in ds]
-    monkeypatch.setattr(live, "dossiers", lambda: ds)
-    stop = threading.Event()
-    calls = []
-    real = web_live._heavy
-
-    def heavy(conn, slug, d, ts, user):
-        calls.append((slug, user))
-        if len(calls) == len(slugs):
-            stop.set()
-        return real(conn, slug, d, ts, user)
-
-    monkeypatch.setattr(web_live, "_heavy", heavy)
-    monkeypatch.setattr(stop, "wait", lambda t=None: stop.is_set())   # pas d'attente réelle
-    web_live.warm_forever(stop, pause=0)
-    assert [c[0] for c in calls] == slugs and all(u is None for _, u in calls)
-    assert {k for k in web_live._heavy_cache} == {(s, False) for s in slugs}
-
-
-def test_prechauffage_ne_s_arrete_pas_sur_une_erreur(env, monkeypatch):  # noqa: F811
-    from cop_corpus import live, monitor, web_live
-
-    reported = []
-    monkeypatch.setattr(monitor, "report", lambda place, exc, **k: reported.append(place))
-    stop = threading.Event()
-    tours = []
-
-    def broken():
-        tours.append(1)
-        if len(tours) == 2:
-            stop.set()
-        raise RuntimeError("base verrouillée")
-
-    monkeypatch.setattr(live, "dossiers", broken)
-    monkeypatch.setattr(stop, "wait", lambda t=None: stop.is_set())
-    web_live.warm_forever(stop, pause=0)
-    assert len(tours) == 2 and reported == ["site : préchauffage des dossiers"] * 2
 
 
 def test_occurrences_identiques_avec_et_sans_crochets():
@@ -79,28 +36,6 @@ def test_occurrences_identiques_avec_et_sans_crochets():
                     break
                 k += 1
             assert f._raw_pos(text, pos) == raw
-
-
-def test_un_dossier_en_echec_n_empeche_pas_les_suivants(env, monkeypatch):  # noqa: F811
-    from cop_corpus import live, monitor, web_live
-
-    ds = live.dossiers()[:3]
-    monkeypatch.setattr(live, "dossiers", lambda: ds)
-    monkeypatch.setattr(monitor, "report", lambda *a, **k: None)
-    stop = threading.Event()
-    done = []
-
-    def heavy(conn, slug, d, ts, user):
-        done.append(slug)
-        if slug == ds[0]["slug"]:
-            raise RuntimeError("document corrompu")
-        if len(done) == 3:
-            stop.set()
-
-    monkeypatch.setattr(web_live, "_heavy", heavy)
-    monkeypatch.setattr(stop, "wait", lambda t=None: stop.is_set())
-    web_live.warm_forever(stop, pause=0)
-    assert done == [d["slug"] for d in ds]
 
 
 def test_occurrences_en_parallele(env, monkeypatch):  # noqa: F811

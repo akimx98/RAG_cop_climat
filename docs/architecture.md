@@ -35,9 +35,17 @@ le fil `indexation` du worker les indexe dans les 5 s. Les fonctions qui indexen
 Site (`app`) : un seul processus uvicorn, une boucle d'événements. Les pages sans `await` sont des `def`, exécutées
 par Starlette dans un pool de 12 fils (`server.THREADS`, une connexion SQLite par fil ; toute connexion vient de
 `db.connect`, qui annule sa transaction quand une écriture échoue sur verrou et limite le WAL à 64 Mo) ; une page `async def` sans
-`await` est refusée par un test ; une page à formulaire est `def` sous `web.body_first` (le corps est lu dans la boucle, la page tourne dans un fil). Les outils MCP synchrones tournent aussi dans un fil (`mcp_server._tool`). Caches en mémoire : parties lourdes des pages dossier (« nouveautés », frises ; préchauffées pour l'accès public par le fil `prechauffage` toutes les 5 min ;
-1 h, invalidé par la signature du corpus : passages, accès et nombre de documents), statistiques et nombre de sources
-(10 min, échecs jamais gardés). Produit vectoriel par blocs de 8 192 lignes, deux à la fois au plus. Mesuré le
+`await` est refusée par un test ; une page à formulaire est `def` sous `web.body_first` (le corps est lu dans la boucle, la page tourne dans un fil). Les outils MCP synchrones tournent aussi dans un fil (`mcp_server._tool`). Le site ne calcule rien en fond (phase 2, note 2026-11-27-phase2-site-sans-fond) : ses seuls fils durables sont le
+chien de garde et le battement de la boucle ; les autres sont liés à une requête (démo, envoi d'alerte, pool
+sémantique) — liste fermée testée (`tests/test_un_ecrivain.py`). Frises « Au fil des versions » des pages dossier :
+lues dans la table `dossier_frises` (≈ 2 ms), écrite par le seul fil `frises` du worker (`frises.py`) ; les versions
+devenues inaccessibles au visiteur sont retirées à la lecture, sans recalcul ; frises pas encore calculées : bloc
+masqué ; `/diff` calcule toujours sa frise à la demande (`formulations.grid`). Vecteurs chargés dans le `lifespan`,
+avant la première requête (≈ 4 s). Une ligne de journal `[recherche]` par recherche : durées des parties, jamais la
+requête. Caches en mémoire : « nouveautés » des pages dossier (calculées à la demande, ≈ 0,5–1 s ; par dossier et
+accès, 1 h, invalidé par la signature du corpus : passages, accès, nombre de documents, et titre, doublon, statut des
+documents des 7 derniers jours ; échecs jamais gardés), statistiques et nombre de sources (10 min, échecs jamais
+gardés). Produit vectoriel par blocs de 8 192 lignes, deux à la fois au plus. Mesuré le
 26/11 après livraison : p90 des requêtes 0,18 s (7,5 s avant), page dossier en cache 0,08 s, premier calcul
 ≈ 19 s sans bloquer les autres pages ; mémoire anonyme 342 Mo sur 700 Mio (vecteurs en blocs fixes de 8 192, chargés par `fetchmany` : pic du chargement ≈ matrice + 30 Mo ; 27/11).
 
@@ -257,6 +265,7 @@ de sortie (ceux-ci sont dans les descriptions d'outils, toujours à jour).
 | Chien de garde du worker (`watchdog.check(…, "worker")`) : battements de chaque boucle (y compris `hb:app` et `hb:app-boucle` : site mort ou boucle d’événements figée), documents bloqués en attente, curseur des alertes, récapitulatif manqué, sources sans succès depuis 24 h, mémoire du worker et disque. Écrit seul `watchdog_state:worker`, `watchdog_pending`, `watchdog_check:worker` ; supprime l’ancien `watchdog_state` | fil dédié `garde` (`watchdog.run_forever("worker")`), indépendant de la veille | 5 min ; état écrit avant toute annonce ; bloquant → Telegram admin (à défaut e-mail), rappel toutes les 30 min, puis « rétabli » ; dégradé → 1 message par jour |
 | Chien de garde du site (`watchdog.app_issues`) : deux clés seulement, `worker` (bloquant : `watchdog_check:worker` plus vieux que 3 × 5 min) et `mem:app` (dégradé) ; arrêt anormal du site au démarrage ; battements `hb:app`, `hb:app-boucle`. Écrit seul `watchdog_state:app`, `watchdog_check:app` ; `/healthz/deep` en lecture | fil `watchdog` du site | 5 min ; mêmes règles d’envoi |
 | Arrêts anormaux et en boucle du worker | `worker.run_forever` au démarrage | au démarrage |
+| Frises « Au fil des versions » des pages dossier (`frises.compute_all`, seul écrivain de `dossier_frises`, interdit au site : `WORKER_ONLY`) : recalcul d'un dossier quand la signature de ses textes change (`live_texts`, et documents de leurs lignées : id, version, titre, cote, accès, `duplicate_of`, statut, dates, nombre de passages) ou `frises.FORMAT` ; variante `public`, et `restreint` seulement si un document des lignées est restreint. Écriture par dossier en une transaction courte ; un dossier en échec n'empêche pas les autres (`monitor.report`). Tient `extract._slots` pendant le tour (jamais en même temps qu'une lecture de PDF) ; documents découpés libérés à la fin du tour. Vérification : `scripts/compare_frises.py` (lecture seule) | fil dédié `worker.frises_forever` (battement `hb:frises`, 90 min max) | 60 s ; premier tour ≈ 30 s d'un cœur, ensuite quelques ms sans changement |
 | Indexation des documents `pending` : tous les documents déposés sur le site (qui n'indexe rien, tous formats : `ingest.DEFER`), indexations interrompues (quarantaine après 2 tentatives). Dépôts (`depot-*`) et textes de session (`live-texts`) d'abord, puis par identifiant ; le suivant est choisi après chaque document. Tout PDF est lu dans un sous-processus (`extract.extract_isolated`, un à la fois, repli sans tableaux, sinon `error`) | fil dédié `worker.indexing_forever` | 5 s |
 
 **Hors session** (`COP_SESSION=0`, défaut depuis le 27/11/2026 ; fréquences ci-dessus = en session) :

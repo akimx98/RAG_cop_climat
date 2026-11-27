@@ -25,7 +25,7 @@ def env(tmp_path, monkeypatch):
 
     importlib.reload(db)
     db._local.__dict__.clear()
-    for mod in ("embed", "auth", "search", "ingest", "web", "web_live"):
+    for mod in ("embed", "auth", "search", "ingest", "web", "frises", "web_live"):
         importlib.reload(importlib.import_module(f"cop_corpus.{mod}"))
     from cop_corpus import live, usage
 
@@ -270,7 +270,7 @@ def test_nouveau_passage_et_expiration(env, monkeypatch):
     monkeypatch.setattr(web_live.search, "search", lambda *a, **k: calls.append(1) or [])
     c.get("/database/negotiations/finance")
     assert calls == []
-    monkeypatch.setattr(web_live, "DOSSIER_TTL", 0)
+    monkeypatch.setattr(web_live, "NEWS_TTL", 0)
     c.get("/database/negotiations/finance")
     assert calls == [1]
 
@@ -281,7 +281,7 @@ def test_cache_borne_aux_dossiers_connus(env):
 
     c = TestClient(_app())
     assert c.get("/database/negotiations/inconnu").status_code == 404
-    assert not web_live._heavy_cache and not web_live._heavy_locks
+    assert not web_live._news_cache and not web_live._news_locks
 
 
 def test_un_seul_calcul_a_froid(env, monkeypatch):
@@ -298,7 +298,7 @@ def test_un_seul_calcul_a_froid(env, monkeypatch):
     d = live.dossier("finance")
 
     def one():
-        web_live._heavy(db.get(), "finance", d, [], None)
+        web_live._news(db.get(), "finance", d, None)
 
     threads = [threading.Thread(target=one) for _ in range(4)]
     for t in threads:

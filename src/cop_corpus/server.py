@@ -97,6 +97,20 @@ async def server_error(request, exc):
     return PlainTextResponse("Erreur interne / Internal error", status_code=500)
 
 
+def load_vectors() -> None:
+    from . import embed, monitor
+
+    if not embed.enabled():
+        return
+    conn = db.connect()
+    try:
+        embed._refresh(conn)
+    except Exception as exc:  # noqa: BLE001  (base verrouillée…) : chargés à la première recherche, comme avant
+        monitor.report("site : chargement des vecteurs", exc, conn=conn)
+    finally:
+        conn.close()
+
+
 THREADS = 12   # fils du pool d'anyio (40 par défaut) ; cf. docs/notes/2026-11-25-lenteur-du-site.md
 
 
@@ -113,6 +127,9 @@ def build_app() -> Starlette:
 
         # Pages `def`, `deposer_url` et le journal MCP passent par ce pool : borné (une connexion SQLite par fil).
         anyio.to_thread.current_default_thread_limiter().total_tokens = THREADS
+        # Vecteurs chargés avant la première requête (≈ 4 s ; ship.sh attend jusqu'à 60 s) : plus de première
+        # recherche à froid (2 à 8,6 s mesurés). Dans un fil : la boucle reste libre ; un échec n'empêche pas de servir.
+        await anyio.to_thread.run_sync(load_vectors)
         beat = asyncio.create_task(watchdog.loop_heartbeat(watchdog.ACTIVE)) if watchdog.ACTIVE else None
         try:
             async with mcp.session_manager.run():
@@ -141,10 +158,6 @@ def run(host: str = "127.0.0.1", port: int = 8000, with_worker: bool = False) ->
         extract.DEFER_PDF = True   # ~250 Mo par lecture de PDF : jamais dans le conteneur du site, le worker s'en charge
         ingest.DEFER = True        # aucun format indexé par le site : un seul processus indexe (note phase 1, critère 9)
     watchdog.start_thread("app")   # battement du site, et surveillance du worker (qui surveille le site)
-    from . import web_live
-
-    web_live.start_warming()       # pages dossier préchauffées (note 2026-11-27-dossiers)
-
     uvicorn.run(build_app(), host=host, port=port, proxy_headers=True, forwarded_allow_ips="*",
                 log_config=uvicorn_log_config(), timeout_graceful_shutdown=5)   # flux MCP ouverts : pas d'attente sans fin
     watchdog.process_stopping("app")   # uvicorn rend la main après un arrêt demandé (SIGTERM) : arrêt propre

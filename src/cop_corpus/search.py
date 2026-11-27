@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from concurrent.futures import ThreadPoolExecutor
 import sqlite3
+import time
 from typing import Any
 from urllib.parse import quote
 
@@ -405,6 +406,7 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
     n_groups = len(_term_groups(query))
     # Partie sémantique (encodage + produit scalaire) lancée tout de suite dans un fil, pendant le lexical : les deux
     # libèrent le GIL ; durée ≈ max des deux au lieu de leur somme (#14, note 2026-11-27-recherche-parallele).
+    t0 = time.perf_counter()
     pending = _SEM_POOL.submit(_semantic, query) if semantic and embed.enabled() else None
     for tier, fts in _fts_tiers(query):
         # Expression exacte : le texte qui fait foi d'abord (une citation se vérifie à la source).
@@ -432,6 +434,7 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
             rank += 1
         if rank >= 200:
             break
+    t_lex = time.perf_counter()
     if pending is not None:
         try:
             cands = pending.result()
@@ -455,6 +458,7 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
                     cos_of[pid] = _score
                     ranked[pid] = ranked.get(pid, 0) + 1 / (60 + rank)
                     rank += 1
+    t_sem = time.perf_counter()
     # À pertinence comparable, priorité au texte qui fait foi (adopté > officiel > reste).
     if ranked:
         ids = list(ranked)
@@ -491,7 +495,20 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
             if pid in cover:
                 (signals[pid]["termes_trouves"], signals[pid]["termes_manquants"],
                  signals[pid]["part_termes"]) = cover[pid]
-    return _hits(conn, picked, query)
+    out = _hits(conn, picked, query)
+    _log_durations(t0, t_lex, t_sem, pending is not None, len(out))
+    return out
+
+
+def _log_durations(t0: float, t_lex: float, t_sem: float, semantic: bool, n: int) -> None:
+    """Une ligne de journal par recherche : durées des parties (mesure du critère 10, note phase 2), jamais la
+    requête ni les filtres."""
+    import sys
+
+    end = time.perf_counter()
+    sem = f" · attente sémantique {t_sem - t_lex:.2f} s" if semantic else " · sans sémantique"
+    print(f"[recherche] lexical {t_lex - t0:.2f} s{sem} · total {end - t0:.2f} s · {n} résultats",
+          file=sys.stderr, flush=True)
 
 
 def passage(conn, passage_id: int, user: dict | None, before: int = 1, after: int = 1) -> dict[str, Any] | None:

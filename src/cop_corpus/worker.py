@@ -1,5 +1,6 @@
 """Veilleur : relève les sources surveillées à leur fréquence, indexe, calcule
-les embeddings ; fil `alertes` (seul à créer et envoyer les alertes) ; bot Telegram ; récapitulatif du matin."""
+les embeddings ; fil `alertes` (seul à créer et envoyer les alertes) ; fil `frises` (frises des pages dossier) ;
+bot Telegram ; récapitulatif du matin."""
 
 from __future__ import annotations
 
@@ -128,6 +129,26 @@ def indexing_forever(stop: threading.Event, interval: int = 5) -> None:
         stop.wait(interval)
 
 
+def frises_forever(stop: threading.Event, interval: int = 60) -> None:
+    """Fil `frises` : seul appelant de `frises.compute_all` (frises des pages dossier, table `dossier_frises`, lue
+    par le site). Un tour par minute ; recalcul d'un dossier seulement quand ses textes changent."""
+    from . import frises
+
+    conn = db.connect()
+    while not stop.is_set():
+        try:
+            frises.compute_all(conn)
+            watchdog.beat("frises", conn)
+        except Exception as exc:
+            if conn.in_transaction:   # ne jamais garder de transaction ouverte d'un tour à l'autre
+                try:
+                    conn.rollback()
+                except Exception:  # noqa: BLE001
+                    pass
+            monitor.report("worker : frises", exc, conn=conn)
+        stop.wait(interval)
+
+
 def _install_stop_handler() -> None:
     """docker stop (SIGTERM) : noté comme arrêt propre DANS le gestionnaire, puis sortie immédiate (sans attendre les
     collectes en cours, que Docker couperait par SIGKILL). Tout autre arrêt (exception, segfault, mémoire) reste
@@ -158,7 +179,8 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
         watchdog.process_started(boot, "worker")   # arrêt anormal précédent, arrêts anormaux en boucle
     except Exception as exc:
         monitor.report("worker : démarrage", exc, conn=boot)
-    loops = {"veille": 90, "courrier": 15, "indexation": 30, "alertes": 30}   # délai maximal entre deux tours, en minutes
+    # délai maximal entre deux tours, en minutes
+    loops = {"veille": 90, "courrier": 15, "indexation": 30, "alertes": 30, "frises": 90}
     bot = _bot_on(bot)
     if bot:
         loops["telegram"] = 10
@@ -183,6 +205,7 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
         threading.Thread(target=submissions_forever, args=(stop,), daemon=True, name="soumissions").start()
     threading.Thread(target=indexing_forever, args=(stop,), daemon=True, name="indexation").start()
     threading.Thread(target=alerts_forever, args=(stop,), daemon=True, name="alertes").start()
+    threading.Thread(target=frises_forever, args=(stop,), daemon=True, name="frises").start()
     # Chien de garde : fil propre, indépendant de la veille (un passage de 20 min ne retarde plus les contrôles).
     threading.Thread(target=watchdog.run_forever, args=("worker", stop), daemon=True, name="garde").start()
     conn = db.connect()

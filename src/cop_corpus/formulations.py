@@ -198,7 +198,7 @@ def occurrences(conn, doc_id: int, patterns: list[re.Pattern]) -> list[dict[str,
     cached = doc.__dict__.get("_plains")
     if cached is None:   # (unité, corps, texte sans crochets, profondeurs) ; l'objet unité vit tant que le document est en cache
         plains = [(u, u.body, *_plain(u.body)) for u in doc.units if u.text]
-        # publié d'un seul coup : document partagé entre fils (pages, préchauffage, outils MCP)
+        # publié d'un seul coup : document partagé entre fils (pages, outils MCP ; fil `frises` du worker)
         cached = doc.__dict__["_plains"] = (plains, "\n".join(p for _u, _b, p, _d in plains))
     plains, alltext = cached
     if not any(p.search(alltext) for p in patterns):

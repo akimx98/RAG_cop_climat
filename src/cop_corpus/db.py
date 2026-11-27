@@ -159,6 +159,18 @@ CREATE TABLE IF NOT EXISTS meta (
   value TEXT
 );
 
+-- Frises « Au fil des versions » des pages dossier : écrites par frises.py seul (fil `frises` du worker), lues
+-- par le site. Variante 'public', et 'restreint' si un document des lignées du dossier est restreint.
+CREATE TABLE IF NOT EXISTS dossier_frises (
+  slug         TEXT NOT NULL,
+  variant      TEXT NOT NULL,   -- public | restreint
+  value        TEXT NOT NULL,   -- JSON : liste des frises (frises.compute)
+  signature    TEXT NOT NULL,   -- frises.state : recalcul quand elle change
+  computed_at  TEXT NOT NULL,
+  duration_ms  INTEGER,
+  PRIMARY KEY (slug, variant)
+);
+
 CREATE TABLE IF NOT EXISTS emissions (
   iso3       TEXT,
   country    TEXT,

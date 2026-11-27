@@ -152,6 +152,8 @@ def test_worker_demarre_le_fil_alertes_et_l_attend(env, monkeypatch):  # noqa: F
         worker.run_forever(bot=False, watch=False)
     assert ("alertes", worker.alerts_forever) in started
     assert expected.get("alertes") and expected["alertes"] >= 1
+    # Phase 2, critère 9 : fil `frises`, attendu à 90 min.
+    assert ("frises", worker.frises_forever) in started and expected.get("frises") == 90
     assert called == []   # la boucle principale n'appelle plus les alertes
     # Lot B, critère 5 : chien de garde dans son fil `garde`, plus dans la boucle de veille.
     assert ("garde", watchdog.run_forever) in started and garde == ["worker"]
@@ -447,7 +449,9 @@ WORKER_ONLY = {"alerts.run", "alerts.send_pending", "ingest.index_document", "in
                # avec index=False : tests/test_indexation_worker.py).
                "ingest.ingest_bytes", "ingest.refetch_in_place", "ingest.fetch_one", "ingest.run_source",
                "ingest.run_many", "live.retrieve_pending", "live.add_note", "mailin.reread_newsletters",
-               "soumissions.download_pending"}
+               "soumissions.download_pending",
+               # Phase 2 : frises des pages dossier calculées par le fil `frises` du worker seul (le site les lit).
+               "frises.compute_all", "frises.compute"}
 
 
 def _site_violations(mods):
@@ -463,6 +467,88 @@ def test_fonctions_du_worker_interdites_au_site():
     mods = [(m, t) for m, t in _modules() if f"{m}.py" in SITE]
     assert len(mods) == len(SITE)
     assert not _site_violations(mods)
+
+
+# --- Phase 2, critère 2 : `dossier_frises` n'est écrite que par frises.py ------------------------------------------
+
+_FRISES_SQL = re.compile(r"\b(INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE|DELETE\s+FROM)\s+dossier_frises\b",
+                         re.I)
+
+
+def _frises_writers(mods):
+    """Modules dont un texte littéral écrit dans `dossier_frises` (requête, morceau de requête)."""
+    return sorted({mod for mod, tree in mods for n in ast.walk(tree)
+                   if isinstance(n, ast.Constant) and isinstance(n.value, str) and _FRISES_SQL.search(n.value)})
+
+
+def test_dossier_frises_ecrite_par_frises_seul():
+    assert _frises_writers(_modules()) == ["frises"]
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    assert not _frises_writers([(p.stem, ast.parse(p.read_text())) for p in scripts.glob("*.py")])
+
+
+def test_dossier_frises_ecrivain_etranger_detecte():
+    cases = {
+        "web_live": "def f(c):\n    c.execute(\"DELETE FROM dossier_frises WHERE slug=?\", ('x',))\n",
+        "worker": "def f(c):\n    c.execute(\"INSERT OR REPLACE INTO dossier_frises VALUES(1)\")\n",
+        "live": "def f(c):\n    c.execute(f\"UPDATE dossier_frises SET value='{1}'\")\n",
+    }
+    for name, code in cases.items():
+        assert _frises_writers(_parse(**{name: code})) == [name], name
+    assert not _frises_writers(_parse(web_live="def f(c):\n    c.execute('SELECT value FROM dossier_frises')\n"))
+
+
+def test_frises_compute_all_reserve_au_fil_frises():
+    """Seul `worker.frises_forever` appelle frises.compute_all (et seul frises.compute_all appelle frises.compute)."""
+    bad = []
+    for mod, tree in _modules():
+        for name, node, fn in _calls(tree, mod):
+            if name == "frises.compute_all" and not (mod == "worker" and fn == "frises_forever"):
+                bad.append(f"{mod}.py:{node.lineno}")
+            if name == "frises.compute" and not (mod == "frises" and fn == "compute_all"):
+                bad.append(f"{mod}.py:{node.lineno}")
+    assert not bad, bad
+
+
+# --- Phase 2, critère 1 : liste fermée des fils ----------------------------------------------------------------------
+# Site : seuls fils durables, le chien de garde et le battement de la boucle ; les autres sont liés à une requête
+# (démo, envoi d'une alerte, pool sémantique). Toute création de fil du paquet est déclarée ici (liste fermée).
+
+FILS_SITE = {
+    ("watchdog", "start_thread"): "chien de garde (fil `watchdog`, durable)",
+    ("server", "lifespan"): "battement de la boucle d'événements (tâche asyncio, durable)",
+    ("web", "demo_ask"): "démo : un fil par question",
+    ("monitor", "_spawn"): "envoi d'une alerte (Telegram, e-mail)",
+    ("search", None): "pool sémantique (_SEM_POOL), une tâche par recherche",
+}
+FILS_HORS_SITE = {
+    ("worker", "run_forever"): "fils du worker",
+    ("server", "run"): "worker dans le même processus (cop serve --with-worker, poste de développement)",
+    ("ingest", "run_many"): "collecte en parallèle (worker, CLI)",
+    ("eval_ask", "run"): "évaluation (CLI)",
+}
+_THREAD_CALLS = {"Thread", "Timer", "ThreadPoolExecutor", "ProcessPoolExecutor", "create_task", "ensure_future",
+                 "start_new_thread"}
+
+
+def _thread_sites(mods):
+    return {(mod, fn) for mod, tree in mods for name, _node, fn in _calls(tree, mod)
+            if name.split(".")[-1] in _THREAD_CALLS}
+
+
+def test_liste_fermee_des_fils():
+    assert _thread_sites(_modules()) == set(FILS_SITE) | set(FILS_HORS_SITE)
+
+
+def test_liste_fermee_des_fils_detecte_un_nouveau_fil():
+    cases = {
+        "web_live": "import threading\ndef start_warming():\n    threading.Thread(target=print).start()\n",
+        "server": "import asyncio\nasync def lifespan(app):\n    asyncio.create_task(x())\ndef run():\n    pass\n"
+                  "def autre():\n    asyncio.ensure_future(x())\n",
+        "web": "from concurrent.futures import ThreadPoolExecutor\nPOOL = ThreadPoolExecutor(2)\n",
+    }
+    for name, code in cases.items():
+        assert _thread_sites(_parse(**{name: code})) - set(FILS_SITE) - set(FILS_HORS_SITE), name
 
 
 def test_fonctions_du_worker_alias_detectes():
