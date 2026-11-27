@@ -104,6 +104,12 @@ def llm_enabled() -> bool:
     return bool(os.environ.get("OPENAI_API_KEY")) and os.environ.get("COP_LLM", "1") != "0"
 
 
+# --- Session de négociation ----------------------------------------------------------------------------------------
+# 1 pendant une COP (ou une session des SB) : rythmes de collecte de la conférence et Telegram complet. 0 (défaut,
+# hors session) : collecte espacée (live_worker.periods, worker._due, soumissions.harvest_tick), aucun message
+# Telegram aux utilisateurs, bot muet, seules les alertes bloquantes partent aux administrateurs.
+SESSION = os.environ.get("COP_SESSION", "0") == "1"
+
 # --- Veille en direct ------------------------------------------------------------------------------------------------
 LIVE = os.environ.get("COP_LIVE", "1") != "0"                       # fil de la veille en direct
 LIVE_SINCE = os.environ.get("COP_LIVE_SINCE", "2026-11-01")         # positions : sources publiées depuis

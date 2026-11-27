@@ -1,0 +1,35 @@
+# Sonde externe : voit ce que le chien de garde interne ne peut pas voir (VPS entier arrêté, site et worker morts
+# ensemble). En cas d'échec, GitHub prévient le propriétaire du dépôt par e-mail. Aucun secret.
+# Deux essais espacés de 2 min avant d'échouer : un redéploiement coupe le site ≈ 1 min.
+# GitHub suspend les workflows planifiés après 60 jours sans commit : la surveillance quotidienne vérifie la dernière
+# exécution.
+name: sonde
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sonde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Site et worker (opencop.org, /healthz/deep)
+        run: |
+          for essai in 1 2; do
+            curl --fail --silent --show-error --max-time 20 -o /dev/null https://opencop.org/healthz/deep && exit 0
+            [ "$essai" = 1 ] && sleep 120
+          done
+          exit 1
+      - name: Ancienne adresse (cop31.akimx.fr, /healthz)
+        if: always()
+        run: |
+          for essai in 1 2; do
+            curl --fail --silent --show-error --max-time 20 -o /dev/null https://cop31.akimx.fr/healthz && exit 0
+            [ "$essai" = 1 ] && sleep 120
+          done
+          exit 1

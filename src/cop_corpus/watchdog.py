@@ -144,7 +144,8 @@ def process_started(conn, process: str) -> bool:
     if len(recent) >= RESTART_MAX:
         monitor.report(f"{process} : redémarrages en boucle",
                        f"CrashLoop: {len(recent)} arrêts anormaux en {RESTART_WINDOW_HOURS} h. "
-                       "Voir sudo journalctl -u docker | grep exitCode", conn=conn, background=False)
+                       "Voir sudo journalctl -u docker | grep exitCode", conn=conn, background=False,
+                       urgent=True)   # part même hors session (un arrêt isolé, lui, est seulement enregistré)
     return True
 
 
@@ -245,8 +246,8 @@ def issues(conn, process: str | None = None, now: datetime | None = None) -> lis
                                           f"{ALERT_LAG_MINUTES} min sans comparaison aux abonnements "
                                           f"(le plus ancien : {row[1]})")
 
-    # 4. récapitulatif Telegram non parti
-    if config.TELEGRAM_TOKEN and config.DIGEST_HOURS:
+    # 4. récapitulatif Telegram non parti (aucun hors session)
+    if config.TELEGRAM_TOKEN and config.DIGEST_HOURS and config.SESSION:
         from zoneinfo import ZoneInfo
 
         from . import digest
@@ -329,13 +330,20 @@ def check(conn=None, process: str | None = None) -> list[dict[str, Any]]:
         for key, i in current.items():
             st = state.get(key) or {"since": _fmt(now)}
             if i["level"] == "bloquant":
-                if monitor.report(f"chien de garde : {key}", f"Blocage: {i['message']}", conn=conn, background=False):
+                if monitor.report(f"chien de garde : {key}", f"Blocage: {i['message']}", conn=conn, background=False,
+                                  urgent=True):
                     st["sent"] = _fmt(now)
-            else:
+            elif config.SESSION:
                 sent = _parse(st.get("sent"))
                 if sent is None or now - sent > timedelta(hours=DEGRADED_REPEAT_HOURS):
                     monitor.notify_admins(f"🟠 <b>Dégradé</b> : {_esc(i['message'])}", conn=conn)
                     st["sent"] = _fmt(now)
+            else:   # hors session : dégradé noté dans error_events seulement (ni message, ni « rétabli »)
+                noted = _parse(st.get("noted"))
+                if noted is None or now - noted > timedelta(hours=DEGRADED_REPEAT_HOURS):
+                    monitor.report(f"chien de garde : {key}", f"Degrade: {i['message']}", conn=conn,
+                                   background=False)
+                    st["noted"] = _fmt(now)
             st.update(level=i["level"], message=i["message"][:300])
             state[key] = st
         gone = [state.pop(k) | {"key": k} for k in [k for k in state if k not in current and _owned(k, process)]]

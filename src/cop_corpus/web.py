@@ -924,9 +924,11 @@ def doc_page(request: Request):
     hl = request.query_params.get("passage")
     hl = int(hl) if hl and hl.isdigit() else None
     # Ni le document ni le passage : seulement son niveau, son type et si l'on arrive sur un passage cité
-    # (lien de citation d'une réponse de LLM ou du bot).
-    usage.record("web", "page", "document", user, lang=lang_of(request, user),
-                 args={"niveau": info.get("niveau"), "type_doc": info.get("type"), "passage_cite": bool(hl)})
+    # (lien de citation d'une réponse de LLM ou du bot). Sans compte, rien : ces visites sont surtout des robots
+    # (99,8 % de la table, une écriture par page vue).
+    if user:
+        usage.record("web", "page", "document", user, lang=lang_of(request, user),
+                     args={"niveau": info.get("niveau"), "type_doc": info.get("type"), "passage_cite": bool(hl)})
     if "p" in request.query_params:
         page = max(1, int(request.query_params.get("p") or 1))
     elif hl:  # ouvrir la tranche qui contient le passage visé

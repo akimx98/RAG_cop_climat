@@ -250,9 +250,27 @@ de sortie (ceux-ci sont dans les descriptions d'outils, toujours à jour).
 | Chien de garde (`watchdog`) : battements de chaque boucle, arrêt anormal et arrêts anormaux en boucle (worker et site), boucle d’événements du site figée, documents bloqués en attente, curseur des alertes, récapitulatif manqué, sources sans succès depuis 24 h, mémoire et disque | fil du site **et** boucle du worker (chacun surveille l'autre) | 5 min ; bloquant → Telegram admin (à défaut e-mail), rappel toutes les 30 min, puis « rétabli » ; dégradé → 1 message par jour |
 | Indexation des documents `pending` : PDF déposés sur le site (qui ne lit jamais de PDF : `extract.DEFER_PDF`), indexations interrompues (quarantaine après 2 tentatives) ; tout PDF est lu dans un sous-processus (`extract.extract_isolated`, un à la fois, repli sans tableaux, sinon `error`) | fil dédié `worker.indexing_forever` | 15 s |
 
+**Hors session** (`COP_SESSION=0`, défaut depuis le 27/11/2026 ; fréquences ci-dessus = en session) :
+- `live_worker` (`live_worker.OFF`) : textes de session, état des dossiers, programme, pavillons 24 h ; Bluesky et
+  positions 6 h ; groupes 7 jours ; SEORS jamais ; analyse des soumissions inchangée.
+- Sources du catalogue : au plus une relève toutes les 360 min (`worker._due`, plancher appliqué sans toucher aux
+  fichiers du catalogue).
+- Soumissions : index du portail relu au plus une fois par 24 h ; téléchargements inchangés.
+- Telegram : aucun message aux utilisateurs (alertes de sujets, nouveaux textes, récapitulatif, briefs), pas de fil
+  du bot ; les notifications restent en base (page « Mes sujets », outil `nouveautes`). Administrateurs : seules les
+  alertes bloquantes du chien de garde et leur « rétabli » partent (repli e-mail inchangé) ; dégradé, rapports de
+  `monitor.report` et courrier en attente sont seulement enregistrés (`error_events`, `/admin/courrier`).
+- En session comme hors session : une notification de plus de 48 h ne part jamais sur Telegram
+  (`alerts.MAX_AGE_HOURS`) ; pas de salve de vieilles alertes au retour en session.
+- Purge horaire (`usage.purge`) : lignes anonymes `web/page/document` supprimées par lots de 5 000 (elles ne sont plus
+  écrites : une page `/doc` vue sans compte n'enregistre rien).
+
 Sonde externe : `GET /healthz/deep` répond 503 (noms des problèmes bloquants, sans détail) quand le worker est arrêté
 ou bloqué ; `GET /healthz` reste la sonde de vie du conteneur du site. Un service d'uptime externe sur `/healthz/deep`
 couvre le seul cas que le chien de garde interne ne voit pas : le site et le worker arrêtés en même temps (VPS).
+C'est `.github/workflows/sonde.yml` : toutes les 15 min, `/healthz/deep` sur opencop.org et `/healthz` sur
+cop31.akimx.fr, échec après deux essais à 2 min d'intervalle (e-mail de GitHub au propriétaire du dépôt) ; GitHub
+suspend les workflows planifiés après 60 jours sans commit.
 
 ## 7. Réglages
 
@@ -280,6 +298,7 @@ tableau couvre toutes les variables lues.
 | `COP_DEMO_DAILY_USD`, `COP_DEMO_ACCOUNT_DAILY_USD`, `COP_DEMO_BUDGET_USD` | 10, 40, 150 | plafonds de dépense : par jour pour les invités (`purpose='demo'`), par jour pour les comptes (`'demo-account'`), au total pour les deux ; distincts de `COP_LLM_BUDGET_USD` qu'ils n'entament pas |
 | `COP_LLM_EXTRACT_MODEL`, `COP_LLM_WRITE_MODEL` | `gpt-5.4-mini`, `gpt-5.6-luna` | extraction et analyses ; briefs |
 | `COP_LLM_BUDGET_USD` | 30 | plafond de dépense cumulée |
+| `COP_SESSION` | 0 | 1 = session de négociation (COP, SB) : rythmes de collecte de la conférence, Telegram complet (alertes, nouveaux textes, récapitulatif, briefs, bot), toutes les alertes admin ; 0 = hors session (§6). **À passer à 1 pour la prochaine session** |
 | `COP_LIVE` | 1 | 0 = pas de veille en direct (textes, positions, briefs, programme, pavillons, groupes, analyses) |
 | `COP_LIVE_SINCE`, `COP_LIVE_UNDATED_SINCE` | 2026-11-01, 2026-11-07T18:00Z | sources prises pour l'extraction des positions |
 | `COP_BRIEFS` | 0 | 1 = briefs IA par dossier (Telegram, page dossier, outil `dossier`) ; 0 = désactivés et masqués |

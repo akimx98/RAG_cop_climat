@@ -140,6 +140,9 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 - La fixture `env` recharge `config`, `db` et plusieurs modules : un module importé ailleurs garde l'ancien état
   (recharger aussi celui qu'on teste).
 - Pas de test dépendant de l'heure réelle : passer `now=`.
+- **`tests/conftest.py` force `COP_SESSION=1`** (les tests historiques décrivent la session) alors que la
+  production tourne à 0 : tout comportement hors session doit avoir son test explicite (fixture `hors`,
+  `tests/test_hors_session.py`).
 - Tester l'échec, pas seulement le succès : un faux interpréteur qui se tue (SIGSEGV) reproduit un plantage natif
   (`tests/test_extraction_isolee.py`).
 

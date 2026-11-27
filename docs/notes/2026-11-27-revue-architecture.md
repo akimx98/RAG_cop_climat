@@ -94,8 +94,8 @@ Tenu à jour à chaque livraison (la tâche programmée « OpenCOP — reprise d
 
 | Phase | Note | Statut |
 |---|---|---|
-| 0 — rythme hors session, sonde externe, usage des robots | [2026-11-27-phase0-hors-session](2026-11-27-phase0-hors-session.md) | en cours |
-| 1 — un écrivain par donnée | — | à faire |
+| 0 — rythme hors session, sonde externe, usage des robots | [2026-11-27-phase0-hors-session](2026-11-27-phase0-hors-session.md) | livré (27/11) |
+| 1 — un écrivain par donnée | [2026-11-27-phase1-un-ecrivain](2026-11-27-phase1-un-ecrivain.md) | en cours |
 | 2 — le site ne calcule plus en fond | — | à faire |
 | 3 — schéma unique et code mort | — | à faire |
 | 5 — surface (décisions §7 acceptées par Akim le 27/11) | — | à faire |
@@ -138,7 +138,8 @@ change ce que voit l'utilisateur, sauf la phase 5, soumise aux décisions d'Akim
 - Clé SSH dédiée, limitée par `command=` à un script de rapport de santé en lecture seule. La surveillance
   quotidienne peut alors tourner dans le cloud, sans droit de déployer.
 
-**Phase 5 — Surface (selon les décisions d'Akim, §7).**
+**Phase 5 — Surface (selon les décisions d'Akim, §7)** : « COP31 terminée » sur programme et pavillons ; textes du
+site qui promettent des alertes Telegram, ajustés hors session ; retrait des briefs (avec la phase 3).
 
 ## Critères d'acceptation du programme
 
@@ -159,7 +160,10 @@ domaine et courrier sur opencop.org (#9–#12 : à reprendre après la consolida
 
 ## 7. Décisions produit pour Akim
 
-**Décidé le 27/11 : Akim suit les propositions de Claude ci-dessous** (« je te laisse maître »). Usage mesuré depuis le 18/11, fin de la COP comprise :
+**Décidé par Akim le 27/11** : 1 garder les outils de soumissions et de groupes ; 2 **couper Telegram hors
+session, sauf les alertes qui méritent de passer par lui** (plus rien sur la COP : ni alertes de sujets, ni
+textes, ni récapitulatif, ni commandes du bot ; seules les alertes bloquantes du chien de garde) ; 3 garder /try ;
+4 « COP31 terminée » sur programme et pavillons ; 5 retirer les briefs IA. Usage mesuré depuis le 18/11, fin de la COP comprise :
 
 | Fonction | Usage mesuré | Proposition de Claude |
 |---|---|---|

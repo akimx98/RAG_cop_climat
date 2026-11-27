@@ -375,14 +375,19 @@ def download_pending(conn, client: fetch.Client, limit: int = 100, *, since: str
     return counts
 
 
-def harvest_tick(conn, client: fetch.Client, per_tick: int | None = None) -> dict[str, Any]:
-    """Un passage de la veille : index toutes les 30 min, puis un lot de téléchargements."""
+INDEX_EVERY = 1800        # secondes entre deux relectures de l'index, en session
+INDEX_EVERY_OFF = 86400   # hors session (config.SESSION=0)
+
+
+def harvest_tick(conn, client: fetch.Client, per_tick: int | None = None,
+                 now: datetime | None = None) -> dict[str, Any]:
+    """Un passage de la veille : index toutes les 30 min (24 h hors session), puis un lot de téléchargements."""
     ensure_schema(conn)
     out: dict[str, Any] = {}
     last = db.meta_get(conn, "soumissions_index")
-    age = (datetime.now(timezone.utc) - datetime.strptime(last, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-           ).total_seconds() if last else None
-    if age is None or age > 1800:
+    age = ((now or datetime.now(timezone.utc)) - datetime.strptime(last, "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=timezone.utc)).total_seconds() if last else None
+    if age is None or age > (INDEX_EVERY if config.SESSION else INDEX_EVERY_OFF):
         out["index"] = sync_index(conn, client)
     n = DOWNLOAD_PER_TICK if per_tick is None else per_tick
     if n:

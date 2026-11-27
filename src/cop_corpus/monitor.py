@@ -147,8 +147,10 @@ def _spawn(fn, *args) -> None:
     threading.Thread(target=fn, args=args, daemon=True).start()   # Telegram peut être lent : on ne bloque pas
 
 
-def report(place: str, err: BaseException | str, *, conn=None, background: bool = True) -> bool:
-    """Signale une erreur. Renvoie True si une alerte est partie. Ne lève jamais d'exception."""
+def report(place: str, err: BaseException | str, *, conn=None, background: bool = True, urgent: bool = False) -> bool:
+    """Signale une erreur. Renvoie True si une alerte est partie. Ne lève jamais d'exception.
+    Hors session (config.SESSION=0), seule une erreur `urgent` (blocage du chien de garde) part aux administrateurs ;
+    les autres sont seulement comptées dans error_events (relevées par la surveillance quotidienne)."""
     kind = msg = None
     try:
         kind, msg = _describe(err)
@@ -166,6 +168,9 @@ def report(place: str, err: BaseException | str, *, conn=None, background: bool 
         else:
             conn.execute("INSERT INTO error_events(key, place, kind, message, first_at, last_at, count, unsent) "
                          "VALUES(?,?,?,?,?,?,1,1)", (key, place, kind, msg[:500], _fmt(now), _fmt(now)))
+        if not (config.SESSION or urgent):
+            conn.commit()
+            return False
         sent_at = row["sent_at"] if row else None
         if sent_at and now - datetime.strptime(sent_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) \
                 < timedelta(minutes=RESEND_MINUTES):

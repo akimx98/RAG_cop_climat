@@ -336,6 +336,18 @@ async def track_mcp(app, scope, receive, send) -> None:
 
 # --- rétention ------------------------------------------------------------------------------------------------------
 
+PURGE_BATCH = 5000   # lignes anonymes de pages /doc supprimées par lot (transaction courte)
+
+
+def _purge_anonymous_docs(conn) -> int:
+    """Pages /doc vues sans compte (plus enregistrées depuis le 27/11) : au plus PURGE_BATCH lignes par passage,
+    en une transaction courte ; le reste au passage horaire suivant."""
+    n = conn.execute("DELETE FROM usage_events WHERE id IN (SELECT id FROM usage_events WHERE channel='web' "
+                     "AND kind='page' AND name='document' AND uid IS NULL LIMIT ?)", (PURGE_BATCH,)).rowcount
+    conn.commit()
+    return n
+
+
 def purge(conn) -> dict[str, int]:
     ensure_schema(conn)
     now = datetime.now(timezone.utc)
@@ -345,6 +357,8 @@ def purge(conn) -> dict[str, int]:
                                      (iso(TEXT_DAYS),)).rowcount,
         "evenements_supprimes": conn.execute("DELETE FROM usage_events WHERE at<?", (iso(KEEP_DAYS),)).rowcount,
     }
+    conn.commit()
+    out["pages_anonymes_supprimees"] = _purge_anonymous_docs(conn)
     if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_answers'").fetchone():
         out["demo_supprimees"] = conn.execute("DELETE FROM demo_answers WHERE created_at<?",
                                               (iso(DEMO_KEEP_DAYS),)).rowcount

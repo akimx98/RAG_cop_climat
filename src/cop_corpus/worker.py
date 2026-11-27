@@ -11,17 +11,20 @@ from datetime import datetime, timedelta, timezone
 from . import alerts, catalog, config, db, embed, fetch, ingest, monitor, telegram, watchdog
 
 
-def _due(conn, source: catalog.Source) -> bool:
+OFF_MINUTES = 360   # hors session : aucune source relevée plus d'une fois toutes les 6 h (catalogue inchangé)
+
+
+def _due(conn, source: catalog.Source, now: datetime | None = None) -> bool:
     row = conn.execute("SELECT last_run FROM source_state WHERE source_id=?", (source.id,)).fetchone()
     if not row or not row["last_run"]:
         return True
     last = datetime.strptime(row["last_run"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    minutes = source.watch_minutes
+    minutes = source.watch_minutes if config.SESSION else max(source.watch_minutes, OFF_MINUTES)
     result = conn.execute("SELECT last_result FROM source_state WHERE source_id=?", (source.id,)).fetchone()
     text = (result[0] or "") if result else ""
     if text and "'new'" not in text and any(k in text for k in ("antibot", "'error'", "'payant'")):
         minutes = max(minutes * 8, 240)  # source bloquée, payante ou en erreur : on espace (pas de martèlement)
-    return datetime.now(timezone.utc) - last >= timedelta(minutes=minutes)
+    return (now or datetime.now(timezone.utc)) - last >= timedelta(minutes=minutes)
 
 
 def watch_once(conn, client: fetch.Client) -> int:
@@ -43,7 +46,10 @@ def watch_once(conn, client: fetch.Client) -> int:
 
 
 def digest(conn) -> None:
-    """Récapitulatif Telegram de 7 h et 19 h (heure de la COP), centré sur les sujets de chacun, sans IA."""
+    """Récapitulatif Telegram de 7 h et 19 h (heure de la COP), centré sur les sujets de chacun, sans IA.
+    Hors session : aucun."""
+    if not config.SESSION:
+        return
     from . import digest as dg
 
     n = dg.run(conn, telegram.send)
@@ -52,7 +58,8 @@ def digest(conn) -> None:
 
 
 def submissions_once(conn, client: fetch.Client) -> dict:
-    """Un passage de la collecte des soumissions (index toutes les 30 min, puis un lot de téléchargements)."""
+    """Un passage de la collecte des soumissions (index toutes les 30 min, 24 h hors session, puis un lot de
+    téléchargements)."""
     from . import soumissions
 
     out = soumissions.harvest_tick(conn, client)
@@ -108,6 +115,11 @@ def _install_stop_handler() -> None:
         signal.signal(signal.SIGINT, stop)
 
 
+def _bot_on(bot: bool) -> bool:
+    """Fil de long polling du bot : hors session, le bot ne relève plus les messages entrants."""
+    return bot and bool(config.TELEGRAM_TOKEN) and config.SESSION
+
+
 def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> None:
     stop = threading.Event()
     boot = db.connect()
@@ -117,7 +129,8 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
     except Exception as exc:
         monitor.report("worker : démarrage", exc, conn=boot)
     loops = {"veille": 90, "courrier": 15, "indexation": 30}   # délai maximal entre deux tours, en minutes
-    if bot and config.TELEGRAM_TOKEN:
+    bot = _bot_on(bot)
+    if bot:
         loops["telegram"] = 10
     if config.LIVE:
         loops["direct"] = 90
@@ -127,7 +140,7 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
         watchdog.expect("worker", loops, boot)
     except Exception as exc:
         monitor.report("worker : démarrage", exc, conn=boot)
-    if bot and config.TELEGRAM_TOKEN:
+    if bot:
         threading.Thread(target=telegram.poll_forever, args=(stop,), daemon=True, name="telegram").start()
         print("[bot] Telegram actif", file=sys.stderr, flush=True)
     from . import mailin

@@ -1,6 +1,6 @@
 # 2026-11-27 — Phase 0 : rythme hors session, sonde externe, visites des robots
 
-*Taille : M (collecte, sorties Telegram) · Statut : validé · Programme : [revue d'architecture](2026-11-27-revue-architecture.md)*
+*Taille : M (collecte, sorties Telegram) · Statut : livré (27/11) · Programme : [revue d'architecture](2026-11-27-revue-architecture.md)*
 *Fichiers concernés : `config.py`, `live_worker.py`, `worker.py` (`_due`, récapitulatif), `soumissions.py` (index),
 `usage.py` (`purge`), `web.py` (page document), `.github/workflows/sonde.yml`, `docs/architecture.md` §6 §7*
 
@@ -44,8 +44,16 @@ ligne dans `usage_events` avec un `commit` : 252 272 lignes depuis le 18/11 (99,
    360 min (`worker._due`), sans modifier les fichiers du catalogue. En session : inchangé. Testé.
 4. Hors session : l'index du portail des soumissions est relu au plus une fois par 24 h (au lieu de 30 min) ; le
    téléchargement des fichiers manquants est inchangé. Testé.
-5. Hors session : le récapitulatif Telegram part une fois par jour, à la première heure de `DIGEST_HOURS`, si
-   `COP_DIGEST_HOURS` n'est pas fixé explicitement. Testé.
+5. **Telegram hors session (décision d'Akim, 27/11 : « couper Telegram sauf les alertes qui méritent de passer
+   par moi, plus rien sur la COP »)** : avec `SESSION=0`, aucun message Telegram aux utilisateurs — ni alertes de
+   sujets (`alerts.send_pending`), ni nouveaux textes (`live.notify_*`), ni récapitulatif (`digest`), ni briefs —
+   et le bot ne relève plus les messages entrants (pas de fil `telegram` de long polling). Les notifications
+   restent enregistrées en base comme aujourd'hui (page « My topics », outil `nouveautes`), elles ne partent
+   simplement pas sur Telegram. Testé.
+10. Canal administrateur hors session : seules les alertes **bloquantes** du chien de garde (et leur « Rétabli »)
+   partent sur Telegram (repli e-mail inchangé). Les alertes « dégradé » et les rapports d'exception
+   (`monitor.report`) sont seulement enregistrés dans `error_events` : la surveillance quotidienne les relève.
+   En session : comportement actuel. Testé.
 6. Une page `/doc` vue sans compte n'écrit plus rien dans `usage_events` ; vue avec un compte, inchangé. Testé.
 7. La purge horaire du worker (`usage.purge`) supprime les lignes `channel='web', kind='page', name='document',
    uid IS NULL` par lots de 5 000 au plus par passage, en transactions courtes. Testé. Les statistiques de
@@ -53,8 +61,13 @@ ligne dans `usage_events` avec un `commit` : 252 272 lignes depuis le 18/11 (99,
 8. `.github/workflows/sonde.yml` : toutes les 15 min, `GET /healthz/deep` sur `https://opencop.org` et
    `GET /healthz` sur `https://cop31.akimx.fr` ; échec seulement après deux essais à 2 min d'intervalle ; un
    déclenchement manuel (`workflow_dispatch`) est possible. Aucun secret.
-9. Suite de tests complète verte ; rien de visible pour l'utilisateur hormis le récapitulatif quotidien unique
-   (décision §7 de la revue).
+9. Suite de tests complète verte ; rien de visible pour l'utilisateur hormis l'arrêt de Telegram (critère 5,
+   décision d'Akim). Les textes du site qui promettent des alertes Telegram sont repris en phase 5.
+
+Écarts acceptés à l'implémentation : le repli de `monitor.report` quand la base ne répond pas envoie quand même
+(l'erreur ne pourrait pas être enregistrée) ; le code de connexion par Telegram reste (réponse à une demande de
+l'utilisateur). Ajouts : arrêts anormaux du worker **en boucle** = alerte urgente ; `send_pending` n'envoie que les
+notifications de moins de 48 h (pas de salve de vieilles alertes au retour en session).
 
 ## Conception
 
@@ -76,13 +89,15 @@ Actions.
 
 ## Revue
 
-(à venir)
+Tour 1 (`reviewer`, 27/11) : **non bloquant**, critères 1 à 10 remplis. Constats acceptés : le plafond de 48 h
+s'applique aussi en session (voulu, documenté dans architecture §6) ; notifications anciennes rescannées
+(négligeable) ; purge par balayage complet tant qu'il reste des lignes anonymes (≈ 51 passages, acceptable).
 
 ## Suites
 
-(à la livraison)
+Aucune nouvelle : textes du site sur Telegram et code de connexion par Telegram → phase 5 de la revue.
 
 ## Promotion (à la livraison)
 
-- [ ] architecture.md §6 (rythmes hors session) et §7 (`COP_SESSION`)
-- [ ] statut « livré » ici, dans l'index et dans le tableau « Avancement » de la revue
+- [x] architecture.md §6 (rythmes hors session) et §7 (`COP_SESSION`)
+- [x] statut « livré » ici, dans l'index et dans le tableau « Avancement » de la revue

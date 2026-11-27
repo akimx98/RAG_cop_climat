@@ -7,6 +7,7 @@ Toutes les 6 h : programme (planner des side events et réunions officielles).
 Toutes les heures : relevé SEORS par requête ordinaire (bloqué tant que la CCNUCC n'autorise pas l'adresse du serveur).
 Toutes les heures : état des dossiers et positions « Who wants what » de Carbon Brief.
 7 h et 19 h (heure d'Antalya) : briefs des dossiers où il s'est passé quelque chose.
+Hors session (config.SESSION=0) : périodes de OFF, ni SEORS, ni briefs, ni message Telegram.
 """
 
 from __future__ import annotations
@@ -17,13 +18,28 @@ import traceback
 from . import agenda, briefs, config, db, fetch, live, llm, positions, telegram
 
 EVERY = {"seors": 3600, "texts": 300, "social": 600, "positions": 600, "reference": 3600, "agenda": 21600, "pavillons": 21600, "soumissions": 600, "groupes": 86400}
+# Hors session (config.SESSION=0) : la COP est close, peu de nouveautés ; None = jamais (SEORS, bloqué par l'anti-bot).
+OFF = {"seors": None, "texts": 86400, "social": 21600, "positions": 21600, "reference": 86400, "agenda": 86400,
+       "pavillons": 86400, "soumissions": 600, "groupes": 7 * 86400}
 
 
-def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
-    now = time.time()
+def periods() -> dict[str, int | None]:
+    """Période de chaque tâche (secondes) selon le réglage de session."""
+    return EVERY if config.SESSION else OFF
+
+
+def _silent(chat_id, text) -> bool:
+    """Hors session : aucun message Telegram aux utilisateurs (les textes sont quand même marqués signalés)."""
+    return False
+
+
+def tick(conn, client: fetch.Client, last: dict[str, float], now: float | None = None) -> None:
+    now = time.time() if now is None else now
+    every = periods()
+    send = telegram.send if config.SESSION else _silent
 
     def due(name: str) -> bool:
-        if now - last.get(name, 0) >= EVERY[name]:
+        if every[name] is not None and now - last.get(name, 0) >= every[name]:
             last[name] = now
             return True
         return False
@@ -59,8 +75,8 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
         tidy = live.tidy_texts(conn)  # avant les alertes : le diff suit la lignée par dossier et titre
         if any(tidy.values()):
             live.log(f"index des textes : {tidy}")
-        sent = live.notify_new_texts(conn, telegram.send)
-        sent += live.notify_retrieved(conn, telegram.send)
+        sent = live.notify_new_texts(conn, send)
+        sent += live.notify_retrieved(conn, send)
         if new or linked or got.get("recupere") or sent:
             live.log(f"textes : {len(new)} annoncés, {linked} rattachés, {got}, {sent} alertes")
     if due("social"):
@@ -87,7 +103,7 @@ def tick(conn, client: fetch.Client, last: dict[str, float]) -> None:
                 live.log(f"soumissions : {n} analysées")
         except llm.BudgetExceeded as exc:
             live.log(str(exc))
-    if config.BRIEFS and llm.enabled():
+    if config.BRIEFS and config.SESSION and llm.enabled():
         n = briefs.run_slot(conn, telegram.send)
         if n:
             live.log(f"briefs : {n} dossiers")

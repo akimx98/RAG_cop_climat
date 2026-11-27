@@ -12,6 +12,7 @@ from __future__ import annotations
 import html
 import re
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import auth, config, db, search, telegram
@@ -242,15 +243,21 @@ def format_notification(conn, n: sqlite3.Row) -> str:
     return text
 
 
-def send_pending(conn, max_per_user: int = 15) -> int:
-    if not config.TELEGRAM_TOKEN:
+MAX_AGE_HOURS = 48   # plus ancienne : jamais envoyée sur Telegram, ni marquée envoyée (pas de salve au retour en session)
+
+
+def send_pending(conn, max_per_user: int = 15, now: datetime | None = None) -> int:
+    # Hors session : les notifications restent en base (page « Mes sujets », outil `nouveautes`), sans Telegram.
+    if not config.TELEGRAM_TOKEN or not config.SESSION:
         return 0
+    since = ((now or datetime.now(timezone.utc)) - timedelta(hours=MAX_AGE_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
     rows = conn.execute(
         """SELECT n.*, u.telegram_chat_id FROM notifications n
            JOIN users u ON u.id=n.user_id
            JOIN subscriptions s ON s.id=n.subscription_id
            WHERE n.telegram_sent_at IS NULL AND u.telegram_chat_id IS NOT NULL AND s.notify_telegram=1
-           ORDER BY n.id"""
+             AND n.created_at>=?
+           ORDER BY n.id""", (since,)
     ).fetchall()
     sent, per_user = 0, {}
     for n in rows:
@@ -272,8 +279,8 @@ def send_pending(conn, max_per_user: int = 15) -> int:
                                           f"… et {more} autres alertes : voir {config.PUBLIC_BASE}/",
                                           f"… and {more} more alerts: see {config.PUBLIC_BASE}/"))
             conn.execute(
-                "UPDATE notifications SET telegram_sent_at=? WHERE user_id=? AND telegram_sent_at IS NULL",
-                (db.now(), uid),
+                "UPDATE notifications SET telegram_sent_at=? WHERE user_id=? AND telegram_sent_at IS NULL "
+                "AND created_at>=?", (db.now(), uid, since),
             )
     conn.commit()
     return sent

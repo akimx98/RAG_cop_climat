@@ -415,7 +415,7 @@ def _newsletter(conn, msg: EmailMessage, rel: str) -> None:
     already = conn.execute("SELECT 1 FROM mail_inbox WHERE mailbox=? AND sender=? AND status='attente' LIMIT 1",
                            (VEILLE, sender)).fetchone()
     _record(conn, VEILLE, None, sender, subject, rel, "attente", why)
-    if already:
+    if already or not config.SESSION:   # hors session : visible seulement sur /admin/courrier
         return
     for row in conn.execute("SELECT telegram_chat_id FROM users WHERE is_admin=1 AND active=1 AND telegram_chat_id IS NOT NULL"):
         telegram.send(row["telegram_chat_id"],
