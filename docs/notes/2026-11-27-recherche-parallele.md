@@ -1,6 +1,6 @@
 # 2026-11-27 — Recherche : partie sémantique en parallèle, encodage des requêtes en cache
 
-*Taille : M (recherche, coûts LLM, fils) · Statut : brouillon*
+*Taille : M (recherche, coûts LLM, fils) · Statut : livré (043d6f9, déployé le 27/11)*
 *Fichiers concernés : `search.py` (`search`, `_semantic`), `embed.py` (`_encode_query`, `search`),
 `tests/test_recherche_parallele.py`*
 *Issue : #14*
@@ -64,4 +64,12 @@ Reportés : 2. si le lexical lève avant d'attendre, la tâche sémantique va à
 connexion bien fermée) ; 4. `pending.result()` sans délai propre si l'API d'embeddings reste bloquée (comme avant,
 `encode` a son délai réseau). Pas de tour 2 : seule la marge d'un test a changé.
 
+## Mesures après déploiement (27/11)
+
+`/database?q=` sur les 6 requêtes de référence : 1,1 à 1,7 s (premier appel 3,6 s : connexion à OpenAI) ; avant :
+1,0 à 3,2 s. Le reste du temps des pages dossier vient des frises (note 2026-11-27-dossiers).
+
 ## Suites
+
+Constats 2 et 4 de la revue (tâche sémantique non annulée si le lexical lève ; pas de délai propre sur
+`pending.result()`) : mineurs, gardés ici sans issue. #14 fermée.

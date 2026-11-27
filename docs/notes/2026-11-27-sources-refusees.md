@@ -1,6 +1,6 @@
 # 2026-11-27 — Sources refusées par le site : anti-bot et articles payants
 
-*Taille : M (collecte) · Statut : brouillon*
+*Taille : M (collecte) · Statut : livré (1daa3e3, déployé le 27/11)*
 *Fichiers concernés : `ingest.py` (`fetch_one`, `run_source.log`, `REFUSED`, boucle ODS), `worker.py` (`_due`),
 `mailin.py` (code mort retiré, #8), `db.py` (`_migrate` : `mail_code` vidée), `tests/test_sources_refus.py`, `tests/test_core.py`*
 *Issues : #2, #8*
@@ -70,4 +70,14 @@ Tour 2 (`reviewer`, nouveau) : **non bloquant**, critères 1 à 7 conformes, 234
 suite : `mailin._deposit` et la branche `kind == "depot"` sont désormais inatteignables (`route` ne renvoie plus
 « depot ») ; à retirer avec leurs tests.
 
+## Mesures après déploiement (27/11, 10:35 → 12:57 UTC)
+
+- `fetch_log` depuis le déploiement : 15 « payant » (2 sources Le Monde), 4 « antibot » (Guardian, Climate Home) ;
+  plus aucune de ces sources n'est listée « sans aucun succès ».
+- Le « Dégradé » ne liste plus que les 4 sources unfccc.int dont le dernier passage date d'avant le déploiement
+  (espacées de 4 h) ; elles passeront sous « + N bloquée(s) par un anti-bot » à leur prochain passage.
+- `users.mail_code` : 0 valeur restante.
+
 ## Suites
+
+#30 retirer `_deposit` et la branche « depot » inatteignables. #2 et #8 fermées.
