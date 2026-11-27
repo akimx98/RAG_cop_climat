@@ -63,6 +63,12 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 - **Une page `async def` fait tout son travail dans la boucle après son `await`** (indexation d'une lettre, scrypt,
   nouveautés). → Page à formulaire : `def` sous `web.body_first` ; liste fermée des `async` permises
   (`tests/test_lenteur.py`, `ASYNC_PERMIS`).
+- **Un cache publié en deux temps sur un objet partagé entre fils** (`doc._plains` puis `doc._alltext`) : un autre
+  fil voit la moitié et lève `KeyError`. Même chose pour « tester puis lire » un dict qu'un autre fil peut vider.
+  → Publier une seule valeur (tuple) ; une seule lecture (`d.get(k)`) (`formulations.occurrences`, `_doc`).
+- **Boucle par caractère ou parcours imbriqué dans un calcul de page** (frises : 13 s, découpage : lignes ×
+  passages) : invisible sur un petit corpus de test. → Profiler sur la production (`docker compose run --rm`,
+  base en lecture seule) avant d'optimiser ; vérifier l'égalité des résultats ancien/nouveau sur les vraies données.
 - **Passer du code de la boucle dans des fils révèle des courses que la boucle masquait.** « Lire `meta` puis
   écrire » laissait un lien de connexion à usage unique ouvrir deux sessions (revue, 25/11). → Avant de passer une
   page en `def`, chercher les « tester puis écrire » ; écriture atomique (`INSERT OR IGNORE` + `rowcount`).

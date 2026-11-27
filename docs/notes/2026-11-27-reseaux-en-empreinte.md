@@ -1,6 +1,6 @@
 # 2026-11-27 — Codes de connexion : réseaux stockés en empreinte, jamais en clair
 
-*Taille : M (authentification, confidentialité, base) · Statut : brouillon*
+*Taille : M (authentification, confidentialité, base) · Statut : livré (cc0fbbe, déployé le 27/11)*
 *Fichiers concernés : `auth.py` (`_net`, `_log`, `hash_stored_networks`, `issue_login_code`, `code_locked`,
 `check_login_code`), `db.py` (`_migrate`), `tests/test_auth_parcours.py`*
 *Issue : #3*
@@ -62,4 +62,11 @@ réécriture hachée) ; (2) un journal illisible aurait fait échouer `_migrate`
 démarrage jamais bloqué ; test pour les deux. Note précisée : `_net` hache la clé déjà passée par `ip_key`
 (préfixe /64 en IPv6), seul appelant : `web.login_form`.
 
+## Mesures après déploiement (27/11)
+
+`login_codes` : 0 entrée en clair (les 2 entrées en clair du matin avaient plus de 24 h : retirées par la
+conversion au démarrage).
+
 ## Suites
+
+Aucune. #3 fermée.
