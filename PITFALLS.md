@@ -68,6 +68,11 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 
 - **« database is locked »** déjà vu (collecte, 20/11). Une base, plusieurs conteneurs, `busy_timeout` 30 s. →
   Transactions courtes ; jamais d'appel réseau (Telegram, LLM, HTTP) ni de sous-processus transaction ouverte.
+- **Une écriture en échec sur verrou laisse la transaction ouverte** (module `sqlite3`) : la connexion lit ensuite
+  une version figée et toute écriture suivante échoue aussitôt, sans fin ; le WAL ne se reporte plus dans la base.
+  Gel du VPS de 4 min le 26/11/2026 → boucle d'indexation coincée 3 h, WAL à 303 Mo, jusqu'au redémarrage. →
+  `db.connect` annule la transaction sur `SQLITE_BUSY`/`SQLITE_LOCKED` (`db._Connexion`, `tests/test_verrou.py`) ;
+  toute connexion passe par `db.connect`, jamais `sqlite3.connect` directement.
 - **La table `meta` sert de coordination** (curseurs, créneaux, état) : lecture-modification-écriture non
   atomique entre processus. → Une clé = un seul écrivain, ou un écrasement sans conséquence.
 - **Horodatages** : texte UTC `YYYY-MM-DDTHH:MM:SSZ` (`db.now()`), comparés comme chaînes ; créneaux et affichage

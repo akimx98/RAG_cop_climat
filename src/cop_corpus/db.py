@@ -225,10 +225,57 @@ def _migrate(conn: sqlite3.Connection) -> None:
             conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('auth_backfill_v1', ?)", (now(),))
 
 
+_VERROU = {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+
+
+class _Connexion(sqlite3.Connection):
+    """Annule la transaction quand une écriture échoue sur un verrou (« database is locked »).
+
+    Sans cela, la transaction restait ouverte : le tour suivant y lisait une version figée de la base, et toute
+    écriture ultérieure échouait aussitôt, sans fin (SQLITE_BUSY_SNAPSHOT), jusqu'au redémarrage ; le WAL ne pouvait
+    plus être reporté dans la base. Incident du 26/11/2026 (docs/notes/2026-11-26-connexion-sqlite-coincee.md).
+    Les autres erreurs (syntaxe FTS, colonne en double) gardent la transaction : des appelants les rattrapent."""
+
+    def _annuler_si_verrou(self, exc: sqlite3.OperationalError) -> None:
+        if (getattr(exc, "sqlite_errorcode", 0) & 0xFF) in _VERROU and self.in_transaction:
+            try:
+                self.rollback()
+            except sqlite3.Error:
+                pass  # l'erreur d'origine compte seule
+
+    def execute(self, *args, **kwargs):
+        try:
+            return super().execute(*args, **kwargs)
+        except sqlite3.OperationalError as exc:
+            self._annuler_si_verrou(exc)
+            raise
+
+    def executemany(self, *args, **kwargs):
+        try:
+            return super().executemany(*args, **kwargs)
+        except sqlite3.OperationalError as exc:
+            self._annuler_si_verrou(exc)
+            raise
+
+    def executescript(self, *args, **kwargs):
+        try:
+            return super().executescript(*args, **kwargs)
+        except sqlite3.OperationalError as exc:
+            self._annuler_si_verrou(exc)
+            raise
+
+    def commit(self):
+        try:
+            return super().commit()
+        except sqlite3.OperationalError as exc:
+            self._annuler_si_verrou(exc)
+            raise
+
+
 def connect(path: Path | None = None) -> sqlite3.Connection:
     path = path or config.DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=30, check_same_thread=False)
+    conn = sqlite3.connect(path, timeout=30, check_same_thread=False, factory=_Connexion)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=30000")
