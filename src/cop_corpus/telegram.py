@@ -21,26 +21,34 @@ FILE_API = "https://api.telegram.org/file/bot{token}/{path}"
 _http = httpx.Client(timeout=httpx.Timeout(70.0, connect=15.0))
 
 
-def call(method: str, **params) -> dict[str, Any] | None:
+QUICK_TIMEOUT = 20   # secondes : appel court (fil `alertes`), un seul essai
+
+
+def call(method: str, quick: bool = False, **params) -> dict[str, Any] | None:
+    """`quick` : un seul essai, délai ≤ QUICK_TIMEOUT, sans attente ni nouvel essai (l'appelant retente plus tard)."""
     if not config.TELEGRAM_TOKEN:
         return None
-    for attempt in range(3):
+    timeout = httpx.Timeout(QUICK_TIMEOUT) if quick else httpx.USE_CLIENT_DEFAULT
+    for attempt in range(1 if quick else 3):
         try:
-            r = _http.post(API.format(token=config.TELEGRAM_TOKEN, method=method), json=params)
+            r = _http.post(API.format(token=config.TELEGRAM_TOKEN, method=method), json=params, timeout=timeout)
             data = r.json()
             if data.get("ok"):
                 return data.get("result")
-            if r.status_code == 429:
+            if r.status_code == 429 and not quick:
                 time.sleep(int(data.get("parameters", {}).get("retry_after", 3)))
                 continue
             return None
         except Exception:
+            if quick:
+                return None
             time.sleep(2 * (attempt + 1))
     return None
 
 
-def send(chat_id: str | int, text: str) -> bool:
-    res = call("sendMessage", chat_id=chat_id, text=text[:4000], parse_mode="HTML", disable_web_page_preview=True)
+def send(chat_id: str | int, text: str, quick: bool = False) -> bool:
+    res = call("sendMessage", quick=quick, chat_id=chat_id, text=text[:4000], parse_mode="HTML",
+               disable_web_page_preview=True)
     return res is not None
 
 

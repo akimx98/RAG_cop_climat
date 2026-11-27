@@ -29,7 +29,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
-from . import alerts, config, db, ingest, telegram
+from . import config, db, ingest, telegram
 
 SPOOL = "spool"
 ARCHIVE = "archive"
@@ -455,8 +455,10 @@ def process_spool(conn: sqlite3.Connection) -> int:
             _record(conn, "?", None, "", path.name, rel, "erreur", repr(exc)[:300])
             print(f"[mail] erreur sur {path.name} : {exc!r}", file=sys.stderr, flush=True)
         marker.unlink(missing_ok=True)
-    if done:
-        alerts.run(conn)
+    if done:   # alertes : fil `alertes` du worker (seul écrivain), réveillé tout de suite
+        from . import worker
+
+        worker.wake_alerts()
     return done
 
 

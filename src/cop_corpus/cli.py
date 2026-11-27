@@ -138,8 +138,7 @@ def cmd_ingest_file(args) -> None:
             note=args.note,
         )
         print(f"{path.name}: doc {doc_id} {'nouveau' if new else 'déjà présent'} {status}")
-    from . import alerts
-    alerts.run(conn)
+    # Alertes : fil `alertes` du worker (seul écrivain des notifications envoyées), dans la minute.
 
 
 def cmd_load_data(args) -> None:

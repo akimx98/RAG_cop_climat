@@ -145,7 +145,7 @@ def test_repli_e_mail_si_telegram_muet(env, admin_chat, wd, monkeypatch):  # noq
     from cop_corpus import mailout, monitor, telegram
 
     mails = []
-    monkeypatch.setattr(telegram, "send", lambda chat, text: False)  # jeton révoqué, Telegram injoignable
+    monkeypatch.setattr(telegram, "send", lambda chat, text, **k: False)  # jeton révoqué, Telegram injoignable
     monkeypatch.setattr(mailout, "enabled", lambda: True)
     monkeypatch.setattr(mailout, "send", lambda to, subject, text, **k: mails.append((to, subject, text)) or True)
     assert monitor.report("worker : veille", ValueError("boom"), conn=env, background=False)

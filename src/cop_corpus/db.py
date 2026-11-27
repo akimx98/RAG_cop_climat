@@ -306,6 +306,35 @@ def get() -> sqlite3.Connection:
     return conn
 
 
+# Un écrivain par donnée (note docs/notes/2026-11-27-phase1-un-ecrivain.md) : module seul autorisé à écrire chaque
+# clé de `meta` (clé exacte, ou préfixe terminé par « : »). Vérifié par tests/test_un_ecrivain.py, qui relève tous
+# les `meta_set` et `INSERT|UPDATE|DELETE … meta` du paquet. Limite : le module, pas le fil ni le processus.
+META_OWNERS: dict[str, str] = {
+    "alerts_last_doc_id": "alerts",          # fil `alertes` du worker
+    "auth_backfill_v1": "db",                # migration
+    "login_link_used:": "auth",
+    "invite_code": "auth", "invite_open": "auth", "invite_max": "auth",   # réglages admin
+    "signup_open": "auth", "signup_max": "auth",
+    "mail_allow": "mailin",
+    "digest_slot": "digest", "digest_last:": "digest",
+    "brief_slot": "briefs",
+    "pav_ext:": "pavillons", "pav_synced_at": "pavillons",
+    "agenda_planner_built": "agenda", "agenda_planner_at": "agenda", "agenda_seors_auto": "agenda",
+    "agenda_seors_at": "agenda", "agenda_unfccc_at": "agenda", "agenda_platform_at": "agenda",
+    "docs_unfccc_last": "docs_unfccc",
+    "soumissions_index": "soumissions",
+    "groupes_sync": "groupes",
+    "positions_par_section_v1": "positions",
+    "migration_ace": "live",
+    "telegram_offset": "telegram",
+    "embed_lock": "embed",
+    # Chien de garde : aujourd'hui écrit par le site et par le worker (même module) ; la phase 1, lot B, sépare
+    # les clés par processus.
+    "hb:": "watchdog", "hb_expect:": "watchdog",
+    "watchdog_pending": "watchdog", "watchdog_state": "watchdog", "watchdog_check:": "watchdog",
+}
+
+
 def meta_get(conn: sqlite3.Connection, key: str, default: str | None = None) -> str | None:
     row = conn.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
     return row["value"] if row else default

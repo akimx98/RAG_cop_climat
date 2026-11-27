@@ -837,8 +837,7 @@ def _deposer_url(url, titre, niveau, type, organisation, user) -> dict[str, Any]
     while status == "pending" and time.monotonic() < deadline:   # PDF : lu par le worker (≈ 15 s), pas par le site
         time.sleep(3)
         status = conn.execute("SELECT status FROM documents WHERE id=?", (doc_id,)).fetchone()["status"]
-    check = verify_deposit(conn, doc_id, titre) if status == "indexed" else None
-    alerts.run(conn)
+    check = verify_deposit(conn, doc_id, titre) if status == "indexed" else None   # alertes : fil du worker
     out = {"doc_id": doc_id, "nouveau": new, "statut": status, "lien": f"{config.PUBLIC_BASE}/doc/{doc_id}"}
     if status == "pending":
         out["message"] = ("indexing in progress (the server reads PDFs in the background): text, date and title "

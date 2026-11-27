@@ -1,5 +1,5 @@
 """Veilleur : relève les sources surveillées à leur fréquence, indexe, calcule
-les embeddings, déclenche les alertes ; bot Telegram ; récapitulatif du matin."""
+les embeddings ; fil `alertes` (seul à créer et envoyer les alertes) ; bot Telegram ; récapitulatif du matin."""
 
 from __future__ import annotations
 
@@ -39,10 +39,38 @@ def watch_once(conn, client: fetch.Client) -> int:
             embed.embed_pending(conn, limit=5000)
         except Exception as exc:
             monitor.report("worker : embeddings", exc, conn=conn)
-    created = alerts.run(conn)
-    if created:
-        print(f"[alertes] {created} notifications", file=sys.stderr, flush=True)
+    wake_alerts()   # nouveaux documents : le fil `alertes` passe sans attendre sa minute
     return new
+
+
+_alerts_wake = threading.Event()
+
+
+def wake_alerts() -> None:
+    """Réveille le fil `alertes` (même processus seulement ; sans effet ailleurs, le fil passe de toute façon)."""
+    _alerts_wake.set()
+
+
+def alerts_forever(stop: threading.Event, interval: int = 60, wake: threading.Event | None = None) -> None:
+    """Fil `alertes` : seul appelant de `alerts.run` / `alerts.send_pending` (création des notifications, curseur
+    `alerts_last_doc_id`, envois Telegram). Toutes les `interval` secondes, ou plus tôt si réveillé."""
+    wake = wake or _alerts_wake
+    conn = db.connect()
+    while not stop.is_set():
+        wake.clear()   # avant le tour : un réveil arrivé pendant le tour en déclenche un autre aussitôt
+        try:
+            created = alerts.run(conn)   # premier passage sans curseur : l'initialise, sans alerter sur l'existant
+            if created:
+                print(f"[alertes] {created} notifications", file=sys.stderr, flush=True)
+            watchdog.beat("alertes", conn)
+        except Exception as exc:
+            if conn.in_transaction:   # ne jamais garder de transaction ouverte d'un tour à l'autre
+                try:
+                    conn.rollback()
+                except Exception:  # noqa: BLE001
+                    pass
+            monitor.report("worker : alertes", exc, conn=conn)
+        wake.wait(interval)
 
 
 def digest(conn) -> None:
@@ -71,7 +99,8 @@ def submissions_once(conn, client: fetch.Client) -> dict:
 def submissions_forever(stop: threading.Event, interval: int = 60) -> None:
     """Fil dédié : la collecte des soumissions ne dépend pas de la veille documentaire, dont le premier passage
     après un redémarrage dure ~20 min ; elle démarre dès le lancement du worker. Les documents indexés ici sont
-    vectorisés et confrontés aux alertes par la boucle principale (stock ancien exclu des alertes)."""
+    vectorisés par la boucle principale et confrontés aux abonnements par le fil `alertes` (stock ancien exclu
+    des alertes)."""
     conn = db.connect()
     client = fetch.Client()
     while not stop.is_set():
@@ -128,7 +157,7 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
         watchdog.process_started(boot, "worker")   # arrêt anormal précédent, arrêts anormaux en boucle
     except Exception as exc:
         monitor.report("worker : démarrage", exc, conn=boot)
-    loops = {"veille": 90, "courrier": 15, "indexation": 30}   # délai maximal entre deux tours, en minutes
+    loops = {"veille": 90, "courrier": 15, "indexation": 30, "alertes": 30}   # délai maximal entre deux tours, en minutes
     bot = _bot_on(bot)
     if bot:
         loops["telegram"] = 10
@@ -152,16 +181,14 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
     if watch and config.SUB:
         threading.Thread(target=submissions_forever, args=(stop,), daemon=True, name="soumissions").start()
     threading.Thread(target=indexing_forever, args=(stop,), daemon=True, name="indexation").start()
+    threading.Thread(target=alerts_forever, args=(stop,), daemon=True, name="alertes").start()
     conn = db.connect()
     client = fetch.Client()
-    alerts.run(conn, notify=False)  # initialise le curseur sans alerter sur l'existant
     last_purge = last_check = last_watch = 0.0
     while True:
         try:
             if watch:
                 watch_once(conn, client)
-            else:
-                alerts.run(conn)
             digest(conn)
             if time.time() - last_purge > 3600:  # rétention des journaux d'usage et de la démo
                 from . import usage

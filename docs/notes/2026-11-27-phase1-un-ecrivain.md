@@ -106,7 +106,11 @@ Un `ship.sh` par lot (A, B, C ; D avec A puis enrichi). Vérifications après ch
 
 ## Revue
 
-(à venir)
+Lots A + D, tour 1 (`reviewer`, 27/11) : **non bloquant**, critères 1–4 et 11 remplis. Constats acceptés et
+corrigés avant livraison : (1) le test AST suit les alias d'import et échoue sur un SQL `meta` non littéral ;
+(2) dans le fil `alertes`, envoi Telegram en un seul essai de 20 s au plus et 5 échecs au plus par tour (une panne
+de Telegram ne fige plus le fil) ; (3) réveil du fil remis à zéro avant le traitement. Accepté sans changement :
+`_send_reserved` valide une transaction ouverte de l'appelant (aucun appelant n'en laisse aujourd'hui).
 
 ## Suites
 

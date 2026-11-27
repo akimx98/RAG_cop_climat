@@ -244,9 +244,15 @@ def format_notification(conn, n: sqlite3.Row) -> str:
 
 
 MAX_AGE_HOURS = 48   # plus ancienne : jamais envoyée sur Telegram, ni marquée envoyée (pas de salve au retour en session)
+MAX_FAILURES = 5     # échecs d'envoi par tour : au-delà, le reste attend le tour suivant (panne Telegram)
 
 
 def send_pending(conn, max_per_user: int = 15, now: datetime | None = None) -> int:
+    """Envoie sur Telegram les notifications pas encore parties. Appelé seulement par le fil `alertes` du worker.
+    Chaque envoi est précédé d'une réservation atomique validée (`telegram_sent_at` posé si encore vide) : deux
+    appels simultanés n'envoient jamais deux fois la même notification, et aucune transaction n'est ouverte pendant
+    un appel réseau. Envoi court (un essai, ≤ 20 s). Échec : réservation levée, nouvel essai au tour suivant (jusqu'au
+    plafond d'âge) ; après MAX_FAILURES échecs, le tour s'arrête (une panne Telegram ne retient pas le fil)."""
     # Hors session : les notifications restent en base (page « Mes sujets », outil `nouveautes`), sans Telegram.
     if not config.TELEGRAM_TOKEN or not config.SESSION:
         return 0
@@ -259,28 +265,53 @@ def send_pending(conn, max_per_user: int = 15, now: datetime | None = None) -> i
              AND n.created_at>=?
            ORDER BY n.id""", (since,)
     ).fetchall()
-    sent, per_user = 0, {}
+    sent, failed, per_user, extra = 0, 0, {}, {}
     for n in rows:
         uid = n["user_id"]
         per_user[uid] = per_user.get(uid, 0) + 1
         if per_user[uid] > max_per_user:
+            extra.setdefault(uid, []).append(n["id"])
             continue
-        if telegram.send(n["telegram_chat_id"], format_notification(conn, n)):
-            conn.execute("UPDATE notifications SET telegram_sent_at=? WHERE id=?", (db.now(), n["id"]))
-            sent += 1
-    # Trop d'alertes d'un coup : un message récapitulatif plutôt qu'un déluge.
-    for uid, count in per_user.items():
-        if count > max_per_user:
-            chat = next(r["telegram_chat_id"] for r in rows if r["user_id"] == uid)
-            from . import i18n
+        ok = _send_reserved(conn, [n["id"]], n["telegram_chat_id"], format_notification(conn, n))
+        sent += ok is True
+        failed += ok is False
+        if failed >= MAX_FAILURES:
+            return sent
+    # Trop d'alertes d'un coup : un message récapitulatif plutôt qu'un déluge (les notifications en surplus sont
+    # réservées ensemble, puis le message part ; en cas d'échec, toutes sont libérées).
+    from . import i18n
 
-            more = count - max_per_user
-            telegram.send(chat, i18n.pick(i18n.default_for(auth.by_id(conn, uid)),
-                                          f"… et {more} autres alertes : voir {config.PUBLIC_BASE}/",
-                                          f"… and {more} more alerts: see {config.PUBLIC_BASE}/"))
-            conn.execute(
-                "UPDATE notifications SET telegram_sent_at=? WHERE user_id=? AND telegram_sent_at IS NULL "
-                "AND created_at>=?", (db.now(), uid, since),
-            )
-    conn.commit()
+    for uid, ids in extra.items():
+        chat = next(r["telegram_chat_id"] for r in rows if r["user_id"] == uid)
+        lang = i18n.default_for(auth.by_id(conn, uid))
+        ok = _send_reserved(conn, ids, chat, lambda more: i18n.pick(
+            lang, f"… et {more} autres alertes : voir {config.PUBLIC_BASE}/",
+            f"… and {more} more alerts: see {config.PUBLIC_BASE}/"))
+        failed += ok is False
+        if failed >= MAX_FAILURES:
+            break
     return sent
+
+
+def _send_reserved(conn, ids: list[int], chat, text) -> bool | None:
+    """Réserve `ids` (ceux encore libres), valide, envoie hors transaction ; libère la réservation si l'envoi échoue.
+    `text` : chaîne, ou fonction du nombre de notifications réservées. None : rien à réserver (déjà pris par un
+    autre envoi) ; True : envoyé ; False : échec (réservation levée)."""
+    if conn.in_transaction:   # jamais d'envoi dans une transaction laissée ouverte par l'appelant
+        conn.commit()
+    stamp = db.now()
+    marks = ",".join("?" * len(ids))
+    got = conn.execute(f"UPDATE notifications SET telegram_sent_at=? WHERE id IN ({marks}) "
+                       f"AND telegram_sent_at IS NULL", (stamp, *ids)).rowcount
+    conn.commit()
+    if got < 1:
+        return None   # déjà réservées par un autre envoi
+    ok = False
+    try:
+        ok = bool(telegram.send(chat, text(got) if callable(text) else text, quick=True))
+    finally:
+        if not ok:
+            conn.execute(f"UPDATE notifications SET telegram_sent_at=NULL WHERE id IN ({marks}) "
+                         f"AND telegram_sent_at=?", (*ids, stamp))
+            conn.commit()
+    return ok

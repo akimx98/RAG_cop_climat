@@ -104,7 +104,7 @@ def admin_chat(env, monkeypatch):
     importlib.reload(monitor)
     monkeypatch.setattr(config, "TELEGRAM_TOKEN", "test")
     sent: list[tuple[str, str]] = []
-    monkeypatch.setattr(telegram, "send", lambda chat, text: sent.append((chat, text)) or True)
+    monkeypatch.setattr(telegram, "send", lambda chat, text, **k: sent.append((chat, text)) or True)
     env.execute("INSERT INTO users(email, name, is_admin, active, telegram_chat_id) VALUES('a@x.fr','A',1,1,'42')")
     env.execute("INSERT INTO users(email, name, is_admin, active, telegram_chat_id) VALUES('u@x.fr','U',0,1,'43')")
     env.commit()

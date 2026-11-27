@@ -98,7 +98,7 @@ def test_telegram_flow(env, monkeypatch):
 
     conn = env
     sent: list[tuple] = []
-    monkeypatch.setattr(telegram, "send", lambda chat, text: sent.append((chat, text)) or True)
+    monkeypatch.setattr(telegram, "send", lambda chat, text, **k: sent.append((chat, text)) or True)
     auth.create_user(conn, "a@b.c", "Alix")
     code = conn.execute("SELECT telegram_code FROM users").fetchone()[0]
 
@@ -195,7 +195,7 @@ def test_mail_deposit_and_newsletter(env, monkeypatch):
     from email.message import EmailMessage
     from cop_corpus import auth, config, mailin, telegram
     sent = []
-    monkeypatch.setattr(telegram, "send", lambda chat, text: sent.append((chat, text)) or True)
+    monkeypatch.setattr(telegram, "send", lambda chat, text, **k: sent.append((chat, text)) or True)
     conn = env
     uid, _ = auth.create_user(conn, "alix@example.org", "Alix", admin=True)
     conn.execute("UPDATE users SET telegram_chat_id='42' WHERE id=?", (uid,))
@@ -308,7 +308,7 @@ def test_bracket_delta_alert(env):
     conn.commit()
 
     sent = []
-    assert live.notify_retrieved(conn, lambda chat, text: sent.append((chat, text))) == 1
+    assert live.notify_retrieved(conn, lambda chat, text, **k: sent.append((chat, text))) == 1
     assert sent and sent[0][0] == "7" and "brackets 2→0 (-2, resolved)" in sent[0][1]   # anglais par défaut
     assert live.notify_retrieved(conn, lambda *a: sent.append(a)) == 0  # ne ré-alerte pas
     assert "brackets 2→0 (-2, resolved)" in diff.delta_line(d, "en")
@@ -460,7 +460,7 @@ def test_guest_signup_and_permissions(env, monkeypatch):
 
     # Telegram : ni dépôt, ni URL, ni note de terrain
     sent: list[tuple] = []
-    monkeypatch.setattr(telegram, "send", lambda chat, text: sent.append((chat, text)) or True)
+    monkeypatch.setattr(telegram, "send", lambda chat, text, **k: sent.append((chat, text)) or True)
     telegram.handle(conn, {"message": {"chat": {"id": 7}, "text": f"/start {guest['telegram_code']}"}})
     assert "Sam" in sent[-1][1] or "sam@ong.org" in sent[-1][1]
     assert "PDF" not in sent[-1][1] and "/search" in sent[-1][1] and "/note" not in sent[-1][1]

@@ -233,7 +233,8 @@ de sortie (ceux-ci sont dans les descriptions d'outils, toujours à jour).
 
 | Tâche | Fil (conteneur `worker`) | Fréquence |
 |---|---|---|
-| Veille documentaire (sources du catalogue selon `watch_minutes`, indexation, embeddings, alertes) | `worker.watch_once` | boucle de 60 s ; un passage complet ≈ 20 min pendant la COP |
+| Veille documentaire (sources du catalogue selon `watch_minutes`, indexation, embeddings ; réveille le fil `alertes`) | `worker.watch_once` | boucle de 60 s ; un passage complet ≈ 20 min pendant la COP |
+| Alertes de sujets : nouveaux documents confrontés aux abonnements (`alerts.run`, curseur `alerts_last_doc_id`), puis envoi Telegram (`alerts.send_pending` : réservation atomique de chaque notification, aucune transaction pendant l'envoi, envoi court : un essai, ≤ 20 s ; au plus 5 échecs par tour ; échec retenté au tour suivant jusqu'au plafond de 48 h). Seul appelant (ni le site, ni le courrier, ni la CLI : testé) | fil dédié `worker.alerts_forever` (battement `hb:alertes`, 30 min max) | 60 s, ou plus tôt après un passage de veille ou un courrier traité |
 | Comptes rendus quotidiens de l'ENB en PDF (`enb-daily-pdf`, numéros suivants) | `worker.watch_once` | 1 h |
 | Soumissions : index du portail + rattachement aux dossiers | fil dédié `worker.submissions_forever` | 30 min |
 | Soumissions : téléchargement (récentes d'abord, puis le stock) | idem | 60 fichiers par passage, un passage par minute, dès le démarrage |
