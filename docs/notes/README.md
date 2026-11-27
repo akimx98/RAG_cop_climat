@@ -17,3 +17,4 @@
 | [2026-11-27 — Recherche : partie sémantique en parallèle, encodage en cache](2026-11-27-recherche-parallele.md) | livré (043d6f9, 27/11) | `search.py` (`_SEM_POOL`, `_semantic`), `embed.py` (`_encode_query`) | — |
 | [2026-11-27 — Pages dossier : frises plus rapides et préchauffage](2026-11-27-dossiers.md) | livré (537fc53, 27/11) | `formulations.py` (`occurrences`, `_plain`, `_raw_pos`, `_doc`), `structure.py` (`parse`), `web_live.py` (`warm_forever`), `server.py` | — |
 | [2026-11-27 — Codes de connexion : réseaux en empreinte](2026-11-27-reseaux-en-empreinte.md) | livré (cc0fbbe, 27/11) | `auth.py` (`_net`, `_log`, `hash_stored_networks`), `db.py` (`_migrate`) | — |
+| [2026-11-27 — Revue d'architecture : consolider après la COP31](2026-11-27-revue-architecture.md) | validé ; phases 0 à 5 à faire | `worker.py`, `live_worker.py`, `alerts.py`, `watchdog.py`, `ingest.py`, `live.py`, `web_live.py`, `usage.py`, `db.py`, catalogues | une issue par phase |
