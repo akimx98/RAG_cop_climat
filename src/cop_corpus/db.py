@@ -225,6 +225,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
             conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('auth_backfill_v1', ?)", (now(),))
 
 
+WAL_LIMIT = 64 * 2**20
 _VERROU = {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
 
 
@@ -279,6 +280,7 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute(f"PRAGMA journal_size_limit={WAL_LIMIT}")   # WAL ramené à 64 Mo au checkpoint (sinon gardé à sa taille max)
     with _schema_lock:
         if str(path) not in _initialized:
             conn.executescript(SCHEMA)

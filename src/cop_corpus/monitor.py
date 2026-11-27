@@ -63,14 +63,47 @@ def _key(place: str, kind: str, msg: str) -> str:
     return f"{place}|{kind}|{re.sub(r'[0-9]+', '#', msg)[:80]}"
 
 
+# Destinataires du dernier relevé réussi : repli quand la base ne répond pas (alerte envoyée quand même, #20).
+_last_admins: dict[str, list[str]] = {"chats": [], "emails": []}
+# Repli sans base : dernier envoi par clé d'erreur, dans ce processus (même cadence que error_events).
+_mem_sent: dict[str, datetime] = {}
+_mem_lock = threading.Lock()
+
+
 def admin_chats(conn) -> list[str]:
     rows = conn.execute("SELECT telegram_chat_id FROM users WHERE is_admin=1 AND active=1 "
                         "AND telegram_chat_id IS NOT NULL").fetchall()
-    return [r[0] for r in rows]
+    _last_admins["chats"] = [r[0] for r in rows]
+    return list(_last_admins["chats"])
 
 
 def admin_emails(conn) -> list[str]:
-    return [r[0] for r in conn.execute("SELECT email FROM users WHERE is_admin=1 AND active=1 AND email LIKE '%@%'")]
+    _last_admins["emails"] = [r[0] for r in conn.execute(
+        "SELECT email FROM users WHERE is_admin=1 AND active=1 AND email LIKE '%@%'")]
+    return list(_last_admins["emails"])
+
+
+def _fallback(place: str, kind: str, msg: str, background: bool) -> bool:
+    """La base ne permet pas de compter l'erreur (verrou de plus de 30 s, base illisible) : l'alerte part quand même,
+    au plus une fois par erreur et par RESEND_MINUTES dans ce processus, vers les administrateurs du dernier relevé.
+    Même contenu que l'alerte normale (lieu, type, début du message)."""
+    key, now = _key(place, kind, msg), _now()
+    if not (_last_admins["chats"] or _last_admins["emails"]):
+        log.error("ALERTE NON TRANSMISE (base indisponible, destinataires inconnus) : [%s] %s", place, kind)
+        return False   # rien n'est noté : l'erreur suivante retentera dès que les destinataires seront connus
+    with _mem_lock:
+        last = _mem_sent.get(key)
+        if last and now - last < timedelta(minutes=RESEND_MINUTES):
+            return False
+        _mem_sent[key] = now
+    text = (f"⚠️ <b>Erreur en production</b> : {html.escape(place)} (base indisponible : non comptée)\n"
+            f"<code>{html.escape(kind)}: {html.escape(msg[:300])}</code>\n"
+            f"Détails : docker logs cop31-app-1 / cop31-worker-1")
+    args = (list(_last_admins["chats"]), text, list(_last_admins["emails"]))
+    if background:
+        _spawn(_send, *args)
+        return True
+    return _send(*args)
 
 
 def _send(chats: list[str], text: str, emails: list[str] | None = None) -> bool:
@@ -116,6 +149,7 @@ def _spawn(fn, *args) -> None:
 
 def report(place: str, err: BaseException | str, *, conn=None, background: bool = True) -> bool:
     """Signale une erreur. Renvoie True si une alerte est partie. Ne lève jamais d'exception."""
+    kind = msg = None
     try:
         kind, msg = _describe(err)
         if isinstance(err, BaseException) and err.__traceback__ is not None:
@@ -151,7 +185,13 @@ def report(place: str, err: BaseException | str, *, conn=None, background: bool 
         return _send(chats, text, emails)
     except Exception:
         log.exception("monitor.report a échoué")
-        return False
+        if kind is None:
+            return False
+        try:
+            return _fallback(place, kind, msg, background)
+        except Exception:
+            log.exception("repli de monitor.report a échoué")
+            return False
 
 
 def check_answers(conn, window_minutes: int = 60, streak: int = 3) -> bool:

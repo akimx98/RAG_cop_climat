@@ -343,12 +343,20 @@ def by_login_link(conn: sqlite3.Connection, value: str) -> dict[str, Any] | None
         return None
     # Usage unique : un e-mail transféré ou une capture d'écran ne rouvrent rien. Consommation atomique (les pages
     # tournent dans des fils : « lire puis écrire » laisserait passer deux envois simultanés du même lien).
+    # Consommation et preuve de l'adresse dans une seule transaction : si la seconde échoue (verrou), le lien n'est
+    # pas brûlé (#19).
     cur = conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES(?, ?)",
                        (f"login_link_used:{sig}", str(int(time.time()))))
-    conn.commit()
     if cur.rowcount != 1:
+        conn.rollback()
         return None
-    mark_verified(conn, user)
+    try:
+        if not user.get("email_verified_at"):
+            conn.execute("UPDATE users SET email_verified_at=? WHERE id=?", (db.now(), user["id"]))
+        conn.commit()
+    except sqlite3.Error:
+        conn.rollback()
+        raise
     return user
 
 

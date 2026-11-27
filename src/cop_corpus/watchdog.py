@@ -21,7 +21,9 @@ Problème résolu → message « rétabli ». `status()` sert aussi /healthz/dee
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import sqlite3
 import sys
 import threading
 import time
@@ -38,6 +40,7 @@ DIGEST_GRACE_MINUTES = 60         # récapitulatif de 7 h / 19 h toujours pas pa
 SOURCE_FAIL_HOURS = 24            # source en échec sans aucun succès depuis
 RESTART_WINDOW_HOURS, RESTART_MAX = 2, 3
 MEM_RATIO, DISK_MIN_RATIO = 0.92, 0.08
+WAL_STUCK_BYTES = 128 * 2**20   # pages du WAL en attente de report dans la base (lecteur coincé)
 DEGRADED_REPEAT_HOURS = 24
 
 _last_beat: dict[str, float] = {}
@@ -203,7 +206,8 @@ def _antibot_only(text: str | None) -> bool:
 
 
 def issues(conn, process: str | None = None, now: datetime | None = None) -> list[dict[str, Any]]:
-    """Problèmes constatés maintenant : [{key, level (bloquant|degrade), message}]. Lecture seule."""
+    """Problèmes constatés maintenant : [{key, level (bloquant|degrade), message}]. N'écrit rien, hormis le
+    checkpoint passif du WAL (report de pages déjà validées dans la base)."""
     now = now or _now()
     out: list[dict[str, Any]] = []
 
@@ -270,7 +274,24 @@ def issues(conn, process: str | None = None, now: datetime | None = None) -> lis
         add("sources", "degrade", f"{len(failing)} source(s) sans aucun succès depuis plus de {SOURCE_FAIL_HOURS} h : "
                                   f"{', '.join(failing[:15])}{more}{anti}")
 
-    # 6. ressources du processus courant
+    # 6. reprise du WAL arrêtée : un lecteur tient une ancienne version de la base (connexion coincée, 26/11) ; les
+    #    pages écrites s'accumulent dans le WAL sans pouvoir être reportées dans la base. Mesure directe : pages en
+    #    attente après un checkpoint passif (ni la taille du fichier WAL, qui ne rétrécit pas toujours, ni la date de
+    #    la base, qui ne change qu'aux checkpoints). Signal plus précoce que les battements (#21).
+    try:
+        if conn.in_transaction:   # checkpoint impossible dans une transaction (et l'annulerait) : l'autre processus voit
+            raise sqlite3.Error("connexion en transaction")
+        busy, log_pages, done = conn.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+        page = conn.execute("PRAGMA page_size").fetchone()[0]
+        waiting = max(0, log_pages - done) * page
+        if not busy and log_pages > 0 and waiting > WAL_STUCK_BYTES:
+            add("wal", "bloquant", f"reprise du WAL arrêtée : {waiting >> 20} Mo écrits mais non reportés dans la "
+                                   f"base (une connexion tient une ancienne version ; redémarrer le conteneur "
+                                   f"concerné)")
+    except sqlite3.Error:
+        pass
+
+    # 7. ressources du processus courant
     mem = _cgroup_memory()
     if mem and mem[0] > MEM_RATIO * mem[1]:
         add(f"mem:{process or 'proc'}", "degrade",
@@ -294,6 +315,7 @@ def check(conn=None, process: str | None = None) -> list[dict[str, Any]]:
         now = _now()
         # Un seul écrivain de l'état (alertes, « rétabli ») : le worker. Le site ne prend le relais que si le worker
         # ne vérifie plus (arrêté, bloqué) ; il le signale alors lui-même par le battement en retard.
+        monitor.admin_chats(conn), monitor.admin_emails(conn)   # destinataires du repli d'alerte, tenus à jour
         if process == "app":
             last = _parse(db.meta_get(conn, "watchdog_check:worker"))
             if last and now - last < timedelta(seconds=3 * CHECK_EVERY):
@@ -316,13 +338,16 @@ def check(conn=None, process: str | None = None) -> list[dict[str, Any]]:
                     st["sent"] = _fmt(now)
             st.update(level=i["level"], message=i["message"][:300])
             state[key] = st
-        for key in [k for k in state if k not in current and _owned(k, process)]:
-            st = state.pop(key)
-            if st.get("sent"):
-                monitor.notify_admins(f"✅ <b>Rétabli</b> : {_esc(st.get('message', key))} "
-                                      f"(problème constaté depuis {st.get('since')})", conn=conn)
+        gone = [state.pop(k) | {"key": k} for k in [k for k in state if k not in current and _owned(k, process)]]
+        # État enregistré AVANT d'annoncer un rétablissement : une connexion qui lit une version figée de la base
+        # croyait le problème réglé, annonçait « Rétabli », puis ne pouvait pas écrire son état (#23, 26/11). Si
+        # l'écriture échoue, rien n'est annoncé.
         db.meta_set(conn, "watchdog_state", json.dumps(state))
         db.meta_set(conn, f"watchdog_check:{process or 'proc'}", _fmt(now))
+        for st in gone:
+            if st.get("sent"):
+                monitor.notify_admins(f"✅ <b>Rétabli</b> : {_esc(st.get('message', st['key']))} "
+                                      f"(problème constaté depuis {st.get('since')})", conn=conn)
         return found
     except Exception as exc:  # noqa: BLE001
         monitor.report("chien de garde", exc, conn=conn)
