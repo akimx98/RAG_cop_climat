@@ -5,6 +5,7 @@ documents, versions et nouveautés. Toutes les fonctions respectent l'accès
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 import sqlite3
 from typing import Any
 from urllib.parse import quote
@@ -374,6 +375,19 @@ def term_coverage(conn, pids: list[int], query: str) -> dict[int, tuple[list[str
     return out
 
 
+_SEM_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="semantique")
+
+
+def _semantic(query: str) -> list[tuple[int, float]]:
+    """Candidats sémantiques, dans un fil du pool : connexion propre à l'appel (celle de l'appelant ne se partage pas
+    d'un fil à l'autre en cours d'usage)."""
+    conn = db.connect()
+    try:
+        return embed.search(conn, query, k=400)
+    finally:
+        conn.close()
+
+
 def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict | None = None,
            limit: int = 10, per_doc: int = 3, semantic: bool = True,
            signals: dict[int, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
@@ -389,6 +403,9 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
     seen: set[int] = set()
     rank = 0
     n_groups = len(_term_groups(query))
+    # Partie sémantique (encodage + produit scalaire) lancée tout de suite dans un fil, pendant le lexical : les deux
+    # libèrent le GIL ; durée ≈ max des deux au lieu de leur somme (#14, note 2026-11-27-recherche-parallele).
+    pending = _SEM_POOL.submit(_semantic, query) if semantic and embed.enabled() else None
     for tier, fts in _fts_tiers(query):
         # Expression exacte : le texte qui fait foi d'abord (une citation se vérifie à la source).
         order = ("CASE d.level WHEN '1' THEN 0 WHEN '2' THEN 1 ELSE 2 END, bm25(passages_fts, 1.0, 2.0)"
@@ -415,9 +432,9 @@ def search(conn, query: str, filters: dict[str, Any] | None = None, user: dict |
             rank += 1
         if rank >= 200:
             break
-    if semantic and embed.enabled():
+    if pending is not None:
         try:
-            cands = embed.search(conn, query, k=400)
+            cands = pending.result()
         except Exception as exc:  # recherche sémantique indisponible : on garde le lexical, mais on le dit
             import sys
             print(f"[recherche sémantique] {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)

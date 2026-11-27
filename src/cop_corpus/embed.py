@@ -7,6 +7,7 @@ l'API, sauf si COP_EMBED_RESTRICTED=1.
 
 from __future__ import annotations
 
+import functools
 import os
 import socket
 import threading
@@ -161,6 +162,15 @@ SEARCH_CONCURRENCY = 2      # produits vectoriels simultanés dans un processus
 _search_slots = threading.BoundedSemaphore(SEARCH_CONCURRENCY)
 
 
+@functools.lru_cache(maxsize=512)
+def _encode_query(query: str) -> np.ndarray:
+    """Vecteur d'une requête, gardé en mémoire : pages dossier et outils relancent souvent les mêmes requêtes (un appel
+    OpenAI de moins à chaque fois). 512 × 2 Ko ; jamais écrit ailleurs qu'en mémoire du processus."""
+    v = encode([query])[0].astype(np.float32)
+    v.flags.writeable = False
+    return v
+
+
 def search(conn, query: str, k: int = 100) -> list[tuple[int, float]]:
     if not enabled():
         return []
@@ -168,7 +178,7 @@ def search(conn, query: str, k: int = 100) -> list[tuple[int, float]]:
     blocks = _snapshot()
     if not blocks:
         return []
-    q = encode([query])[0].astype(np.float32)   # appel réseau : hors du sémaphore
+    q = _encode_query(query)                    # appel réseau (ou cache) : hors du sémaphore
     # numpy n'a pas de produit matriciel float16 rapide : conversion float32 bloc par bloc (16 Mo). Les pages
     # tournent dans des fils : au plus SEARCH_CONCURRENCY produits à la fois, pour borner la mémoire du site.
     scores = np.empty(sum(len(m) for m, _ in blocks), dtype=np.float32)
