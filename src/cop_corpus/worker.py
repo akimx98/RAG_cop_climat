@@ -182,9 +182,11 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
         threading.Thread(target=submissions_forever, args=(stop,), daemon=True, name="soumissions").start()
     threading.Thread(target=indexing_forever, args=(stop,), daemon=True, name="indexation").start()
     threading.Thread(target=alerts_forever, args=(stop,), daemon=True, name="alertes").start()
+    # Chien de garde : fil propre, indépendant de la veille (un passage de 20 min ne retarde plus les contrôles).
+    threading.Thread(target=watchdog.run_forever, args=("worker", stop), daemon=True, name="garde").start()
     conn = db.connect()
     client = fetch.Client()
-    last_purge = last_check = last_watch = 0.0
+    last_purge = last_check = 0.0
     while True:
         try:
             if watch:
@@ -203,7 +205,4 @@ def run_forever(bot: bool = True, watch: bool = True, interval: int = 60) -> Non
             watchdog.beat("veille", conn)
         except Exception as exc:
             monitor.report("worker : veille", exc, conn=conn)
-        if time.time() - last_watch >= watchdog.CHECK_EVERY:  # surveille aussi le site (et inversement)
-            last_watch = time.time()
-            watchdog.check(conn, "worker")
         time.sleep(interval)

@@ -328,10 +328,11 @@ META_OWNERS: dict[str, str] = {
     "migration_ace": "live",
     "telegram_offset": "telegram",
     "embed_lock": "embed",
-    # Chien de garde : aujourd'hui écrit par le site et par le worker (même module) ; la phase 1, lot B, sépare
-    # les clés par processus.
+    # Chien de garde : un état par processus (`watchdog_state:app` / `:worker`, `watchdog_check:…`) ;
+    # `watchdog_pending` par le worker seul ; `watchdog_state` (ancien état commun) supprimé par le worker.
     "hb:": "watchdog", "hb_expect:": "watchdog",
-    "watchdog_pending": "watchdog", "watchdog_state": "watchdog", "watchdog_check:": "watchdog",
+    "watchdog_pending": "watchdog", "watchdog_state": "watchdog", "watchdog_state:": "watchdog",
+    "watchdog_check:": "watchdog",
 }
 
 

@@ -95,7 +95,7 @@ Tenu à jour à chaque livraison (la tâche programmée « OpenCOP — reprise d
 | Phase | Note | Statut |
 |---|---|---|
 | 0 — rythme hors session, sonde externe, usage des robots | [2026-11-27-phase0-hors-session](2026-11-27-phase0-hors-session.md) | livré (27/11) |
-| 1 — un écrivain par donnée | [2026-11-27-phase1-un-ecrivain](2026-11-27-phase1-un-ecrivain.md) | en cours |
+| 1 — un écrivain par donnée | [2026-11-27-phase1-un-ecrivain](2026-11-27-phase1-un-ecrivain.md) | en cours : lots A et D livrés (fef4aca) ; B, C à faire |
 | 2 — le site ne calcule plus en fond | — | à faire |
 | 3 — schéma unique et code mort | — | à faire |
 | 5 — surface (décisions §7 acceptées par Akim le 27/11) | — | à faire |

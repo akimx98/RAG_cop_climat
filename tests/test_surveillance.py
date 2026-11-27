@@ -89,11 +89,11 @@ def test_retabli_seulement_apres_etat_enregistre(env, admin_chat, monkeypatch): 
     monkeypatch.setattr(watchdog, "_cgroup_memory", lambda: None)
     state = {"hb:veille": {"since": "2026-11-26T17:45:03Z", "sent": "2026-11-26T18:00:00Z", "level": "bloquant",
                            "message": "boucle « veille » arrêtée"}}
-    db.meta_set(env, "watchdog_state", json.dumps(state))
+    db.meta_set(env, "watchdog_state:worker", json.dumps(state))
     real = db.meta_set
 
     def failing(conn, key, value):
-        if key == "watchdog_state":
+        if key == "watchdog_state:worker":
             raise sqlite3.OperationalError("database is locked")
         return real(conn, key, value)
 

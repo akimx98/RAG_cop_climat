@@ -10,9 +10,11 @@ les alertes et les récapitulatifs se sont arrêtés, et rien ne l'a signalé : 
 2. Arrêts anormaux (`process_started` / `process_stopping`, worker et site) : chaque processus note qu'il tourne ;
    seul un arrêt demandé (SIGTERM, arrêt normal d'uvicorn) le marque propre. Redémarré sans arrêt propre : il a
    planté (alerte, avec les documents en attente, suspects) ; trois arrêts anormaux en deux heures : « en boucle ».
-3. Invariants vérifiés de l'extérieur (`check`), par le site ET par le worker, qui se surveillent donc l'un l'autre :
-   battements en retard, documents bloqués en 'pending' (ils arrêtent les alertes), curseur des alertes en retard,
-   récapitulatif non envoyé, sources en échec continu, mémoire du conteneur ou disque presque pleins.
+3. Invariants vérifiés (`check`) par le fil `garde` du worker : battements en retard (y compris ceux du site),
+   documents bloqués en 'pending' (ils arrêtent les alertes), curseur des alertes en retard, récapitulatif non
+   envoyé, sources en échec continu, mémoire du conteneur ou disque presque pleins. Le site, lui, ne vérifie que
+   deux choses : le worker vérifie-t-il encore (`worker`), et sa propre mémoire (`mem:app`). Chaque processus a son
+   état (`watchdog_state:<processus>`) : clés disjointes, un seul écrivain par clé (note 2026-11-27-phase1).
 
 Problème bloquant → `monitor.report` (Telegram, à défaut e-mail ; rappel toutes les 30 min tant qu'il dure).
 Problème dégradé (sources en échec, ressources) → au plus un message par jour et par problème.
@@ -42,6 +44,9 @@ RESTART_WINDOW_HOURS, RESTART_MAX = 2, 3
 MEM_RATIO, DISK_MIN_RATIO = 0.92, 0.08
 WAL_STUCK_BYTES = 128 * 2**20   # pages du WAL en attente de report dans la base (lecteur coincé)
 DEGRADED_REPEAT_HOURS = 24
+WORKER_LATE_FACTOR = 3            # site : `watchdog_check:worker` plus vieux que 3 vérifications → worker en panne
+APP_GRACE_MINUTES = 10            # site : clé `worker` ignorée juste après son démarrage (valeur d'avant le déploiement)
+_app_started: datetime | None = None   # démarrage du fil de surveillance du site (None : tests, scripts)
 
 _last_beat: dict[str, float] = {}
 _lock = threading.Lock()
@@ -293,11 +298,7 @@ def issues(conn, process: str | None = None, now: datetime | None = None) -> lis
         pass
 
     # 7. ressources du processus courant
-    mem = _cgroup_memory()
-    if mem and mem[0] > MEM_RATIO * mem[1]:
-        add(f"mem:{process or 'proc'}", "degrade",
-            f"mémoire du conteneur {process or ''} à {100 * mem[0] // mem[1]} % de sa limite "
-            f"({mem[0] >> 20} / {mem[1] >> 20} Mo) : risque d'arrêt brutal")
+    out += _mem_issue(process)
     try:
         du = shutil.disk_usage(config.DATA_DIR)
         if du.free < DISK_MIN_RATIO * du.total:
@@ -307,51 +308,84 @@ def issues(conn, process: str | None = None, now: datetime | None = None) -> lis
     return out
 
 
-def check(conn=None, process: str | None = None) -> list[dict[str, Any]]:
-    """Vérifie, alerte, annonce les rétablissements. Appelé par le site et par le worker. Ne lève jamais."""
+def _mem_issue(process: str | None) -> list[dict[str, Any]]:
+    mem = _cgroup_memory()
+    if not (mem and mem[0] > MEM_RATIO * mem[1]):
+        return []
+    return [{"key": f"mem:{process or 'proc'}", "level": "degrade",
+             "message": f"mémoire du conteneur {process or ''} à {100 * mem[0] // mem[1]} % de sa limite "
+                        f"({mem[0] >> 20} / {mem[1] >> 20} Mo) : risque d'arrêt brutal"}]
+
+
+def app_issues(conn, now: datetime | None = None) -> list[dict[str, Any]]:
+    """Contrôle du site : le worker vérifie-t-il encore (sinon tout le reste est aveugle) ? Mémoire du site. Rien
+    d'autre : le reste est vérifié par le worker seul (un écrivain par clé de problème)."""
+    now = now or _now()
+    out = []
+    last = _parse(db.meta_get(conn, "watchdog_check:worker"))
+    # Juste après un déploiement, la clé date encore de l'ancien worker : le temps que le nouveau fil `garde` la
+    # réécrive, pas d'alerte `worker`.
+    fresh = _app_started is not None and now - _app_started < timedelta(minutes=APP_GRACE_MINUTES)
+    if last and not fresh and now - last > timedelta(seconds=WORKER_LATE_FACTOR * CHECK_EVERY):
+        out.append({"key": "worker", "level": "bloquant",
+                    "message": f"le worker ne vérifie plus : dernier contrôle il y a "
+                               f"{int((now - last).total_seconds() // 60)} min (arrêté ou bloqué ; voir "
+                               f"sudo journalctl -u docker | grep exitCode)"})
+    return out + _mem_issue("app")
+
+
+def check(conn=None, process: str | None = None, now: datetime | None = None) -> list[dict[str, Any]]:
+    """Vérifie, alerte, annonce les rétablissements. Ne lève jamais. Site (`app`) : `app_issues` ; worker : `issues`. Chacun n'écrit que son état `watchdog_state:<processus>` et
+    `watchdog_check:<processus>` (le worker aussi `watchdog_pending`). L'état est écrit AVANT toute annonce : si
+    l'écriture échoue, rien ne part (#29, #23) ; le contrôle suivant annonce une seule fois."""
     from . import monitor
 
     try:
         conn = conn or db.get()
-        now = _now()
-        # Un seul écrivain de l'état (alertes, « rétabli ») : le worker. Le site ne prend le relais que si le worker
-        # ne vérifie plus (arrêté, bloqué) ; il le signale alors lui-même par le battement en retard.
+        now = now or _now()
+        proc = process or "proc"
         monitor.admin_chats(conn), monitor.admin_emails(conn)   # destinataires du repli d'alerte, tenus à jour
-        if process == "app":
-            last = _parse(db.meta_get(conn, "watchdog_check:worker"))
-            if last and now - last < timedelta(seconds=3 * CHECK_EVERY):
-                return issues(conn, process, now)
-        seen = _jget(conn, "watchdog_pending", {})
-        ids = {str(r[0]) for r in conn.execute("SELECT id FROM documents WHERE status='pending'")}
-        db.meta_set(conn, "watchdog_pending", json.dumps({i: seen.get(i, _fmt(now)) for i in ids}))
-        found = issues(conn, process, now)
-        state = _jget(conn, "watchdog_state", {})       # {key: {"since":…, "sent":…, "level":…, "message":…}}
+        if proc == "app":
+            found = app_issues(conn, now)
+        else:
+            if proc == "worker":   # ancien état commun au site et au worker (avant la phase 1) : abandonné
+                conn.execute("DELETE FROM meta WHERE key='watchdog_state'")
+                conn.commit()
+            seen = _jget(conn, "watchdog_pending", {})
+            ids = {str(r[0]) for r in conn.execute("SELECT id FROM documents WHERE status='pending'")}
+            db.meta_set(conn, "watchdog_pending", json.dumps({i: seen.get(i, _fmt(now)) for i in ids}))
+            found = issues(conn, proc, now)
+        state = _jget(conn, f"watchdog_state:{proc}", {})   # {key: {"since", "sent", "noted", "level", "message"}}
         current = {i["key"]: i for i in found}
+        todo = []   # annonces, faites après l'écriture de l'état
         for key, i in current.items():
             st = state.get(key) or {"since": _fmt(now)}
-            if i["level"] == "bloquant":
-                if monitor.report(f"chien de garde : {key}", f"Blocage: {i['message']}", conn=conn, background=False,
-                                  urgent=True):
-                    st["sent"] = _fmt(now)
+            if i["level"] == "bloquant":   # rappel toutes les RESEND_MINUTES, par error_events
+                todo.append(("bloquant", key, i["message"]))
+                st["sent"] = st.get("sent") or _fmt(now)
             elif config.SESSION:
                 sent = _parse(st.get("sent"))
                 if sent is None or now - sent > timedelta(hours=DEGRADED_REPEAT_HOURS):
-                    monitor.notify_admins(f"🟠 <b>Dégradé</b> : {_esc(i['message'])}", conn=conn)
+                    todo.append(("degrade", key, i["message"]))
                     st["sent"] = _fmt(now)
             else:   # hors session : dégradé noté dans error_events seulement (ni message, ni « rétabli »)
                 noted = _parse(st.get("noted"))
                 if noted is None or now - noted > timedelta(hours=DEGRADED_REPEAT_HOURS):
-                    monitor.report(f"chien de garde : {key}", f"Degrade: {i['message']}", conn=conn,
-                                   background=False)
+                    todo.append(("note", key, i["message"]))
                     st["noted"] = _fmt(now)
             st.update(level=i["level"], message=i["message"][:300])
             state[key] = st
-        gone = [state.pop(k) | {"key": k} for k in [k for k in state if k not in current and _owned(k, process)]]
-        # État enregistré AVANT d'annoncer un rétablissement : une connexion qui lit une version figée de la base
-        # croyait le problème réglé, annonçait « Rétabli », puis ne pouvait pas écrire son état (#23, 26/11). Si
-        # l'écriture échoue, rien n'est annoncé.
-        db.meta_set(conn, "watchdog_state", json.dumps(state))
-        db.meta_set(conn, f"watchdog_check:{process or 'proc'}", _fmt(now))
+        gone = [state.pop(k) | {"key": k} for k in [k for k in state if k not in current]]
+        db.meta_set(conn, f"watchdog_state:{proc}", json.dumps(state))
+        db.meta_set(conn, f"watchdog_check:{proc}", _fmt(now))
+        for kind, key, message in todo:
+            if kind == "bloquant":
+                monitor.report(f"chien de garde : {key}", f"Blocage: {message}", conn=conn, background=False,
+                               urgent=True)
+            elif kind == "degrade":
+                monitor.notify_admins(f"🟠 <b>Dégradé</b> : {_esc(message)}", conn=conn)
+            else:
+                monitor.report(f"chien de garde : {key}", f"Degrade: {message}", conn=conn, background=False)
         for st in gone:
             if st.get("sent"):
                 monitor.notify_admins(f"✅ <b>Rétabli</b> : {_esc(st.get('message', st['key']))} "
@@ -360,11 +394,6 @@ def check(conn=None, process: str | None = None) -> list[dict[str, Any]]:
     except Exception as exc:  # noqa: BLE001
         monitor.report("chien de garde", exc, conn=conn)
         return []
-
-
-def _owned(key: str, process: str | None) -> bool:
-    """Une alerte mémoire n'est levée (et donc rétablie) que par le processus qui la mesure."""
-    return not key.startswith("mem:") or key == f"mem:{process or 'proc'}"
 
 
 def _esc(text: str) -> str:
@@ -393,23 +422,27 @@ def status(conn=None) -> dict[str, Any]:
 
 
 def run_forever(process: str, stop: threading.Event | None = None, every: int = CHECK_EVERY) -> None:
-    """Fil de surveillance du site : démarrage (arrêt anormal précédent ?), battement « app », vérifications.
-    Ne s'arrête jamais sur une erreur (le worker voit de toute façon le battement « app » vieillir)."""
+    """Fil de surveillance : `app` (site : démarrage, battement « app », mini-contrôle) ou `worker` (fil `garde` :
+    contrôle complet, indépendant de la veille ; démarrage et battements déclarés par worker.run_forever).
+    Ne s'arrête jamais sur une erreur (un fil figé se voit de l'autre processus)."""
+    global _app_started
     from . import monitor
 
     conn = None
-    ready = False
+    ready = process != "app"
     while not (stop and stop.is_set()):
         try:
             conn = conn or db.connect()
             if not ready:
+                _app_started = _now()
                 process_started(conn, process)
                 expect(process, {process: max(15, 3 * every // 60), f"{process}-boucle": 10}, conn)
                 ready = True
-            beat(process, conn, every=0)
+            if process == "app":
+                beat(process, conn, every=0)
             check(conn, process)
         except Exception as exc:  # noqa: BLE001
-            monitor.report("chien de garde du site", exc)
+            monitor.report(f"chien de garde ({process})", exc)
         if stop:
             stop.wait(every)
         else:

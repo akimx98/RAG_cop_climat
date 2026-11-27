@@ -112,6 +112,13 @@ corrigés avant livraison : (1) le test AST suit les alias d'import et échoue s
 de Telegram ne fige plus le fil) ; (3) réveil du fil remis à zéro avant le traitement. Accepté sans changement :
 `_send_reserved` valide une transaction ouverte de l'appelant (aucun appelant n'en laisse aujourd'hui).
 
+Lot B, tour 1 (`reviewer`, 27/11) : **non bloquant**, critères 5–8 remplis. Corrigés avant livraison : fausse
+alerte `worker` possible au premier démarrage (valeur ancienne de `watchdog_check:worker`) → le site ignore
+`worker` pendant ses 10 premières minutes ; double littéral dans `check`. Acceptés : pas d'alerte `worker` si la
+clé est absente (installation neuve seulement ; `process_started` couvre les plantages au démarrage) ; un
+« Rétabli » peut suivre un blocage dont l'envoi a échoué sur Telegram et e-mail ; libellés « chien de garde
+(app|worker) » ; fil `garde` sans battement propre (`watchdog_check:worker` en tient lieu, vu par le site).
+
 ## Suites
 
 (à la livraison)

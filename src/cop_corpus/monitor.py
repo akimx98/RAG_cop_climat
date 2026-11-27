@@ -70,6 +70,13 @@ _mem_sent: dict[str, datetime] = {}
 _mem_lock = threading.Lock()
 
 
+def _mem_recent(key: str, now: datetime) -> datetime | None:
+    """Envoi du repli pour `key` depuis moins de RESEND_MINUTES ; purge les entrées plus anciennes. Sous _mem_lock."""
+    for k in [k for k, t in _mem_sent.items() if now - t >= timedelta(minutes=RESEND_MINUTES)]:
+        del _mem_sent[k]
+    return _mem_sent.get(key)
+
+
 def admin_chats(conn) -> list[str]:
     rows = conn.execute("SELECT telegram_chat_id FROM users WHERE is_admin=1 AND active=1 "
                         "AND telegram_chat_id IS NOT NULL").fetchall()
@@ -92,8 +99,7 @@ def _fallback(place: str, kind: str, msg: str, background: bool) -> bool:
         log.error("ALERTE NON TRANSMISE (base indisponible, destinataires inconnus) : [%s] %s", place, kind)
         return False   # rien n'est noté : l'erreur suivante retentera dès que les destinataires seront connus
     with _mem_lock:
-        last = _mem_sent.get(key)
-        if last and now - last < timedelta(minutes=RESEND_MINUTES):
+        if _mem_recent(key, now):
             return False
         _mem_sent[key] = now
     text = (f"⚠️ <b>Erreur en production</b> : {html.escape(place)} (base indisponible : non comptée)\n"
@@ -174,6 +180,12 @@ def report(place: str, err: BaseException | str, *, conn=None, background: bool 
         sent_at = row["sent_at"] if row else None
         if sent_at and now - datetime.strptime(sent_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) \
                 < timedelta(minutes=RESEND_MINUTES):
+            conn.commit()
+            return False
+        with _mem_lock:
+            fell_back = _mem_recent(key, now)
+        if fell_back:   # déjà partie par le repli pendant la panne de la base : notée, pas renvoyée (#28)
+            conn.execute("UPDATE error_events SET unsent=0, sent_at=? WHERE key=?", (_fmt(fell_back), key))
             conn.commit()
             return False
         n = (row["unsent"] if row else 0) + 1

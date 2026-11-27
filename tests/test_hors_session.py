@@ -200,10 +200,10 @@ def test_seuls_les_blocages_partent_aux_administrateurs(env, admin_chat, hors, m
     env.execute("INSERT INTO source_state(source_id,last_run,last_result,failing_since) VALUES(?,?,?,?)",
                 ("morte", ago(hours=1), "{'error': 1}", ago(hours=30)))
     env.commit()
-    assert [i["key"] for i in watchdog.check(env, "app")] == ["sources"]
+    assert [i["key"] for i in watchdog.check(env, "worker")] == ["sources"]
     assert admin_chat == []                                           # dégradé : error_events seulement
     assert env.execute("SELECT count FROM error_events WHERE place='chien de garde : sources'").fetchone()[0] == 1
-    watchdog.check(env, "app")
+    watchdog.check(env, "worker")
     assert env.execute("SELECT count FROM error_events WHERE place='chien de garde : sources'").fetchone()[0] == 1
 
     watchdog.expect("worker", {"veille": 90}, env)

@@ -1,6 +1,7 @@
 """Un écrivain par donnée (note docs/notes/2026-11-27-phase1-un-ecrivain.md), lots A (alertes) et D (registre)."""
 
 import ast
+import json
 import re
 import threading
 import time
@@ -10,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from test_parcours_question import env  # noqa: F401  (fixture)
+from test_parcours_question import admin_chat, env  # noqa: F401  (fixtures)
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "cop_corpus"
 SITE = ("web.py", "web_live.py", "mcp_server.py", "server.py")
@@ -124,21 +125,24 @@ class _Stop(BaseException):
 def test_worker_demarre_le_fil_alertes_et_l_attend(env, monkeypatch):  # noqa: F811
     from cop_corpus import watchdog, worker
 
-    started, expected = [], {}
+    started, expected, garde, checks = [], {}, [], []
 
     class FakeThread:
         def __init__(self, target, args=(), daemon=None, name=None):
             self.name = name
             self.target = target
+            self.args = args
 
         def start(self):
             started.append((self.name, self.target))
+            if self.name == "garde":
+                garde.append(self.args[0])
 
     monkeypatch.setattr(worker.threading, "Thread", FakeThread)
     monkeypatch.setattr(worker, "_install_stop_handler", lambda: None)
     monkeypatch.setattr(watchdog, "process_started", lambda *a: None)
     monkeypatch.setattr(watchdog, "expect", lambda proc, loops, conn=None: expected.update(loops))
-    monkeypatch.setattr(watchdog, "check", lambda *a, **k: [])
+    monkeypatch.setattr(watchdog, "check", lambda *a, **k: checks.append(a) or [])
     monkeypatch.setattr(worker, "digest", lambda conn: None)
     monkeypatch.setattr(worker.monitor, "check_answers", lambda conn: None)
     monkeypatch.setattr(worker, "time", SimpleNamespace(time=time.time, sleep=lambda s: (_ for _ in ()).throw(_Stop())))
@@ -149,6 +153,9 @@ def test_worker_demarre_le_fil_alertes_et_l_attend(env, monkeypatch):  # noqa: F
     assert ("alertes", worker.alerts_forever) in started
     assert expected.get("alertes") and expected["alertes"] >= 1
     assert called == []   # la boucle principale n'appelle plus les alertes
+    # Lot B, critère 5 : chien de garde dans son fil `garde`, plus dans la boucle de veille.
+    assert ("garde", watchdog.run_forever) in started and garde == ["worker"]
+    assert checks == []
 
 
 def test_fil_alertes_un_tour(env, monkeypatch):  # noqa: F811
@@ -519,3 +526,199 @@ def test_reveil_pendant_un_tour_non_perdu(env, monkeypatch):  # noqa: F811
     wake.set()
     th.join(5)
     assert not th.is_alive()
+
+
+# --- Lot B : chien de garde, un état par processus -------------------------------------------------------------------
+
+@pytest.fixture()
+def wd(env, admin_chat, monkeypatch):  # noqa: F811
+    import importlib
+
+    from cop_corpus import config, monitor, watchdog
+
+    importlib.reload(watchdog)
+    monkeypatch.setattr(monitor, "_spawn", lambda fn, *a: fn(*a))
+    monkeypatch.setattr(config, "DIGEST_HOURS", [])
+    monkeypatch.setattr(watchdog, "_cgroup_memory", lambda: None)
+    return watchdog
+
+
+def _meta(conn):
+    return {k: v for k, v in conn.execute("SELECT key, value FROM meta")}
+
+
+def _troubles(env, wd, now):
+    """Problèmes que seul le worker doit voir : boucles arrêtées (dont celles du site), document bloqué, alertes en
+    retard, source morte."""
+    from cop_corpus import db
+
+    old = _fmt(now - timedelta(hours=3))
+    wd.expect("worker", {"veille": 90}, env)
+    wd.expect("app", {"app": 15, "app-boucle": 10}, env)
+    for k in ("hb:veille", "hb:app", "hb:app-boucle"):
+        db.meta_set(env, k, old)
+    db.meta_set(env, "alerts_last_doc_id", "0")
+    env.execute("INSERT INTO documents(sha256, raw_path, status, fetched_at) VALUES('p','r','pending',?)", (old,))
+    env.execute("INSERT INTO documents(sha256, raw_path, status, fetched_at) VALUES('i','r','indexed',?)", (old,))
+    env.execute("INSERT INTO source_state(source_id,last_run,last_result,failing_since) VALUES(?,?,?,?)",
+                ("morte", _fmt(now - timedelta(hours=1)), "{'error': 1}", _fmt(now - timedelta(hours=30))))
+    env.commit()
+    db.meta_set(env, "watchdog_pending", json.dumps({"1": old}))
+
+
+def test_cles_disjointes_site_et_worker(env, admin_chat, wd, monkeypatch):  # noqa: F811
+    """Critère 5 : le site n'écrit que watchdog_state:app et watchdog_check:app et ne connaît que `worker` et
+    `mem:app` ; le worker n'écrit que watchdog_state:worker, watchdog_pending, watchdog_check:worker et ne lève
+    jamais `worker`."""
+    from cop_corpus import db
+
+    now = wd._now()
+    _troubles(env, wd, now)
+    db.meta_set(env, "watchdog_check:worker", _fmt(now - timedelta(minutes=16)))
+    monkeypatch.setattr(wd, "_cgroup_memory", lambda: (95, 100))
+    before = _meta(env)
+    site = {i["key"] for i in wd.check(env, "app", now=now)}
+    after = _meta(env)
+    assert site == {"worker", "mem:app"}
+    assert {k for k in after if after.get(k) != before.get(k)} == {"watchdog_state:app", "watchdog_check:app"}
+    before = after
+    worker = {i["key"] for i in wd.check(env, "worker", now=now)}
+    after = _meta(env)
+    assert {"hb:veille", "hb:app", "hb:app-boucle", "pending", "alerts_lag", "sources", "mem:worker"} <= worker
+    assert "worker" not in worker and "mem:app" not in worker
+    assert {k for k in after if after.get(k) != before.get(k)} <= {"watchdog_state:worker", "watchdog_pending",
+                                                                     "watchdog_check:worker"}
+    assert set(json.loads(after["watchdog_state:app"])) == {"worker", "mem:app"}
+    assert "worker" not in json.loads(after["watchdog_state:worker"])
+
+
+def test_fil_garde_du_worker(env, wd, monkeypatch):  # noqa: F811
+    """Le fil `garde` vérifie sans redéclarer démarrage ni battements (faits par worker.run_forever)."""
+    stop, calls = threading.Event(), []
+    monkeypatch.setattr(wd, "process_started", lambda *a: calls.append("started"))
+    monkeypatch.setattr(wd, "expect", lambda *a, **k: calls.append("expect"))
+    monkeypatch.setattr(wd, "check", lambda conn, proc: calls.append(proc) or stop.set())
+    wd.run_forever("worker", stop, every=0)
+    assert calls == ["worker"]
+
+
+def test_site_alerte_worker_puis_retabli(env, admin_chat, wd, monkeypatch):  # noqa: F811
+    """Critère 6 : `watchdog_check:worker` vieux de 16 min → alerte `worker` par le site, puis « Rétabli » par le
+    site ; le site n'envoie jamais `pending` ni `alerts_lag`, le worker jamais `worker`."""
+    from cop_corpus import config, db
+
+    now = wd._now()
+    _troubles(env, wd, now)
+    db.meta_set(env, "watchdog_check:worker", _fmt(now - timedelta(minutes=16)))
+    assert [i["key"] for i in wd.check(env, "app", now=now)] == ["worker"]
+    assert len(admin_chat) == 1 and "le worker ne vérifie plus" in admin_chat[0][1]
+    db.meta_set(env, "watchdog_check:worker", _fmt(now - timedelta(minutes=14)))
+    assert wd.check(env, "app", now=now) == []
+    assert len(admin_chat) == 2 and "Rétabli" in admin_chat[1][1] and "worker" in admin_chat[1][1]
+    site = [t for _, t in admin_chat]
+    assert not any(w in t for t in site for w in ("attente d'indexation", "alertes en retard", "veille"))
+    admin_chat.clear()
+    wd.check(env, "worker", now=now)
+    assert admin_chat and not any("le worker ne vérifie plus" in t for _, t in admin_chat)
+    # Hors session : `worker` est un blocage, il part quand même.
+    admin_chat.clear()
+    monkeypatch.setattr(config, "SESSION", False)
+    env.execute("DELETE FROM error_events")
+    env.commit()
+    assert [i["key"] for i in wd.check(env, "app", now=now + timedelta(minutes=20))] == ["worker"]
+    assert len(admin_chat) == 1 and "le worker ne vérifie plus" in admin_chat[0][1]
+
+
+def test_etat_ecrit_avant_toute_annonce(env, admin_chat, wd, monkeypatch):  # noqa: F811
+    """Critère 7, #29 : si l'état ne peut pas être écrit, ni blocage ni « Dégradé » ne partent ; au retour de la
+    base, un seul message par problème."""
+    import sqlite3
+
+    from cop_corpus import db
+
+    now = wd._now()
+    wd.expect("worker", {"veille": 90}, env)
+    db.meta_set(env, "hb:veille", _fmt(now - timedelta(hours=3)))
+    env.execute("INSERT INTO source_state(source_id,last_run,last_result,failing_since) VALUES(?,?,?,?)",
+                ("morte", _fmt(now - timedelta(hours=1)), "{'error': 1}", _fmt(now - timedelta(hours=30))))
+    env.commit()
+    real = db.meta_set
+
+    def failing(conn, key, value):
+        if key == "watchdog_state:worker":
+            raise sqlite3.OperationalError("database is locked")
+        return real(conn, key, value)
+
+    monkeypatch.setattr(wd.db, "meta_set", failing)
+    wd.check(env, "worker", now=now)
+    annonces = lambda: [t for _, t in admin_chat if "veille" in t or "Dégradé" in t]  # noqa: E731
+    assert annonces() == []
+    monkeypatch.setattr(wd.db, "meta_set", real)
+    wd.check(env, "worker", now=now)
+    wd.check(env, "worker", now=now)
+    assert len(annonces()) == 2                                       # un blocage, un « Dégradé »
+    assert sum("Dégradé" in t for t in annonces()) == 1
+
+
+def test_repli_pas_renvoye_au_retour_de_la_base(env, admin_chat, wd):  # noqa: F811
+    """Critère 7, #28 : une alerte partie par le repli (base indisponible) n'est pas renvoyée quand la base revient ;
+    `_mem_sent` est purgé au-delà de RESEND_MINUTES."""
+    import sqlite3
+
+    from cop_corpus import monitor
+
+    class Locked:
+        def execute(self, *a, **k):
+            raise sqlite3.OperationalError("database is locked")
+
+    monitor.admin_chats(env)                                          # destinataires connus du repli
+    monitor._ensure(env)
+    place, err = "chien de garde : hb:veille", "Blocage: boucle arrêtée"
+    assert monitor.report(place, err, conn=Locked(), background=False, urgent=True)
+    assert len(admin_chat) == 1 and "base indisponible" in admin_chat[0][1]
+    assert monitor.report(place, err, conn=env, background=False, urgent=True) is False
+    assert len(admin_chat) == 1                                       # pas de second message
+    row = env.execute("SELECT sent_at, unsent FROM error_events").fetchone()
+    assert row["sent_at"] and row["unsent"] == 0
+    # Purge : une entrée plus vieille que RESEND_MINUTES disparaît ; l'alerte repart normalement.
+    key = next(iter(monitor._mem_sent))
+    monitor._mem_sent[key] -= timedelta(minutes=monitor.RESEND_MINUTES + 1)
+    monitor._mem_sent["autre"] = monitor._mem_sent[key]
+    env.execute("UPDATE error_events SET sent_at=?", (_fmt(wd._now() - timedelta(hours=1)),))
+    env.commit()
+    assert monitor.report(place, err, conn=env, background=False, urgent=True)
+    assert monitor._mem_sent == {} and len(admin_chat) == 2
+
+
+def test_ancien_etat_supprime_par_le_worker(env, wd):  # noqa: F811
+    """Critère 8."""
+    from cop_corpus import db
+
+    db.meta_set(env, "watchdog_state", json.dumps({"hb:veille": {"since": "2026-11-26T00:00:00Z"}}))
+    wd.check(env, "app")
+    assert db.meta_get(env, "watchdog_state") is not None             # le site n'y touche pas
+    wd.check(env, "worker")
+    assert db.meta_get(env, "watchdog_state") is None
+
+
+def test_site_ignore_worker_juste_apres_son_demarrage(env, admin_chat, wd, monkeypatch):  # noqa: F811
+    """Retouche de revue : au démarrage du site, `watchdog_check:worker` date encore de l'ancien worker ; pas
+    d'alerte `worker` pendant APP_GRACE_MINUTES (10 min), le temps que le fil `garde` la réécrive."""
+    from cop_corpus import db
+
+    now = datetime(2026, 11, 28, 12, 0, tzinfo=timezone.utc)
+    db.meta_set(env, "watchdog_check:worker", _fmt(now - timedelta(minutes=40)))
+    monkeypatch.setattr(wd, "_app_started", now - timedelta(minutes=9))
+    assert wd.check(env, "app", now=now) == [] and admin_chat == []
+    monkeypatch.setattr(wd, "_app_started", now - timedelta(minutes=11))
+    assert [i["key"] for i in wd.check(env, "app", now=now)] == ["worker"]
+    assert len(admin_chat) == 1
+
+
+def test_fil_du_site_note_son_demarrage(env, wd, monkeypatch):  # noqa: F811
+    stop = threading.Event()
+    monkeypatch.setattr(wd, "process_started", lambda *a: None)
+    monkeypatch.setattr(wd, "check", lambda conn, proc: stop.set())
+    assert wd._app_started is None
+    wd.run_forever("app", stop, every=0)
+    assert wd._app_started is not None

@@ -84,15 +84,15 @@ def test_document_bloque_mesure_par_observation(env, admin_chat, wd):  # noqa: F
     env.execute("INSERT INTO documents(sha256, raw_path, status, fetched_at) VALUES('c','r','indexed',?)",
                 (wd._fmt(wd._now()),))                            # récent : pas encore en retard
     env.commit()
-    keys = sorted(i["key"] for i in wd.check(env, "app"))
+    keys = sorted(i["key"] for i in wd.check(env, "worker"))
     assert keys == ["alerts_lag"]                                 # 'pending' vu pour la première fois : pas encore
     assert any("alertes en retard : 1 document" in t for _, t in admin_chat)
     db.meta_set(env, "watchdog_pending", json.dumps({"1": _ago(wd, minutes=31)}))
-    assert sorted(i["key"] for i in wd.check(env, "app")) == ["alerts_lag", "pending"]
+    assert sorted(i["key"] for i in wd.check(env, "worker")) == ["alerts_lag", "pending"]
     env.execute("UPDATE documents SET status='indexed' WHERE id=1")
     env.commit()
     db.meta_set(env, "alerts_last_doc_id", "3")
-    assert wd.check(env, "app") == []
+    assert wd.check(env, "worker") == []
     assert json.loads(db.meta_get(env, "watchdog_pending")) == {}
 
 
@@ -117,13 +117,13 @@ def test_sources_en_echec_une_fois_par_jour(env, admin_chat, wd):  # noqa: F811
             ("abandonnee", _ago(wd, days=5), "{'error': 1}", _ago(wd, days=6))]  # plus relevée
     env.executemany("INSERT INTO source_state(source_id,last_run,last_result,failing_since) VALUES(?,?,?,?)", rows)
     env.commit()
-    found = wd.check(env, "app")
+    found = wd.check(env, "worker")
     assert [i["key"] for i in found] == ["sources"]
     assert "1 source(s)" in found[0]["message"] and "morte" in found[0]["message"]
     assert "1 bloquée(s) par un anti-bot" in found[0]["message"]
     assert "Dégradé" in admin_chat[-1][1]
     n = len(admin_chat)
-    wd.check(env, "app")
+    wd.check(env, "worker")
     assert len(admin_chat) == n                                   # pas de rappel avant 24 h
 
 
@@ -221,19 +221,6 @@ def test_indexation_ne_reprend_pas_un_document_en_cours(env):  # noqa: F811
         assert ingest.reindex_pending(env) == {}
     finally:
         ingest._indexing.discard(77)
-
-
-def test_le_site_n_alerte_que_si_le_worker_ne_verifie_plus(env, admin_chat, wd):  # noqa: F811
-    from cop_corpus import db
-
-    wd.expect("worker", {"veille": 90}, env)
-    db.meta_set(env, "hb:veille", _ago(wd, minutes=120))
-    db.meta_set(env, "watchdog_check:worker", _ago(wd, minutes=2))
-    assert [i["key"] for i in wd.check(env, "app")] == ["hb:veille"]   # constaté…
-    assert admin_chat == []                                          # …mais l'alerte revient au worker
-    db.meta_set(env, "watchdog_check:worker", _ago(wd, minutes=30))  # le worker ne vérifie plus
-    wd.check(env, "app")
-    assert admin_chat and "veille" in admin_chat[-1][1]
 
 
 def test_exception_d_indexation_ne_compte_pas_comme_tentative(env, monkeypatch):  # noqa: F811
