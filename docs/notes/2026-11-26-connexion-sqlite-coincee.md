@@ -1,6 +1,6 @@
 # 2026-11-26 — Connexion SQLite coincée après un « database is locked »
 
-*Taille : incident, puis M (base, boucles du worker et du site) · Statut : brouillon*
+*Taille : incident, puis M (base, boucles du worker et du site) · Statut : livré (ef77254, déployé le 27/11)*
 *Fichiers concernés : `db.py` (`connect`), `tests/test_core.py` ou nouveau `tests/test_verrou.py` ; lus pour
 vérification : `worker.py`, `live_worker.py`, `watchdog.py`, `monitor.py`, `ingest.py` (`run_source`),
 `mailin.py`*
@@ -171,12 +171,17 @@ Pas de tour 2 nécessaire.
 
 ## Suites
 
-À créer à la livraison (une issue `suite` par point hors périmètre ci-dessus).
+#20 alertes perdues sous verrou long · #21 alerte sur la taille du WAL · #22 gel de l'hôte du VPS ·
+#23 « Rétabli » puis nouvelle alerte · #24 `exitCode=139` du 25/11.
+
+Vérifications après déploiement (27/11, 10:01 UTC, 2 min après le démarrage) : 0 « database is locked » et
+0 erreur dans le worker ; les 8 battements à jour ; base principale écrite à 10:00:08 (le WAL est reporté) ;
+mémoire worker 110 Mo, site 18 Mo, courrier 50 Mo. Critère 7 rempli.
 
 ## Promotion (à la livraison)
 
-- [ ] PITFALLS § SQLite : « une écriture en échec sur verrou laisse la transaction ouverte ; la connexion reste
+- [x] PITFALLS § SQLite : « une écriture en échec sur verrou laisse la transaction ouverte ; la connexion reste
       coincée jusqu'au `rollback` » → `db.connect` s'en charge (testé)
-- [ ] architecture.md : la connexion de `db.connect` annule sa transaction sur verrou
-- [ ] suites → issues `suite`
-- [ ] statut « livré » ici et dans l'index
+- [x] architecture.md : la connexion de `db.connect` annule sa transaction sur verrou
+- [x] suites → issues `suite`
+- [x] statut « livré » ici et dans l'index
