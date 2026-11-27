@@ -17,10 +17,12 @@ et devient caduc dès que le mot de passe est changé.
 from __future__ import annotations
 
 import base64
+import functools
 import hashlib
 import hmac
 import secrets
 import sqlite3
+import threading
 import time
 from typing import Any
 
@@ -138,21 +140,37 @@ def set_password(conn: sqlite3.Connection, user_id: int, password: str) -> None:
 
 _DUMMY_SALT = secrets.token_bytes(16)
 _failures: dict[str, list[float]] = {}
+_failures_lock = threading.Lock()   # pages de connexion exécutées dans des fils (body_first, #15)
+# « Lire puis écrire » des codes de connexion et des inscriptions : sérialisés dans le processus du site (seul à les
+# appeler), comme quand ces pages tournaient dans la boucle d'événements. Sans cela, des requêtes parallèles
+# obtenaient plus de CODE_TRIES essais par code, deux sessions pour un code, deux codes à la même minute, ou une
+# erreur 500 sur un double clic d'inscription (revue de la note 2026-11-27-hors-de-la-boucle).
+_login_lock = threading.RLock()
+
+
+def _serialized(fn):
+    @functools.wraps(fn)
+    def run(*args, **kwargs):
+        with _login_lock:
+            return fn(*args, **kwargs)
+    return run
 MAX_FAILURES, WINDOW = 8, 900
 
 
 def throttled(key: str, limit: int = MAX_FAILURES, window: float = WINDOW) -> bool:
     now = time.time()
-    recent = [t for t in _failures.get(key, []) if now - t < window]
-    if recent:
-        _failures[key] = recent
-    else:
-        _failures.pop(key, None)   # pas d'accumulation de clés mortes
+    with _failures_lock:
+        recent = [t for t in _failures.get(key, []) if now - t < window]
+        if recent:
+            _failures[key] = recent
+        else:
+            _failures.pop(key, None)   # pas d'accumulation de clés mortes
     return len(recent) >= limit
 
 
 def hit(key: str) -> None:
-    _failures.setdefault(key, []).append(time.time())
+    with _failures_lock:
+        _failures.setdefault(key, []).append(time.time())
 
 
 def ip_key(ip: str) -> str:
@@ -183,9 +201,10 @@ def check_password(conn: sqlite3.Connection, email: str, password: str, client: 
         salt, digest = _DUMMY_SALT, b""
     ok = hmac.compare_digest(_scrypt(password, salt), digest) and bool(digest)
     if ok:
-        _failures.pop(key, None)
+        with _failures_lock:
+            _failures.pop(key, None)
         return user
-    _failures.setdefault(key, []).append(time.time())
+    hit(key)
     return None
 
 
@@ -423,6 +442,7 @@ def set_open_signup(conn: sqlite3.Connection, open_: bool | None = None, maximum
         db.meta_set(conn, "signup_max", str(max(0, maximum)))
 
 
+@_serialized
 def signup(conn: sqlite3.Connection, code: str, email: str, organisation: str = "", password: str = "",
            client: str = "", lang: str | None = None, profil: str = "") -> tuple[dict[str, Any] | None, str | None, str | None]:
     """Compte invité → (utilisateur, jeton MCP, code d'erreur de SIGNUP_ERRORS).
@@ -457,7 +477,11 @@ def signup(conn: sqlite3.Connection, code: str, email: str, organisation: str = 
         return None, None, "exists"
     if not invited:
         hit(key)
-    uid, token = create_user(conn, email, "", admin=False, restricted=False)
+    try:
+        uid, token = create_user(conn, email, "", admin=False, restricted=False)
+    except sqlite3.IntegrityError:   # adresse créée entre-temps par un autre processus (users.email UNIQUE)
+        conn.rollback()
+        return None, None, "exists"
     from .usage import PROFILE_KEYS
 
     conn.execute("UPDATE users SET organisation=?, source=?, lang=?, profil=? WHERE id=?",
@@ -520,6 +544,7 @@ def _log(raw: str | None, window: float) -> list[tuple[float, str]]:
     return out
 
 
+@_serialized
 def issue_login_code(conn: sqlite3.Connection, user: dict, ip: str = "") -> tuple[str | None, str | None]:
     """Nouveau code à 6 chiffres → (code, None), sinon (None, raison) : 'wait' (une minute entre deux codes, cinq
     par heure, depuis un même réseau), 'day' (trop de codes aujourd'hui), 'locked' (trop de codes faux).
@@ -548,6 +573,7 @@ def issue_login_code(conn: sqlite3.Connection, user: dict, ip: str = "") -> tupl
     return code, None
 
 
+@_serialized
 def cancel_login_code(conn: sqlite3.Connection, user: dict) -> None:
     """L'envoi a échoué : le code n'existe pas pour l'utilisateur, il ne doit ni compter ni faire attendre."""
     import json
@@ -572,6 +598,7 @@ def code_locked(conn: sqlite3.Connection, user: dict, ip: str = "") -> bool:
     return sum(1 for _, n in fails if n == ip) >= CODE_FAILS_PER_DAY or len(fails) >= CODE_FAILS_PER_DAY_ACCOUNT
 
 
+@_serialized
 def check_login_code(conn: sqlite3.Connection, user: dict | None, code: str, ip: str = "") -> bool:
     """Vrai si le code est le bon, pas expiré, et moins de 5 essais (le code est alors consommé)."""
     if not user:
@@ -593,3 +620,4 @@ def check_login_code(conn: sqlite3.Connection, user: dict | None, code: str, ip:
                  (json.dumps([[t, n] for t, n in _fails(conn, user["id"])] + [[time.time(), ip]]), user["id"]))
     conn.commit()
     return False
+

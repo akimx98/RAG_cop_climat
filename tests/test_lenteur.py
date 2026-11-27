@@ -52,15 +52,105 @@ def _doc(conn, text: str, name: str) -> int:
 
 # --- critères 1 et 2 : pas de page synchrone dans la boucle ---------------------------------------------------------
 
+ASYNC_PERMIS = {
+    "health",        # /healthz : reflète l'état de la boucle elle-même
+    "health_deep",   # attend watchdog.status dans un fil
+    "sitemap",       # attend sitemap_urls dans un fil
+    "demo_ask",      # réponse en flux (file asyncio) ; prélude court, travail dans un fil
+    "stream",        # générateur du flux de demo_ask
+    "awrapper",      # enveloppe de _wrap pour une page async permise
+    "page",          # enveloppe de body_first : lit le corps, puis la page tourne dans un fil
+}
+
+
 def test_page_async_sans_await_interdite():
-    """Une page `async def` sans `await` s'exécute dans la boucle : ses requêtes SQLite figent tout le site."""
+    """Pas de page `async def` hors d'une liste justifiée : une page async fait son travail synchrone dans la boucle
+    et fige tout le site (note 2026-11-27-hors-de-la-boucle, critère 5). Page à formulaire : `def` + body_first."""
     bad = []
     for name in ("web.py", "web_live.py"):
         for node in ast.walk(ast.parse((SRC / name).read_text(encoding="utf-8"))):
-            if isinstance(node, ast.AsyncFunctionDef) and node.name != "health":   # /healthz : reflète la boucle
-                if not any(isinstance(x, ast.Await) for x in ast.walk(node)):
-                    bad.append(f"{name}:{node.lineno} {node.name}")
-    assert not bad, f"à écrire `def` (Starlette les exécute dans un fil) : {bad}"
+            if isinstance(node, ast.AsyncFunctionDef) and node.name not in ASYNC_PERMIS:
+                bad.append(f"{name}:{node.lineno} {node.name}")
+    assert not bad, f"à écrire `def` (sous body_first s'il lit un formulaire) : {bad}"
+
+
+def test_body_first_page_et_controles_dans_un_fil(env):
+    """Critère 6 : le corps est lu dans la boucle, la page et son contrôle d'accès tournent dans un fil."""
+    from starlette.applications import Starlette
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient
+    from cop_corpus import web
+
+    seen = {}
+
+    def before(request):
+        seen["controle"] = threading.get_ident()
+        return None
+
+    def page(request):
+        seen["page"] = threading.get_ident()
+        return PlainTextResponse(f"{web._form(request).get('x')}|{web._body(request).decode()}")
+
+    async def boucle(request):
+        seen["boucle"] = threading.get_ident()
+        return PlainTextResponse("ok")
+
+    app = Starlette(routes=[Route("/f", web.body_first(web._wrap(page, before)), methods=["GET", "POST"]),
+                            Route("/b", boucle)])
+    with TestClient(app) as c:
+        assert c.post("/f", data={"x": "1"}).text == "1|"
+        assert c.post("/f", content=b"brut", headers={"content-type": "text/plain"}).text == "None|brut"
+        assert c.get("/f").text == "None|"
+        c.get("/b")
+    assert seen["page"] != seen["boucle"] and seen["controle"] != seen["boucle"]
+
+
+def test_compteurs_echecs_sous_verrou(env):
+    """Critère 7 : `hit` depuis plusieurs fils ne perd aucun échec."""
+    from cop_corpus import auth
+
+    def burst():
+        for _ in range(500):
+            auth.hit("k")
+            auth.throttled("k", limit=10**9)
+
+    threads = [threading.Thread(target=burst) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(auth._failures["k"]) == 4000
+
+
+def test_outils_mcp_hors_de_la_boucle(env):
+    """Critères 1 et 2 : tout outil MCP est asynchrone côté SDK ; un outil `def` tourne dans un fil, avec les
+    variables de contexte de la requête."""
+    import asyncio
+    import contextvars
+
+    from cop_corpus import mcp_server
+
+    assert all(t.is_async for t in mcp_server.mcp._tool_manager.list_tools())
+    var = contextvars.ContextVar("essai", default=None)
+
+    @mcp_server._tool(mcp_server.READ)
+    def essai_fil() -> dict:
+        return {"fil": threading.get_ident(), "var": var.get()}
+
+    try:
+        async def main():
+            var.set("alix")
+            out = await mcp_server.mcp.call_tool("essai_fil", {})
+            return threading.get_ident(), out
+
+        boucle, out = asyncio.run(main())
+        res = out[1]["result"] if isinstance(out, tuple) else out
+        res = res if isinstance(res, dict) else __import__("json").loads(res[0].text)
+        assert res["var"] == "alix" and res["fil"] != boucle
+        assert essai_fil()["var"] is None   # la fonction d'origine reste appelable directement
+    finally:
+        mcp_server.mcp._tool_manager._tools.pop("essai_fil", None)
 
 
 def test_decorateurs_gardent_la_page_synchrone(env):
@@ -327,3 +417,61 @@ def test_echec_jamais_mis_en_cache(env):
     assert web._ttl_cached("essai", flaky) == 42
     assert web._ttl_cached("essai", flaky) == 42
     assert len(calls) == 2
+
+
+# --- revue du lot « hors de la boucle » : courses révélées par les fils ---------------------------------------------
+
+def _parallel(fn, n=12):
+    start = threading.Barrier(n)
+    out = []
+
+    def run():
+        start.wait()
+        out.append(fn())
+
+    threads = [threading.Thread(target=run) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(20)
+    return out
+
+
+def test_code_de_connexion_essais_et_usage_unique_en_parallele(env):
+    from cop_corpus import auth, db
+
+    uid, _ = auth.create_user(env, "code@example.org", "Code")
+    user = auth.by_id(env, uid)
+    code, why = auth.issue_login_code(env, user, "1.2.3.4")
+    assert code and not why
+    wrong = f"{(int(code) + 1) % 10**6:06d}"
+    _parallel(lambda: auth.check_login_code(db.get(), user, wrong, "1.2.3.4"))
+    tries = env.execute("SELECT tries FROM login_codes WHERE user_id=?", (uid,)).fetchone()[0]
+    assert tries == auth.CODE_TRIES        # les essais au-delà sont refusés sans compter
+    code, _ = auth.issue_login_code.__wrapped__(env, user, "5.6.7.8")   # sans l'attente d'une minute (test)
+    ok = _parallel(lambda: auth.check_login_code(db.get(), user, code, "5.6.7.8"))
+    assert ok.count(True) == 1             # un code ouvre une seule session
+
+
+def test_double_inscription_simultanee(env):
+    from cop_corpus import auth, db
+
+    auth.set_open_signup(env, open_=True)
+    out = _parallel(lambda: auth.signup(db.get(), "", "double@example.org", "", "motdepasse-long", "9.9.9.9")[2], n=4)
+    assert out.count(None) == 1 and set(out) == {None, "exists"}
+
+
+def test_inscription_adresse_creee_ailleurs(env, monkeypatch):
+    """Adresse créée entre le contrôle et l'INSERT (autre processus) : « exists », transaction refermée."""
+    from cop_corpus import auth
+
+    auth.set_open_signup(env, open_=True)
+    real = auth.create_user
+
+    def create(conn, email, *a, **k):
+        real(conn, email, "Ailleurs")             # l'autre processus gagne la course
+        return real(conn, email, *a, **k)
+
+    monkeypatch.setattr(auth, "create_user", create)
+    _, _, err = auth.signup(env, "", "ailleurs@example.org", "", "motdepasse-long", "8.8.8.8")
+    assert err == "exists" and not env.in_transaction

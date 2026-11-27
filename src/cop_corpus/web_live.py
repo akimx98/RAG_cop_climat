@@ -11,7 +11,7 @@ from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
 from . import auth, db, ingest, live, positions, search, usage
-from .web import admin_required, login_required, public_page, render
+from .web import _form, admin_required, body_first, login_required, public_page, render
 
 
 
@@ -132,19 +132,20 @@ def dossier_follow(request: Request):
     return RedirectResponse(f"/database/negotiations/{slug}", status_code=303)
 
 
+@body_first
 @admin_required
-async def texte_upload(request: Request):
+def texte_upload(request: Request):
     """Dépôt du PDF d'un texte annoncé que l'anti-bot a bloqué, récupéré par un administrateur dans son navigateur."""
     conn = db.get()
     tid = int(request.path_params["tid"])
     t = conn.execute("SELECT * FROM live_texts WHERE id=?", (tid,)).fetchone()
     if not t:
         return Response("Texte inconnu", status_code=404)
-    form = await request.form()
+    form = _form(request)
     f = form.get("file")
     if not f or not getattr(f, "filename", ""):
         return RedirectResponse("/database?tab=texts", status_code=303)
-    content = await f.read()
+    content = f.file.read()
     doc_id, _new, _st = ingest.ingest_bytes(conn, content, url=t["pdf_url"], mime=f.content_type or "",
                                             meta=live._meta(t), source_id="live-texts", access="public",
                                             uploaded_by=request.state.user["id"], filename=f.filename)

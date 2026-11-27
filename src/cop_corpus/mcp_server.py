@@ -8,11 +8,14 @@ instructions ci-dessous et par les skills du plugin.
 
 from __future__ import annotations
 
+import functools
+import inspect
 import json
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import anyio
 import yaml
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -52,6 +55,25 @@ RETIRED_TOOLS = ("textes_en_cours", "suivre_dossier", "arreter_suivi", "analyser
 
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
+
+
+def _tool(annotations: ToolAnnotations):
+    """Déclare un outil MCP. Le SDK appelle un outil `def` dans la boucle d'événements : `rechercher` (3,4 s en
+    médiane) figeait alors tout le site. Un outil synchrone est donc enregistré derrière une enveloppe `async` qui
+    le fait tourner dans un fil (contexte copié : utilisateur, jeton) ; la fonction elle-même reste appelable
+    directement (tests, CLI). Issue #4."""
+    def deco(fn):
+        if inspect.iscoroutinefunction(fn):
+            mcp.tool(annotations=annotations)(fn)
+            return fn
+
+        @functools.wraps(fn)
+        async def run(*args, **kwargs):
+            return await anyio.to_thread.run_sync(functools.partial(fn, *args, **kwargs))
+
+        mcp.tool(annotations=annotations)(run)
+        return fn
+    return deco
 
 
 def _security() -> TransportSecuritySettings:
@@ -119,7 +141,7 @@ def _resolve_dossier(word: str | None) -> tuple[str | None, dict[str, Any] | Non
     return (slug, None) if slug else (None, live.ambiguity(word, cands))
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def rechercher(
     requete: str,
     niveaux: list[str] | None = None,
@@ -191,7 +213,7 @@ def rechercher(
     return out
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def lire_passage(passage_id: int, avant: int = 1, apres: int = 2, ctx: Context | None = None) -> dict[str, Any]:
     """Exact text of a passage and its neighbours (context), with the full reference and a link to the original at
     the right page. Read it before quoting: quote it exactly (original language), with reference, link and level;
@@ -200,7 +222,7 @@ def lire_passage(passage_id: int, avant: int = 1, apres: int = 2, ctx: Context |
     return out or {"erreur": "passage not found or not authorised"}
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def document(reference: str, ctx: Context | None = None) -> dict[str, Any]:
     """Document metadata and list of its versions. `reference` = numeric id, official symbol
     (e.g. FCCC/PA/CMA/2023/16/Add.1, FCCC/CP/2026/L.3) or URL. A draft is always cited with its version, date and
@@ -227,7 +249,7 @@ def _scope(ctx: Context | None, key: str) -> Any:
         return None
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def comparer_versions(document_recent: str, document_ancien: str | None = None, page: int = 1,
                       filtre: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
     """What changed between two versions of a draft text, unit by unit (paragraph, option, bullet, sub-paragraph:
@@ -278,7 +300,7 @@ def comparer_versions(document_recent: str, document_ancien: str | None = None, 
     return {**head, **out}
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def historique_formulation(notion: str, texte: str | None = None, dossier: str | None = None,
                            ctx: Context | None = None) -> dict[str, Any]:
     """Track a wording or notion through every version of a draft text: is "1.5 °C", "transition away from fossil
@@ -313,7 +335,7 @@ def historique_formulation(notion: str, texte: str | None = None, dossier: str |
     return formulations.timeline(conn, row, notion, user)
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def crochets(theme: str, texte: str | None = None, dossier: str | None = None, limite: int = 40,
              ctx: Context | None = None) -> dict[str, Any]:
     """Brackets by theme in a draft text: which wording on a theme is still IN BRACKETS (not agreed), and since
@@ -354,7 +376,7 @@ def crochets(theme: str, texte: str | None = None, dossier: str | None = None, l
     return out
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def nouveautes(depuis: str = "24h", niveaux: list[str] | None = None, types: list[str] | None = None,
                limite: int = 30, mes_sujets: bool = False, ctx: Context | None = None) -> dict[str, Any]:
     """What entered the corpus recently. `depuis`: "6h", "2j" (days), "30min" or an ISO date.
@@ -378,7 +400,7 @@ def nouveautes(depuis: str = "24h", niveaux: list[str] | None = None, types: lis
     return {"depuis": filters["added_since"], "nb": len(docs), "documents": docs}
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def donnees(pays: str, indicateur: str | None = None, debut: int | None = None, fin: int | None = None) -> dict[str, Any]:
     """Emissions figures to check a claim. `pays`: ISO3 code (FRA, CHN, USA, IND…) or English name
     ("European Union (27)", "World"). Indicators: co2, co2_including_luc, co2_per_capita,
@@ -391,7 +413,7 @@ def donnees(pays: str, indicateur: str | None = None, debut: int | None = None, 
 _GLOSSARY: list[dict[str, Any]] | None = None
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def glossaire(terme: str | None = None) -> dict[str, Any]:
     """Definition of a climate-negotiation acronym or concept (NCQG, GGA, MWP, Article 6, BTR…),
     with the reference text. No term: list of entries."""
@@ -409,7 +431,7 @@ def glossaire(terme: str | None = None) -> dict[str, Any]:
     return {"resultats": found} if found else {"erreur": f"not in the glossary: {terme}", "conseil": "use rechercher"}
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def programme(sujet: str | None = None, jour: str | None = None, types: list[str] | None = None,
               limite: int = 40, mes_sujets: bool = False, pavillons: bool = True,
               ctx: Context | None = None) -> dict[str, Any]:
@@ -473,7 +495,7 @@ def programme(sujet: str | None = None, jour: str | None = None, types: list[str
     return out
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str | None = None,
               zone: str | None = None, mode: str = "hybride", limite: int = 80, evenement: str | None = None,
               couverture: bool = False) -> dict[str, Any]:
@@ -496,7 +518,7 @@ def pavillons(sujet: str | None = None, pavillon: str | None = None, jour: str |
                      limite=max(1, min(limite, 300)))
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def soumissions(appel: int | None = None, auteur: str | None = None, document: str | None = None,
                 dossier: str | None = None, groupe: str | None = None,
                 requete: str | None = None, theme: str | None = None, session: str | None = None,
@@ -568,7 +590,7 @@ def soumissions(appel: int | None = None, auteur: str | None = None, document: s
         return {"erreur": str(exc)}
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int | None = None,
                          dossier: str | None = None, acteurs: list[str] | None = None,
                          qualifications: list[dict] | None = None, max_comparaisons: int = 6,
@@ -637,7 +659,7 @@ def comparer_soumissions(a: str | None = None, b: str | None = None, appel: int 
         return {"erreur": str(exc)}
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def groupes(groupe: str | None = None, partie: str | None = None) -> dict[str, Any]:
     """Negotiating groups: who belongs to what, with the SOURCE and date of each list.
     - groupe="LDC" / "PMA", "AOSIS", "G77", "EU", "Umbrella", "BASIC", "EIG", "LLDC", "SIDS":
@@ -653,7 +675,7 @@ def groupes(groupe: str | None = None, partie: str | None = None) -> dict[str, A
     return grp.query(db.get(), groupe=groupe, partie=partie)
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def mes_sujets(ctx: Context | None = None) -> dict[str, Any]:
     """Topics followed by the user (Telegram and dashboard alerts), followed items and latest alerts."""
     user = _need_user(ctx)
@@ -679,7 +701,7 @@ def mes_sujets(ctx: Context | None = None) -> dict[str, Any]:
     return out
 
 
-@mcp.tool(annotations=WRITE)
+@_tool(WRITE)
 def suivre(mots_cles: str | None = None, dossier: str | None = None, arreter: int | None = None,
            ne_plus_suivre: bool = False, libelle: str | None = None, niveaux: list[str] | None = None,
            types: list[str] | None = None, ctx: Context | None = None) -> dict[str, Any]:
@@ -777,7 +799,7 @@ def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
     return out
 
 
-@mcp.tool(annotations=WRITE)
+@_tool(WRITE)
 async def deposer_url(url: str, titre: str | None = None, niveau: str | None = None, type: str | None = None,
                       organisation: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
     """Add to the (public) corpus a web page or PDF available online: press release, statement, analysis…
@@ -826,7 +848,7 @@ def _deposer_url(url, titre, niveau, type, organisation, user) -> dict[str, Any]
     return out
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def etat_corpus() -> dict[str, Any]:
     """Corpus volume by level, type and status; date of the latest addition; monitored sources; current version of
     the COP31 skills and pasted instructions (tell the user if theirs is older)."""
@@ -852,7 +874,7 @@ def _live():
     return live, positions, briefs
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def dossiers(textes: bool = False, a_recuperer: bool = False, limite: int = 30,
              ctx: Context | None = None) -> dict[str, Any]:
     """COP31 negotiation items (mitigation, GGA, finance, Art. 6, just transition…) with their status (per the
@@ -876,7 +898,7 @@ def dossiers(textes: bool = False, a_recuperer: bool = False, limite: int = 30,
     return out
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def dossier(slug: str, ctx: Context | None = None) -> dict[str, Any]:
     """A whole negotiation item: status, successive negotiation texts (brackets, options, link to the document and
     the diff), AI brief if enabled, positions recorded during the COP (exact quote and source), written positions
@@ -950,7 +972,7 @@ def _sub_section(conn, slug: str) -> dict[str, Any] | None:
         return None
 
 
-@mcp.tool(annotations=READ)
+@_tool(READ)
 def positions(acteur: str | None = None, dossier: str | None = None, depuis: str | None = None,
               limite: int = 80, divisions: bool = False, groupe: str | None = None, compact: bool | None = None,
               decalage: int = 0, ctx: Context | None = None) -> dict[str, Any]:

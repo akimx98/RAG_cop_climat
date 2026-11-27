@@ -215,8 +215,8 @@ def _wrap(handler, before):
     """Enveloppe une page avec un contrôle préalable `before(request)` (réponse de refus, ou None pour continuer).
 
     Une page `def` reste synchrone : Starlette l'exécute dans son pool de fils, hors de la boucle d'événements.
-    Une page `async def` (qui attend un formulaire) reste dans la boucle. Règle : une page sans `await` s'écrit
-    `def` (tests/test_lenteur.py), sinon ses requêtes SQLite figent tout le site."""
+    Une page à formulaire s'écrit aussi `def`, sous `body_first` (qui lit le corps dans la boucle). Règle : pas de
+    page `async def` hors de la liste de tests/test_lenteur.py, sinon ses requêtes SQLite figent tout le site."""
     if inspect.iscoroutinefunction(handler):
         @functools.wraps(handler)
         async def awrapper(request: Request):
@@ -229,6 +229,35 @@ def _wrap(handler, before):
         refused = before(request)
         return refused if refused is not None else handler(request)
     return wrapper
+
+
+def body_first(handler):
+    """Page à formulaire : le corps est lu dans la boucle d'événements (seule étape qui doit attendre le réseau),
+    puis la page `def`, contrôles d'accès compris, s'exécute dans un fil. Sans cela, une page `async def` faisait tout
+    son travail (indexation, nouveautés, scrypt) dans la boucle et figeait le site (#15). Décorateur le plus
+    extérieur ; la page lit `_form(request)` ou `_body(request)`."""
+    from starlette.datastructures import FormData
+
+    @functools.wraps(handler)
+    async def page(request: Request):
+        request.state.form = FormData()
+        request.state.body = b""
+        if request.method == "POST":
+            ctype = request.headers.get("content-type", "")
+            if ctype.startswith(("application/x-www-form-urlencoded", "multipart/form-data")):
+                request.state.form = await request.form()
+            else:
+                request.state.body = await request.body()
+        return await run_in_threadpool(handler, request)
+    return page
+
+
+def _form(request: Request):
+    return request.state.form
+
+
+def _body(request: Request) -> bytes:
+    return request.state.body
 
 
 def login_required(handler):
@@ -336,7 +365,8 @@ def _go(request: Request, url: str, user: dict | None = None, token: str | None 
     return _session(resp, user, token) if user else resp
 
 
-async def login_form(request: Request):
+@body_first
+def login_form(request: Request):
     """Connexion en deux temps, pour tous les comptes :
     1. l'e-mail ;
     2. le mot de passe si le compte en a un (inscription libre, ou choisi ensuite), sinon un code à 6 chiffres envoyé
@@ -351,7 +381,7 @@ async def login_form(request: Request):
     if not _same_origin(request):
         return _forbidden(request)
     conn = db.get()
-    form = await request.form()
+    form = _form(request)
     email = (form.get("email") or "").strip().lower()
     nxt = _safe_next(form.get("next"))
     action = form.get("action") or ""
@@ -436,9 +466,7 @@ async def login_form(request: Request):
     if why:
         return page("code", error=T("Un code vient d'être envoyé : patientez une minute avant d'en demander un autre.",
                                     "A code was just sent: wait a minute before asking for another one."))
-    from starlette.concurrency import run_in_threadpool
-
-    mailed, tg = await run_in_threadpool(_send_login_code, user, code)
+    mailed, tg = _send_login_code(user, code)
     if not (mailed or tg):
         auth.cancel_login_code(conn, user)
         return page("email", error=T("Le code n'a pas pu être envoyé : réessayez dans un instant, ou écrivez-nous (page Contact).",
@@ -466,7 +494,8 @@ def login_link(request: Request):
     return _session(RedirectResponse("/account", status_code=303), user)
 
 
-async def join(request: Request):
+@body_first
+def join(request: Request):
     """Création d'un compte invité (corpus public, pas de dépôt), depuis la fenêtre de l'accueil.
 
     - `/join` (POST) : inscription libre, e-mail + mot de passe (+ organisation) ;
@@ -479,39 +508,39 @@ async def join(request: Request):
     lang = lang_of(request)
     if request.method == "GET":
         if code and not auth.invite_valid(conn, code):
-            return await run_in_threadpool(_landing, request, None,
-                                           signup_error=i18n.pick(lang, *auth.SIGNUP_ERRORS["bad_code"]))
-        return await run_in_threadpool(_landing, request, None, invite_code=code if code else "", open_modal="signup")
+            return _landing(request, None,
+                            signup_error=i18n.pick(lang, *auth.SIGNUP_ERRORS["bad_code"]))
+        return _landing(request, None, invite_code=code if code else "", open_modal="signup")
     if not _same_origin(request):
         return _forbidden(request)
-    form = await request.form()
+    form = _form(request)
     code = (form.get("code") or code).strip().lower()
     invite_key = f"invite|{auth.ip_key(_client(request))}"
 
-    async def fail(err: str):
+    def fail(err: str):
         msg = i18n.pick(lang, *auth.SIGNUP_ERRORS[err])
         invited = bool(code) and auth.invite_valid(conn, code)
         if _wants_json(request):
             return JSONResponse({"error": msg, "invited": invited})
-        return await run_in_threadpool(_landing, request, None, invite_code=code if invited else "",
-                                       open_modal="signup", signup_error=msg, form=form)
+        return _landing(request, None, invite_code=code if invited else "",
+                        open_modal="signup", signup_error=msg, form=form)
 
     if form.get("check_code"):  # saisie manuelle d'un code d'invitation
         if auth.throttled(invite_key):
-            return await fail("throttled")
+            return fail("throttled")
         if not auth.invite_valid(conn, code):
             auth.hit(invite_key)
-            return await fail("bad_code")
+            return fail("bad_code")
         return _go(request, f"/join/{code}")
     if form.get("hp_x7"):  # champ piège invisible (nom que les navigateurs ne remplissent pas d'eux-mêmes)
-        return await fail("robot")
+        return fail("robot")
     if not code and form.get("password2") is not None and form.get("password") != form.get("password2"):
-        return await fail("mismatch")
+        return fail("mismatch")
     user, token, error = auth.signup(conn, code, form.get("email") or "", form.get("organisation") or "",
                                      "" if code else (form.get("password") or ""), _client(request), lang=lang,
                                      profil=form.get("profil") or "")
     if error:
-        return await fail(error)
+        return fail(error)
     nxt = _safe_next(form.get("next"))
     return _go(request, nxt if nxt != "/" else "/?welcome=1", user, token)
 
@@ -588,7 +617,8 @@ def how_page(request: Request):
 _contact_hits: dict[str, list[float]] = {}
 
 
-async def contact_page(request: Request):
+@body_first
+def contact_page(request: Request):
     """Contact : formulaire court ; le message part par e-mail vers COP_CONTACT_EMAIL (adresse jamais affichée)."""
     import time
 
@@ -598,7 +628,7 @@ async def contact_page(request: Request):
     sent = error = None
     form: dict = {}
     if request.method == "POST":
-        form = dict(await request.form())
+        form = dict(_form(request))
         T = lambda fr, en: i18n.pick(lang_of(request, user), fr, en)  # noqa: E731
         ip = _client(request)
         now = time.time()
@@ -619,10 +649,7 @@ async def contact_page(request: Request):
             name = re.sub(r"[\x00-\x1f\x7f]+", " ", form.get("name") or "").strip()[:80]
             body = (f"From: {name} <{reply}>\nAccount: {(user or {}).get('email') or '—'}\n"
                     f"Organisation: {(form.get('organisation') or '').strip()[:120] or '—'}\n\n{message[:5000]}")
-            from starlette.concurrency import run_in_threadpool
-
-            ok = await run_in_threadpool(lambda: mailout.send(config.CONTACT_EMAIL, f"[OpenCOP] {name or reply}"[:120],
-                                                              body, reply_to=reply))
+            ok = mailout.send(config.CONTACT_EMAIL, f"[OpenCOP] {name or reply}"[:120], body, reply_to=reply)
             _contact_hits[ip] = recent + [now]
             sent = ok or None
             if not ok:
@@ -709,8 +736,9 @@ def plan_page(request: Request):
 
 # --- mes sujets ---------------------------------------------------------------------------------------------------
 
+@body_first
 @login_required
-async def topics_page(request: Request):
+def topics_page(request: Request):
     from datetime import datetime, timedelta, timezone
 
     from . import live, topics
@@ -722,7 +750,7 @@ async def topics_page(request: Request):
     preview = None
     form: dict = {}
     if request.method == "POST":
-        f = await request.form()
+        f = _form(request)
         action = f.get("action")
         if action == "dossiers":
             chosen = set(f.getlist("dossiers"))
@@ -797,13 +825,14 @@ def account_redirect(request: Request):
     return RedirectResponse("/account" + (f"?{request.url.query}" if request.url.query else ""), status_code=303)
 
 
+@body_first
 @login_required
-async def account_page(request: Request):
+def account_page(request: Request):
     conn = db.get()
     user = request.state.user
     error = done = None
     if request.method == "POST":
-        form = await request.form()
+        form = _form(request)
         action = form.get("action") or "password"
         if not _same_origin(request):
             return _forbidden(request)
@@ -1008,8 +1037,9 @@ TEMPLATES.globals["SKILLS"] = _skills
 SEORS_ORIGIN = "https://seors.unfccc.int"
 
 
+@body_first
 @admin_required
-async def admin_programme(request: Request):
+def admin_programme(request: Request):
     """Programme : état des relevés SEORS, bouton de relevé depuis le navigateur, import d'un relevé collé."""
     from . import agenda
 
@@ -1017,7 +1047,7 @@ async def admin_programme(request: Request):
     user = request.state.user
     result = error = None
     if request.method == "POST":
-        form = await request.form()
+        form = _form(request)
         text = (form.get("releve") or "").strip()
         try:
             result = agenda.import_seors(conn, json.loads(text) if text.startswith("{") else agenda.parse_seors_tsv(text))
@@ -1028,7 +1058,8 @@ async def admin_programme(request: Request):
                   seors_url=agenda.SEORS_LIST, result=result, error=error)
 
 
-async def seors_import(request: Request):
+@body_first
+def seors_import(request: Request):
     """Relevé envoyé par le bouton depuis la page SEORS (autre origine : jeton du compte, réponse CORS limitée à
     seors.unfccc.int)."""
     from . import agenda
@@ -1043,7 +1074,7 @@ async def seors_import(request: Request):
     user = auth.check_import_token(db.get(), bearer[7:].strip()) if bearer.lower().startswith("bearer ") else None
     if not user or not user.get("is_admin"):
         return JSONResponse({"erreur": "réservé aux administrateurs"}, status_code=403, headers=cors)
-    body = (await request.body())[:5_000_000].decode("utf-8", "replace")
+    body = _body(request)[:5_000_000].decode("utf-8", "replace")
     try:
         out = agenda.import_seors(db.get(), agenda.parse_seors_tsv(body))
     except (ValueError, KeyError, IndexError) as exc:
@@ -1052,12 +1083,13 @@ async def seors_import(request: Request):
                          "salle_ou_horaire_change": len(out["salle_ou_horaire_change"])}, headers=cors)
 
 
+@body_first
 @admin_required
-async def admin_page(request: Request):
+def admin_page(request: Request):
     conn = db.get()
     created = link = None
     if request.method == "POST":
-        form = await request.form()
+        form = _form(request)
         invite = form.get("invite")
         if invite == "regenerer":
             auth.new_invite_code(conn)
@@ -1113,12 +1145,13 @@ def privacy_page(request: Request):
                   text_days=usage.TEXT_DAYS, keep_days=usage.KEEP_DAYS, demo_days=usage.DEMO_KEEP_DAYS)
 
 
+@body_first
 @admin_required
-async def mail_page(request: Request):
+def mail_page(request: Request):
     conn = db.get()
     flash = None
     if request.method == "POST":
-        form = await request.form()
+        form = _form(request)
         row = conn.execute("SELECT * FROM mail_inbox WHERE id=?", (int(form.get("id") or 0),)).fetchone()
         action = form.get("action")
         if row and action in ("ingest", "allow"):

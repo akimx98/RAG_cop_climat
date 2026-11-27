@@ -349,7 +349,9 @@ def call_tool(name: str, args: dict[str, Any]) -> Any:
         kwargs = parsed.model_dump_one_level()
         if t.context_kwarg:
             kwargs[t.context_kwarg] = _CTX
-        out = t.fn(**kwargs)
+        # Fonction d'origine : mcp_server._tool enregistre les outils synchrones derrière une enveloppe async
+        # (__wrapped__) ; la démo tourne déjà dans un fil.
+        out = getattr(t.fn, "__wrapped__", t.fn)(**kwargs)
     except Exception as exc:  # argument invalide, document introuvable…
         return {"erreur": f"{type(exc).__name__}: {str(exc)[:300]}"}
     if name == "dossier" and isinstance(out, dict):
