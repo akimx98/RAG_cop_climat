@@ -58,6 +58,11 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
   (p90 7,5 s, 25/11/2026, pages dossier de 8 à 15 s). → Page sans `await` : `def` (Starlette la passe au pool de
   fils) ; testé par `test_page_async_sans_await_interdite`. Une page `async` qui fait du synchrone après son
   `await` : `run_in_threadpool` (#15).
+- **Le SDK MCP exécute un outil `def` dans la boucle d'événements** (`rechercher` : 3,4 s de site figé). → Outils
+  déclarés par `mcp_server._tool` (enveloppe async + fil) ; testé (`all(t.is_async …)`).
+- **Une page `async def` fait tout son travail dans la boucle après son `await`** (indexation d'une lettre, scrypt,
+  nouveautés). → Page à formulaire : `def` sous `web.body_first` ; liste fermée des `async` permises
+  (`tests/test_lenteur.py`, `ASYNC_PERMIS`).
 - **Passer du code de la boucle dans des fils révèle des courses que la boucle masquait.** « Lire `meta` puis
   écrire » laissait un lien de connexion à usage unique ouvrir deux sessions (revue, 25/11). → Avant de passer une
   page en `def`, chercher les « tester puis écrire » ; écriture atomique (`INSERT OR IGNORE` + `rowcount`).

@@ -1,6 +1,6 @@
 # 2026-11-27 — Outils MCP et pages à formulaire hors de la boucle d'événements
 
-*Taille : M (boucle d'événements, sorties MCP) · Statut : brouillon*
+*Taille : M (boucle d'événements, sorties MCP) · Statut : livré (5ffc0cd, déployé le 27/11)*
 *Fichiers concernés : `mcp_server.py` (`_tool`), `demo.py` (`call_tool`), `web.py` (`body_first`, pages à
 formulaire), `web_live.py` (`texte_upload`), `auth.py` (`_failures`), `tests/test_lenteur.py`*
 *Issues : #4, #15*
@@ -115,4 +115,14 @@ l'attente d'un verrou SQLite (30 s) — les pages de connexion attendent en file
 peut annuler un code plus récent (fenêtre étroite) ; `throttled` puis `hit` non atomiques (quelques essais de plus) ;
 `signup` pose le mot de passe après le `commit` (compte sans mot de passe si ce second temps échoue).
 
+## Mesures après déploiement (27/11)
+
+- Pendant un vrai appel MCP `rechercher` (connecteur de production), 60 sondes `/healthz` : médiane 0,31 s, max
+  0,61 s (avant : site figé pendant toute la durée de l'outil, 3,4 s en médiane).
+- `/signin` 200, `/join` 200, `/contact` 200, `/topics` et `/account` 303 (non connecté), `/admin` et
+  `/admin/courrier` 403, POST `/signin` 200 ; `cop smoke` OK ; aucune trace d'erreur dans les journaux du site.
+
 ## Suites
+
+#25 `_login_lock` tenu pendant l'attente SQLite · #26 courses résiduelles mineures (connexion, contact,
+invitations) · #27 mot de passe posé après le `commit` de l'inscription. #4 et #15 fermées.
