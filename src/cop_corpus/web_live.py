@@ -179,9 +179,10 @@ def texte_upload(request: Request):
     if not f or not getattr(f, "filename", ""):
         return RedirectResponse("/database?tab=texts", status_code=303)
     content = f.file.read()
-    doc_id, _new, _st = ingest.ingest_bytes(conn, content, url=t["pdf_url"], mime=f.content_type or "",
-                                            meta=live._meta(t), source_id="live-texts", access="public",
-                                            uploaded_by=request.state.user["id"], filename=f.filename)
+    # Enregistré 'pending' : le fil `indexation` du worker l'indexe (textes de session d'abord, ≈ 5 s).
+    doc_id, _new, _st = ingest.register_bytes(conn, content, url=t["pdf_url"], mime=f.content_type or "",
+                                              meta=live._meta(t), source_id="live-texts", access="public",
+                                              uploaded_by=request.state.user["id"], filename=f.filename)
     live.attach_upload(conn, tid, doc_id)
     return RedirectResponse(f"/doc/{doc_id}", status_code=303)
 

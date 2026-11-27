@@ -442,7 +442,12 @@ def test_registre_detecte_un_ecrivain_etranger():
 
 
 WORKER_ONLY = {"alerts.run", "alerts.send_pending", "ingest.index_document", "ingest.reindex_pending",
-               "live.tidy_texts", "live.notify_new_texts", "embed.embed_pending", "digest.run"}
+               "live.tidy_texts", "live.notify_new_texts", "embed.embed_pending", "digest.run",
+               # Lot C : tout ce qui indexe (le site enregistre par ingest.register_bytes, mailin.ingest_newsletter
+               # avec index=False : tests/test_indexation_worker.py).
+               "ingest.ingest_bytes", "ingest.refetch_in_place", "ingest.fetch_one", "ingest.run_source",
+               "ingest.run_many", "live.retrieve_pending", "live.add_note", "mailin.reread_newsletters",
+               "soumissions.download_pending"}
 
 
 def _site_violations(mods):

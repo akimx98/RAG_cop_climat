@@ -464,37 +464,45 @@ def tidy_texts(conn) -> dict[str, int]:
     from . import ingest
 
     ensure_schema(conn)
-    n = {"doublons": 0, "metadonnees": 0, "lignees": 0}
-    n["doublons"] = conn.execute(
-        """DELETE FROM live_texts WHERE symbol IS NULL AND COALESCE(title,'')='' AND pdf_url IS NOT NULL
-           AND EXISTS (SELECT 1 FROM live_texts b WHERE b.pdf_url=live_texts.pdf_url AND b.symbol IS NOT NULL
-                       AND b.id<>live_texts.id)""").rowcount
-    for t in conn.execute("SELECT * FROM live_texts WHERE doc_id IS NOT NULL AND symbol IS NOT NULL ORDER BY id"):
-        d = conn.execute("SELECT * FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
-        if not d or d["source_id"] != "live-texts":
-            continue
-        m = _meta(t)
-        title = m["title"] if d["symbol"] != t["symbol"] else d["title"]
-        if (d["symbol"], d["title"], d["doc_type"]) != (t["symbol"], title, m["doc_type"]) or \
-                (not d["published"] and m["published"]):
-            conn.execute("UPDATE documents SET symbol=?, title=?, doc_type=?, published=COALESCE(published, ?) "
-                         "WHERE id=?", (t["symbol"], title, m["doc_type"], m["published"], d["id"]))
-            n["metadonnees"] += 1
-    groups: dict[str, dict[int, tuple[str, int]]] = {}
-    for t in conn.execute("""SELECT * FROM live_texts WHERE doc_id IS NOT NULL AND dossier IS NOT NULL
-                             AND COALESCE(title,'')<>''"""):
-        if not negotiated(t):
-            continue
-        key = f"neg:{t['dossier']}|{ingest.normalize_title(t['title'])}"
-        rank = (t["published"] or t["first_seen"] or "", t["doc_id"])
-        g = groups.setdefault(key, {})
-        g[t["doc_id"]] = min(g.get(t["doc_id"], rank), rank)
-    for key, docs in groups.items():
-        for version, doc_id in enumerate(sorted(docs, key=docs.get), start=1):
-            n["lignees"] += conn.execute(
-                """UPDATE documents SET lineage_key=?, version=? WHERE id=? AND access='public'
-                   AND (lineage_key IS NOT ? OR version IS NOT ?)""", (key, version, doc_id, key, version)).rowcount
-    conn.commit()
+    # Tout sous ingest._write_lock (transaction courte, sans réseau) : _index_document relit lignée et version sous
+    # ce verrou avant de décider, la lignée `neg:` et la version posées ici ne sont plus écrasées (critère 10).
+    with ingest._write_lock:
+        try:
+            n = {"doublons": 0, "metadonnees": 0, "lignees": 0}
+            n["doublons"] = conn.execute(
+                """DELETE FROM live_texts WHERE symbol IS NULL AND COALESCE(title,'')='' AND pdf_url IS NOT NULL
+                   AND EXISTS (SELECT 1 FROM live_texts b WHERE b.pdf_url=live_texts.pdf_url AND b.symbol IS NOT NULL
+                               AND b.id<>live_texts.id)""").rowcount
+            for t in conn.execute("SELECT * FROM live_texts WHERE doc_id IS NOT NULL AND symbol IS NOT NULL ORDER BY id"):
+                d = conn.execute("SELECT * FROM documents WHERE id=?", (t["doc_id"],)).fetchone()
+                if not d or d["source_id"] != "live-texts":
+                    continue
+                m = _meta(t)
+                title = m["title"] if d["symbol"] != t["symbol"] else d["title"]
+                if (d["symbol"], d["title"], d["doc_type"]) != (t["symbol"], title, m["doc_type"]) or \
+                        (not d["published"] and m["published"]):
+                    conn.execute("UPDATE documents SET symbol=?, title=?, doc_type=?, published=COALESCE(published, ?) "
+                                 "WHERE id=?", (t["symbol"], title, m["doc_type"], m["published"], d["id"]))
+                    n["metadonnees"] += 1
+            groups: dict[str, dict[int, tuple[str, int]]] = {}
+            for t in conn.execute("""SELECT * FROM live_texts WHERE doc_id IS NOT NULL AND dossier IS NOT NULL
+                                     AND COALESCE(title,'')<>''"""):
+                if not negotiated(t):
+                    continue
+                key = f"neg:{t['dossier']}|{ingest.normalize_title(t['title'])}"
+                rank = (t["published"] or t["first_seen"] or "", t["doc_id"])
+                g = groups.setdefault(key, {})
+                g[t["doc_id"]] = min(g.get(t["doc_id"], rank), rank)
+            for key, docs in groups.items():
+                for version, doc_id in enumerate(sorted(docs, key=docs.get), start=1):
+                    n["lignees"] += conn.execute(
+                        """UPDATE documents SET lineage_key=?, version=? WHERE id=? AND access='public'
+                           AND (lineage_key IS NOT ? OR version IS NOT ?)""", (key, version, doc_id, key, version)).rowcount
+            conn.commit()
+        except BaseException:
+            if conn.in_transaction:
+                conn.rollback()   # jamais de transaction laissée ouverte (PITFALLS : base figée)
+            raise
     return n
 
 

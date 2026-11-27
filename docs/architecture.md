@@ -26,6 +26,12 @@ data/cop.sqlite3 (une seule base SQLite : FTS5 + vecteurs en mémoire)
 Trois conteneurs sur le VPS : `app` (web + MCP), `worker` (toutes les tâches planifiées, bot Telegram), `mail`
 (courrier entrant, port 25).
 
+Seul le worker indexe : le site enregistre les documents déposés (outil `deposer_url`, page Courrier, dépôt d'un
+texte de session) en `pending`, tous formats (`ingest.register_bytes` ; `ingest.DEFER` posé par `server.run`), et
+le fil `indexation` du worker les indexe dans les 5 s. Les fonctions qui indexent sont interdites d'appel au site
+(`WORKER_ONLY`, `tests/test_un_ecrivain.py`). Lignée et version d'un document sont décidées sous
+`ingest._write_lock`, ligne relue sous ce verrou ; `live.tidy_texts` écrit sous le même verrou.
+
 Site (`app`) : un seul processus uvicorn, une boucle d'événements. Les pages sans `await` sont des `def`, exécutées
 par Starlette dans un pool de 12 fils (`server.THREADS`, une connexion SQLite par fil ; toute connexion vient de
 `db.connect`, qui annule sa transaction quand une écriture échoue sur verrou et limite le WAL à 64 Mo) ; une page `async def` sans
@@ -251,7 +257,7 @@ de sortie (ceux-ci sont dans les descriptions d'outils, toujours à jour).
 | Chien de garde du worker (`watchdog.check(…, "worker")`) : battements de chaque boucle (y compris `hb:app` et `hb:app-boucle` : site mort ou boucle d’événements figée), documents bloqués en attente, curseur des alertes, récapitulatif manqué, sources sans succès depuis 24 h, mémoire du worker et disque. Écrit seul `watchdog_state:worker`, `watchdog_pending`, `watchdog_check:worker` ; supprime l’ancien `watchdog_state` | fil dédié `garde` (`watchdog.run_forever("worker")`), indépendant de la veille | 5 min ; état écrit avant toute annonce ; bloquant → Telegram admin (à défaut e-mail), rappel toutes les 30 min, puis « rétabli » ; dégradé → 1 message par jour |
 | Chien de garde du site (`watchdog.app_issues`) : deux clés seulement, `worker` (bloquant : `watchdog_check:worker` plus vieux que 3 × 5 min) et `mem:app` (dégradé) ; arrêt anormal du site au démarrage ; battements `hb:app`, `hb:app-boucle`. Écrit seul `watchdog_state:app`, `watchdog_check:app` ; `/healthz/deep` en lecture | fil `watchdog` du site | 5 min ; mêmes règles d’envoi |
 | Arrêts anormaux et en boucle du worker | `worker.run_forever` au démarrage | au démarrage |
-| Indexation des documents `pending` : PDF déposés sur le site (qui ne lit jamais de PDF : `extract.DEFER_PDF`), indexations interrompues (quarantaine après 2 tentatives) ; tout PDF est lu dans un sous-processus (`extract.extract_isolated`, un à la fois, repli sans tableaux, sinon `error`) | fil dédié `worker.indexing_forever` | 15 s |
+| Indexation des documents `pending` : tous les documents déposés sur le site (qui n'indexe rien, tous formats : `ingest.DEFER`), indexations interrompues (quarantaine après 2 tentatives). Dépôts (`depot-*`) et textes de session (`live-texts`) d'abord, puis par identifiant ; le suivant est choisi après chaque document. Tout PDF est lu dans un sous-processus (`extract.extract_isolated`, un à la fois, repli sans tableaux, sinon `error`) | fil dédié `worker.indexing_forever` | 5 s |
 
 **Hors session** (`COP_SESSION=0`, défaut depuis le 27/11/2026 ; fréquences ci-dessus = en session) :
 - `live_worker` (`live_worker.OFF`) : textes de session, état des dossiers, programme, pavillons 24 h ; Bluesky et

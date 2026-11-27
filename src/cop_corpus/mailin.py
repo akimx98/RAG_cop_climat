@@ -310,21 +310,24 @@ def newsletter_meta(msg: EmailMessage) -> dict[str, Any]:
             "published": day}
 
 
-def ingest_newsletter(conn, msg: EmailMessage, rel: str, inbox_id: int | None = None) -> list[int]:
+def ingest_newsletter(conn, msg: EmailMessage, rel: str, inbox_id: int | None = None,
+                      index: bool = True) -> list[int]:
     """Lettre d'un expéditeur autorisé → document public de niveau 4, texte complet, daté du jour d'envoi.
-    Chaque lettre est un document à part entière (jamais une « version » de la lettre de la veille)."""
+    Chaque lettre est un document à part entière (jamais une « version » de la lettre de la veille).
+    `index=False` (site, page Courrier) : enregistrée 'pending', indexée par le fil `indexation` du worker."""
     meta = newsletter_meta(msg)
+    store = ingest.ingest_bytes if index else ingest.register_bytes
     common = dict(source_id="veille-mail", access="public")
     ids = []
     body = newsletter_text(msg)
     if len(body) >= MIN_BODY:
-        doc_id, _, _ = ingest.ingest_bytes(conn, body.encode("utf-8"), url=None, mime="text/plain",
-                                           filename="lettre.txt", meta=dict(meta), **common)
+        doc_id, _, _ = store(conn, body.encode("utf-8"), url=None, mime="text/plain",
+                             filename="lettre.txt", meta=dict(meta), **common)
         ids.append(doc_id)
     for fname, ctype, data in _attachments(msg):
         if fname.lower().endswith((".pdf", ".docx")):
-            doc_id, _, _ = ingest.ingest_bytes(conn, data, url=None, mime=ctype, filename=fname,
-                                               meta={k: v for k, v in meta.items() if k != "title"}, **common)
+            doc_id, _, _ = store(conn, data, url=None, mime=ctype, filename=fname,
+                                 meta={k: v for k, v in meta.items() if k != "title"}, **common)
             ids.append(doc_id)
     if inbox_id:
         conn.execute("UPDATE mail_inbox SET status='ingere', doc_ids=? WHERE id=?", (json.dumps(ids), inbox_id))

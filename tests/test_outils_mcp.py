@@ -318,10 +318,28 @@ def test_deposer_url_checks_date_and_title(env, monkeypatch):
 
     monkeypatch.setattr(fetch, "Client", FakeClient)
     import asyncio
+    import threading
 
+    from cop_corpus import ingest
+
+    def worker():   # le site n'indexe rien (phase 1, lot C) : le fil d'indexation du worker s'en charge
+        from cop_corpus import db
+
+        c = db.connect()
+        for _ in range(100):
+            if c.execute("SELECT 1 FROM documents WHERE status='pending'").fetchone():
+                ingest.reindex_pending(c)
+                return
+            time.sleep(0.05)
+
+    import time
+
+    t = threading.Thread(target=worker)
+    t.start()
     out = asyncio.run(mcp_server.deposer_url("https://enb.test/enb12909e.html",
                                              titre="ENB Daily report for 17 November 2026 (COP31)", niveau="4",
                                              type="compte_rendu", organisation="Earth Negotiations Bulletin"))
+    t.join()
     v = out["verification"]
     assert v["date_lue_dans_le_document"] == "2026-11-18"
     assert any("2026-11-17" in e for e in v["ecarts"])

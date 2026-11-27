@@ -1160,7 +1160,8 @@ def mail_page(request: Request):
             msg = mailin.load(row["path"])
             if action == "allow":
                 mailin.allow_sender(conn, row["sender"])
-            ids = mailin.ingest_newsletter(conn, msg, row["path"], inbox_id=row["id"])   # alertes : fil du worker
+            # Enregistrée seulement : indexation et alertes par les fils du worker (le site n'indexe rien).
+            ids = mailin.ingest_newsletter(conn, msg, row["path"], inbox_id=row["id"], index=False)
             flash = f"{len(ids)} document(s) ajouté(s)" + (f" ; {row['sender']} autorisé" if action == "allow" else "")
         elif row and action == "ignore":
             conn.execute("UPDATE mail_inbox SET status='ignore' WHERE id=?", (row["id"],))

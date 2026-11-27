@@ -15,6 +15,10 @@ from . import catalog, config, db, extract, fetch
 _write_lock = threading.Lock()  # sérialise les écritures SQLite lourdes dans un même processus
 _indexing: set[int] = set()     # documents en cours d'indexation dans ce processus (reindex_pending les laisse)
 _indexing_lock = threading.Lock()
+# Site : aucune indexation sur place (tous formats). Le document reste 'pending' ; le fil `indexation` du worker
+# l'indexe (≈ 5 s, dépôts d'abord). Un seul processus indexe : pas de double indexation (#5), lignée et version
+# décidées sous un seul verrou (note 2026-11-27-phase1-un-ecrivain, critères 9 et 10).
+DEFER = False
 
 GENERIC_LINK_TEXT = {
     "download", "télécharger", "telecharger", "read more", "en savoir plus", "english", "français",
@@ -100,7 +104,10 @@ def register(
 
 def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
     """Extrait, découpe et indexe un document. Renvoie le statut final. Les PDF sont lus dans un sous-processus
-    (extract.extract) : un PDF piégé finit en 'error', il ne fait pas tomber le processus."""
+    (extract.extract) : un PDF piégé finit en 'error', il ne fait pas tomber le processus.
+    Site (DEFER) : rien n'est fait, le document reste 'pending' pour le worker."""
+    if DEFER:
+        return "pending"
     with _indexing_lock:
         _indexing.add(doc_id)
     try:
@@ -110,22 +117,9 @@ def index_document(conn: sqlite3.Connection, doc_id: int) -> str:
             _indexing.discard(doc_id)
 
 
-def _index_document(conn: sqlite3.Connection, doc_id: int) -> str:
-    doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
-    path = config.DATA_DIR / doc["raw_path"]
-    if doc["doc_type"] == "donnees" or path.suffix in (".csv", ".json", ".xlsx", ".zip", ".bin"):
-        conn.execute("UPDATE documents SET status='data' WHERE id=?", (doc_id,))
-        conn.commit()
-        return "data"
-    try:
-        found_title, pages = extract.extract(path, doc["mime"] or "")
-    except extract.Deferred:
-        return "pending"   # site : le fil d'indexation du worker s'en charge (≈ 15 s)
-    except Exception as exc:
-        conn.execute("UPDATE documents SET status='error', error=? WHERE id=?", (f"{type(exc).__name__}: {exc}"[:400], doc_id))
-        conn.commit()
-        return "error"
-    chunks = extract.chunk(pages)
+def _fields(doc: sqlite3.Row, pages: list, chunks: list, found_title: str | None
+            ) -> tuple[str | None, str, str | None, str]:
+    """(cote, titre, langue, lignée) d'un document, calculés sur sa ligne et son texte (pas d'accès à la base)."""
     # Une lettre d'information cite des cotes (« FCCC/CP/2026/L.3 ») sans en être une version.
     # Texte de session venu de l'index : sa cote est celle de l'index (live.tidy_texts), jamais une cote citée dedans.
     symbol = doc["symbol"] or (None if doc["source_id"] in ("veille-mail", "live-texts")
@@ -145,30 +139,60 @@ def _index_document(conn: sqlite3.Connection, doc_id: int) -> str:
         lkey = f"mail:{doc['sha256'][:24]}"  # chaque lettre est un document, pas une version de celle de la veille
     if (doc["lineage_key"] or "").startswith("neg:"):
         lkey = doc["lineage_key"]  # lignée d'un texte négocié (dossier + titre, live.tidy_texts) : conservée
-    with _write_lock:
-        prev = conn.execute(
-            "SELECT COUNT(*) AS n FROM documents WHERE lineage_key=? AND id<>?", (lkey, doc_id)
-        ).fetchone()["n"]
-        old = [r["id"] for r in conn.execute("SELECT id FROM passages WHERE doc_id=?", (doc_id,))]
-        for pid in old:
-            conn.execute("DELETE FROM passages_fts WHERE rowid=?", (pid,))
-            conn.execute("DELETE FROM vectors WHERE passage_id=?", (pid,))
-        conn.execute("DELETE FROM passages WHERE doc_id=?", (doc_id,))
-        for c in chunks:
-            cur = conn.execute(
-                "INSERT INTO passages(doc_id,seq,page,para,text) VALUES(?,?,?,?,?)",
-                (doc_id, c.seq, c.page, c.para, c.text),
-            )
-            conn.execute("INSERT INTO passages_fts(rowid,text,title) VALUES(?,?,?)", (cur.lastrowid, c.text, title))
-        status = "indexed" if chunks else "empty"
-        if doc["lineage_key"] == lkey and doc["version"]:
-            prev = doc["version"] - 1  # réindexation : la version ne change pas
-        conn.execute(
-            """UPDATE documents SET status=?, title=?, symbol=?, lang=?, lineage_key=?, version=?,
-                 n_pages=?, n_passages=?, error=NULL WHERE id=?""",
-            (status, title, symbol, lang, lkey, prev + 1, len(pages), len(chunks), doc_id),
-        )
+    return symbol, title, lang, lkey
+
+
+def _index_document(conn: sqlite3.Connection, doc_id: int) -> str:
+    doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    path = config.DATA_DIR / doc["raw_path"]
+    if doc["doc_type"] == "donnees" or path.suffix in (".csv", ".json", ".xlsx", ".zip", ".bin"):
+        conn.execute("UPDATE documents SET status='data' WHERE id=?", (doc_id,))
         conn.commit()
+        return "data"
+    try:
+        found_title, pages = extract.extract(path, doc["mime"] or "")
+    except extract.Deferred:
+        return "pending"   # PDF laissé au worker (extract.DEFER_PDF) : son fil d'indexation s'en charge
+    except Exception as exc:
+        conn.execute("UPDATE documents SET status='error', error=? WHERE id=?", (f"{type(exc).__name__}: {exc}"[:400], doc_id))
+        conn.commit()
+        return "error"
+    chunks = extract.chunk(pages)
+    with _write_lock:
+        # Ligne RELUE sous le verrou, dans la transaction d'écriture : live.tidy_texts (même verrou) a pu poser la
+        # lignée `neg:`, la version, la cote ou le titre pendant l'extraction ; la décision se prend sur cet état.
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+        try:
+            doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+            symbol, title, lang, lkey = _fields(doc, pages, chunks, found_title)
+            prev = conn.execute(
+                "SELECT COUNT(*) AS n FROM documents WHERE lineage_key=? AND id<>?", (lkey, doc_id)
+            ).fetchone()["n"]
+            old = [r["id"] for r in conn.execute("SELECT id FROM passages WHERE doc_id=?", (doc_id,))]
+            for pid in old:
+                conn.execute("DELETE FROM passages_fts WHERE rowid=?", (pid,))
+                conn.execute("DELETE FROM vectors WHERE passage_id=?", (pid,))
+            conn.execute("DELETE FROM passages WHERE doc_id=?", (doc_id,))
+            for c in chunks:
+                cur = conn.execute(
+                    "INSERT INTO passages(doc_id,seq,page,para,text) VALUES(?,?,?,?,?)",
+                    (doc_id, c.seq, c.page, c.para, c.text),
+                )
+                conn.execute("INSERT INTO passages_fts(rowid,text,title) VALUES(?,?,?)", (cur.lastrowid, c.text, title))
+            status = "indexed" if chunks else "empty"
+            if doc["lineage_key"] == lkey and doc["version"]:
+                prev = doc["version"] - 1  # réindexation, ou version posée par live.tidy_texts : elle ne change pas
+            conn.execute(
+                """UPDATE documents SET status=?, title=?, symbol=?, lang=?, lineage_key=?, version=?,
+                     n_pages=?, n_passages=?, error=NULL WHERE id=?""",
+                (status, title, symbol, lang, lkey, prev + 1, len(pages), len(chunks), doc_id),
+            )
+            conn.commit()
+        except BaseException:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
     if status == "indexed" and doc["doc_type"] != "donnees":
         from . import doublons
 
@@ -179,7 +203,15 @@ def _index_document(conn: sqlite3.Connection, doc_id: int) -> str:
     return status
 
 
+def register_bytes(conn, content: bytes, **kwargs) -> tuple[int, bool, str]:
+    """Enregistre sans indexer (site) : (doc_id, nouveau ?, statut). Nouveau → 'pending', indexé par le worker."""
+    doc_id, new = register(conn, content, **kwargs)
+    status = conn.execute("SELECT status FROM documents WHERE id=?", (doc_id,)).fetchone()["status"]
+    return doc_id, new, status
+
+
 def ingest_bytes(conn, content: bytes, **kwargs) -> tuple[int, bool, str]:
+    """Enregistre et indexe (worker, cli). Le site appelle register_bytes."""
     doc_id, new = register(conn, content, **kwargs)
     status = index_document(conn, doc_id) if new else conn.execute(
         "SELECT status FROM documents WHERE id=?", (doc_id,)
@@ -485,18 +517,34 @@ def clear_attempts() -> None:
         f.unlink(missing_ok=True)
 
 
+# Ordre du fil `indexation` : dépôts (MCP, courrier, site) et textes de session d'abord, attendus par quelqu'un.
+_NEXT_PENDING = """SELECT id FROM documents WHERE status='pending'
+                   AND id NOT IN (SELECT value FROM json_each(?))
+                   ORDER BY CASE WHEN source_id LIKE 'depot-%' OR source_id='live-texts' THEN 0 ELSE 1 END, id
+                   LIMIT 1"""
+
+
 def reindex_pending(conn) -> dict[str, int]:
-    """Documents en 'pending' : déposés sur le site (PDF laissés au worker) ou indexation interrompue. Quarantaine :
+    """Documents en 'pending' : déposés sur le site (qui n'indexe rien lui-même) ou indexation interrompue. Dépôts
+    (`depot-*`) et textes de session (`live-texts`) d'abord, puis par identifiant ; le suivant est choisi après
+    chaque document, pour qu'un dépôt arrivé pendant un arriéré passe devant. Quarantaine :
     un document dont le traitement a été interrompu deux fois par un arrêt anormal du processus (mémoire, plantage
     hors extraction…) passe en 'error' sans être retouché, pour ne pas relancer le plantage à chaque démarrage.
     Les tentatives sont notées dans des fichiers (data/run/reindex), effacés par un arrêt propre."""
+    import json
+
     counts: dict[str, int] = {}
     _attempts_dir().mkdir(parents=True, exist_ok=True)
-    for row in conn.execute("SELECT id FROM documents WHERE status='pending'").fetchall():
+    seen: list[int] = []   # vus pendant ce passage : jamais repris deux fois (un document resté 'pending')
+    while True:
+        row = conn.execute(_NEXT_PENDING, (json.dumps(seen),)).fetchone()
+        if not row:
+            break
+        seen.append(row["id"])
         with _indexing_lock:
             if row["id"] in _indexing:   # un autre fil de ce processus l'indexe en ce moment
                 continue
-            # Liste lue au début du passage : le document a pu être indexé entre-temps par un autre fil.
+            # Le document a pu être indexé entre-temps par un autre fil.
             if conn.execute("SELECT status FROM documents WHERE id=?", (row["id"],)).fetchone()[0] != "pending":
                 continue
         marker = _attempts_dir() / str(row["id"])

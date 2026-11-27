@@ -1,6 +1,6 @@
 # 2026-11-27 — Phase 1 : un écrivain par donnée
 
-*Taille : M (base et `meta`, sorties Telegram, indexation) · Statut : validé · Programme :
+*Taille : M (base et `meta`, sorties Telegram, indexation) · Statut : livré (27/11 : A+D fef4aca, B 88f9037, C) · Programme :
 [revue d'architecture](2026-11-27-revue-architecture.md) · Part de l'état laissé par la
 [phase 0](2026-11-27-phase0-hors-session.md)*
 *Fichiers concernés : `alerts.py`, `watchdog.py`, `monitor.py`, `worker.py`, `ingest.py`, `live.py`
@@ -119,12 +119,20 @@ clé est absente (installation neuve seulement ; `process_started` couvre les pl
 « Rétabli » peut suivre un blocage dont l'envoi a échoué sur Telegram et e-mail ; libellés « chien de garde
 (app|worker) » ; fil `garde` sans battement propre (`watchdog_check:worker` en tient lieu, vu par le site).
 
+Lot C, tour 1 (`reviewer`, 27/11) : **non bloquant**, critères 9 et 10 remplis. Corrigé : message de
+`deposer_url` (« indexes documents » au lieu de « reads PDFs »). Accepté : `BEGIN IMMEDIATE` peut attendre 30 s
+sous `_write_lock` si l'autre processus écrit (cohérent avec la base partagée). Suite : #31 (`_set_title` écrit
+encore `passages_fts` depuis le site).
+
 ## Suites
 
-(à la livraison)
+- #31 : `mcp_server` appelle `ingest._set_title` depuis le site (écriture de `passages_fts`).
+- #5 réduit au lot C (le site n'indexe plus, `tidy_texts` sous verrou) ; file unique de tous les producteurs
+  écartée (voir Conception) : fermée.
+- #28, #29 : traités par le lot B, fermées.
 
 ## Promotion (à la livraison)
 
-- [ ] PITFALLS : « un écrivain par donnée » dans la liste du diff ; registre `META_OWNERS`
-- [ ] architecture.md §1 et §6 (fils `alertes`, `garde` ; le site n'indexe plus)
-- [ ] statut ici, dans l'index et dans « Avancement » de la revue ; fermer ou reporter #5, #28, #29
+- [x] PITFALLS : « un écrivain par donnée » dans la liste du diff ; registre `META_OWNERS`
+- [x] architecture.md §1 et §6 (fils `alertes`, `garde` ; le site n'indexe plus)
+- [x] statut ici, dans l'index et dans « Avancement » de la revue ; fermer ou reporter #5, #28, #29

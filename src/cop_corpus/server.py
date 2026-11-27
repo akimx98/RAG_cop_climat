@@ -134,11 +134,12 @@ def run(host: str = "127.0.0.1", port: int = 8000, with_worker: bool = False) ->
         from . import worker
 
         threading.Thread(target=worker.run_forever, kwargs={"bot": True, "watch": True}, daemon=True).start()
-    from . import extract, watchdog
+    from . import extract, ingest, watchdog
     from .logs import uvicorn_log_config
 
     if not with_worker:
         extract.DEFER_PDF = True   # ~250 Mo par lecture de PDF : jamais dans le conteneur du site, le worker s'en charge
+        ingest.DEFER = True        # aucun format indexé par le site : un seul processus indexe (note phase 1, critère 9)
     watchdog.start_thread("app")   # battement du site, et surveillance du worker (qui surveille le site)
     from . import web_live
 

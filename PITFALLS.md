@@ -12,6 +12,8 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 - [ ] Code synchrone appelé depuis la boucle d'événements du site (outil MCP `def`, route `async def`) ?
 - [ ] Transaction SQLite ouverte pendant un appel réseau, une attente ou un sous-processus ?
 - [ ] Deux processus (site, worker) ou deux fils écrivent-ils la même clé `meta`, la même ligne, le même fichier ?
+      **Un écrivain par donnée** : clé `meta` déclarée dans `db.META_OWNERS` (testé) ; le site lit, le worker
+      écrit (alertes, chien de garde, indexation : `WORKER_ONLY`, testé).
 - [ ] Ce qui part vers Telegram, l'e-mail, les journaux : aucun titre ou extrait restreint, aucune question
       d'utilisateur, aucun secret, aucune IP en clair ?
 - [ ] Premier déploiement : fausses alertes (données anciennes, colonnes NULL), rattrapage d'un arriéré
@@ -105,6 +107,9 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 - **Le curseur des alertes s'arrête au premier document `pending`** (`alerts.run`) : un seul document coincé
   arrête toutes les alertes, en silence. → Un document ne doit pas pouvoir rester `pending` (quarantaine).
 - **Un document `pending` peut être en cours d'indexation par un autre fil** (enregistrement puis indexation).
+- **Décision prise sur une ligne lue avant un long traitement** : `_index_document` décidait de la lignée sur une
+  lecture faite avant l'extraction, et écrasait la lignée posée entre-temps par `tidy_texts`. → Relire sous le
+  verrou, dans la transaction qui écrit (`ingest._index_document`, test de course).
 - **`fetch_log` ne journalise que `new`, `error`, `crash`** (pas `unchanged`) : on ne peut pas y lire le dernier
   succès d'une source.
 - Plusieurs URL de sources officielles renvoient 404 ou 500 depuis des jours sans que rien ne le signale

@@ -760,7 +760,7 @@ def verify_deposit(conn, doc_id: int, titre: str | None) -> dict[str, Any]:
 
     doc = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
     out: dict[str, Any] = {"ecarts": []}
-    # Texte relu dans les passages indexés (le site ne relit jamais un PDF lui-même : voir extract.DEFER_PDF).
+    # Texte relu dans les passages indexés (le site n'indexe rien lui-même : voir ingest.DEFER).
     found_title = None
     pages = [extract.Page(r[0] or 1, r[1] or "") for r in conn.execute(
         "SELECT page, group_concat(text, char(10)) FROM (SELECT page, text FROM passages WHERE doc_id=? ORDER BY seq) "
@@ -831,16 +831,16 @@ def _deposer_url(url, titre, niveau, type, organisation, user) -> dict[str, Any]
                           "file via the dashboard or Telegram"}
     meta = {k: v for k, v in {"title": titre, "level": niveau, "doc_type": type, "org": organisation}.items() if v}
     conn = db.get()
-    doc_id, new, status = ingest.ingest_bytes(conn, res.content, url=res.url, mime=res.mime, meta=meta,
-                                              source_id="depot-mcp", uploaded_by=user.get("id") or None)
+    doc_id, new, status = ingest.register_bytes(conn, res.content, url=res.url, mime=res.mime, meta=meta,
+                                                source_id="depot-mcp", uploaded_by=user.get("id") or None)
     deadline = time.monotonic() + DEPOSIT_WAIT_SECONDS
-    while status == "pending" and time.monotonic() < deadline:   # PDF : lu par le worker (≈ 15 s), pas par le site
+    while status == "pending" and time.monotonic() < deadline:   # indexé par le worker (≈ 5 s), jamais par le site
         time.sleep(3)
         status = conn.execute("SELECT status FROM documents WHERE id=?", (doc_id,)).fetchone()["status"]
     check = verify_deposit(conn, doc_id, titre) if status == "indexed" else None   # alertes : fil du worker
     out = {"doc_id": doc_id, "nouveau": new, "statut": status, "lien": f"{config.PUBLIC_BASE}/doc/{doc_id}"}
     if status == "pending":
-        out["message"] = ("indexing in progress (the server reads PDFs in the background): text, date and title "
+        out["message"] = ("indexing in progress (the server indexes documents in the background): text, date and title "
                           "checks will be available in a few minutes at the link; call `document` again later")
     if check:
         out["verification"] = check

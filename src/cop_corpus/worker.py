@@ -112,9 +112,10 @@ def submissions_forever(stop: threading.Event, interval: int = 60) -> None:
         stop.wait(interval)
 
 
-def indexing_forever(stop: threading.Event, interval: int = 15) -> None:
-    """Fil dédié aux documents 'pending' : PDF déposés sur le site (qui ne les lit jamais lui-même), indexations
-    interrompues (quarantaine). Ils bloquent les alertes, qui s'arrêtent au premier document 'pending'."""
+def indexing_forever(stop: threading.Event, interval: int = 5) -> None:
+    """Fil dédié aux documents 'pending' : documents déposés sur le site (qui n'indexe rien lui-même, tous formats),
+    indexations interrompues (quarantaine). Dépôts et textes de session d'abord (ingest.reindex_pending). Ils
+    bloquent les alertes, qui s'arrêtent au premier document 'pending'."""
     conn = db.connect()
     while not stop.is_set():
         try:
