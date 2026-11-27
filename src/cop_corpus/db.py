@@ -214,6 +214,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     conn.commit()
+    # Réseaux en clair dans login_codes (avant #3) : remplacés par leur empreinte.
+    from . import auth
+
+    auth.hash_stored_networks(conn)
     # Dépôt par courrier retiré (#8) : les codes secrets d'adresse depot-<code>@ ne servent plus (minimisation).
     if conn.execute("SELECT 1 FROM users WHERE mail_code IS NOT NULL LIMIT 1").fetchone():
         conn.execute("UPDATE users SET mail_code=NULL WHERE mail_code IS NOT NULL")

@@ -540,13 +540,47 @@ def _code_hash(user_id: int, code: str) -> str:
     return _sign(f"login-code:{user_id}:{code}")
 
 
+NET_PREFIX = "h:"
+
+
+def _net(ip: str) -> str:
+    """Réseau tel qu'il est stocké dans login_codes : empreinte salée par le secret du site, jamais l'adresse en clair
+    (règle de confidentialité ; #3). Idempotent. Les limites ne font que comparer des réseaux entre eux."""
+    if not ip or ip.startswith(NET_PREFIX):
+        return ip
+    return NET_PREFIX + hmac.new(config.SECRET.encode(), f"net:{ip}".encode(), hashlib.sha256).hexdigest()[:20]
+
+
+def hash_stored_networks(conn: sqlite3.Connection) -> int:
+    """Au démarrage : réseaux encore en clair dans login_codes (avant #3) remplacés par leur empreinte, et entrées de
+    plus de 24 h retirées. Renvoie le nombre de lignes réécrites."""
+    import json
+
+    n = 0
+    for row in conn.execute("SELECT user_id, sent_at, fail_log FROM login_codes").fetchall():
+        new = []
+        try:
+            for raw in (row["sent_at"], row["fail_log"]):
+                new.append(json.dumps([[t, net] for t, net in _log(raw, 86400)]) if raw else raw)
+        except (ValueError, TypeError, IndexError, KeyError):
+            new = [None, None]   # journal illisible : vidé (jamais un démarrage bloqué ; les limites repartent)
+        if new != [row["sent_at"], row["fail_log"]]:
+            conn.execute("UPDATE login_codes SET sent_at=?, fail_log=? WHERE user_id=?", (*new, row["user_id"]))
+            n += 1
+    if n:
+        conn.commit()
+    return n
+
+
 def _log(raw: str | None, window: float) -> list[tuple[float, str]]:
-    """Journal JSON d'horodatages, anciens (nombres) ou récents ([t, réseau]), limité à la fenêtre."""
+    """Journal JSON d'horodatages, anciens (nombres) ou récents ([t, réseau]), limité à la fenêtre. Un réseau encore en
+    clair (écrit par l'ancien code pendant un déploiement ou après un retour arrière) est converti en empreinte à la
+    lecture : il est compté pour le bon réseau et réécrit haché au prochain enregistrement."""
     import json
 
     now, out = time.time(), []
     for e in json.loads(raw or "[]"):
-        t, net = (e, "") if isinstance(e, (int, float)) else (float(e[0]), str(e[1]))
+        t, net = (e, "") if isinstance(e, (int, float)) else (float(e[0]), _net(str(e[1])))
         if now - t < window:
             out.append((t, net))
     return out
@@ -557,6 +591,7 @@ def issue_login_code(conn: sqlite3.Connection, user: dict, ip: str = "") -> tupl
     """Nouveau code à 6 chiffres → (code, None), sinon (None, raison) : 'wait' (une minute entre deux codes, cinq
     par heure, depuis un même réseau), 'day' (trop de codes aujourd'hui), 'locked' (trop de codes faux).
     Les limites comptent par compte ET par réseau : quelqu'un d'autre ne peut pas bloquer votre connexion."""
+    ip = _net(ip)
     import json
 
     now = time.time()
@@ -602,6 +637,7 @@ def _fails(conn: sqlite3.Connection, user_id: int) -> list[tuple[float, str]]:
 def code_locked(conn: sqlite3.Connection, user: dict, ip: str = "") -> bool:
     """Trop de codes faux en 24 h depuis ce réseau (30), ou tous réseaux confondus (200 : freine une attaque
     répartie sans bloquer la personne, qui peut toujours se connecter depuis un autre réseau)."""
+    ip = _net(ip)
     fails = _fails(conn, user["id"])
     return sum(1 for _, n in fails if n == ip) >= CODE_FAILS_PER_DAY or len(fails) >= CODE_FAILS_PER_DAY_ACCOUNT
 
@@ -609,6 +645,7 @@ def code_locked(conn: sqlite3.Connection, user: dict, ip: str = "") -> bool:
 @_serialized
 def check_login_code(conn: sqlite3.Connection, user: dict | None, code: str, ip: str = "") -> bool:
     """Vrai si le code est le bon, pas expiré, et moins de 5 essais (le code est alors consommé)."""
+    ip = _net(ip)
     if not user:
         return False
     row = conn.execute("SELECT * FROM login_codes WHERE user_id=?", (user["id"],)).fetchone()

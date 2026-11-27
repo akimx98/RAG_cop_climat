@@ -349,13 +349,13 @@ def test_code_caps_per_day_and_per_account(env, monkeypatch):
     now = _t.time()
     conn.execute("INSERT INTO login_codes(user_id, sent_at, tries) VALUES(?,?,0) ON CONFLICT(user_id) DO UPDATE SET "
                  "sent_at=excluded.sent_at",
-                 (u["id"], json.dumps([[now - 7200 - i, "testclient"] for i in range(auth.CODES_PER_DAY)])))
+                 (u["id"], json.dumps([[now - 7200 - i, auth._net("testclient")] for i in range(auth.CODES_PER_DAY)])))
     conn.commit()
     j = _client().post("/signin", data={"email": "cap@ngo.org"}, headers=FETCH).json()     # même réseau : plafonné
     assert "Too many codes sent today" in j["error"] and not outbox
     assert auth.issue_login_code(conn, u, "198.51.100.7")[0]                               # autre réseau : passe
     conn.execute("UPDATE login_codes SET sent_at='[]', fail_log=? WHERE user_id=?",
-                 (json.dumps([[now - 60, "203.0.113.5"]] * auth.CODE_FAILS_PER_DAY), u["id"]))
+                 (json.dumps([[now - 60, auth._net("203.0.113.5")]] * auth.CODE_FAILS_PER_DAY), u["id"]))
     conn.commit()
     assert auth.code_locked(conn, u, "203.0.113.5") and not auth.code_locked(conn, u, "198.51.100.7")
     assert auth.issue_login_code(conn, u, "203.0.113.5") == (None, "locked")
@@ -363,6 +363,31 @@ def test_code_caps_per_day_and_per_account(env, monkeypatch):
                  (json.dumps([[now - 60, f"n{i}"] for i in range(auth.CODE_FAILS_PER_DAY_ACCOUNT)]), u["id"]))
     conn.commit()
     assert auth.code_locked(conn, u, "198.51.100.7")                                       # attaque répartie : freinée
+
+
+def test_aucune_adresse_reseau_en_clair_dans_login_codes(env):
+    """#3 : les réseaux ne sont stockés qu'en empreinte ; les anciennes entrées en clair sont réécrites au démarrage."""
+    import json
+    import time as _t
+
+    from cop_corpus import auth, db
+
+    conn, _ = env
+    uid, _ = auth.create_user(conn, "net@ngo.org", "")
+    u = auth.by_id(conn, uid)
+    code, _why = auth.issue_login_code(conn, u, "198.51.100.7")
+    assert not auth.check_login_code(conn, u, f"{(int(code) + 1) % 10**6:06d}", "198.51.100.7")
+    row = conn.execute("SELECT sent_at, fail_log FROM login_codes WHERE user_id=?", (uid,)).fetchone()
+    assert "198.51.100" not in row["sent_at"] + row["fail_log"]
+    assert all(net.startswith(auth.NET_PREFIX) for _t0, net in json.loads(row["sent_at"]) + json.loads(row["fail_log"]))
+    now = _t.time()   # ancien format (avant #3) : en clair, et une entrée de plus de 24 h
+    conn.execute("UPDATE login_codes SET sent_at=?, fail_log=? WHERE user_id=?",
+                 (json.dumps([[now - 60, "203.0.113.5"], [now - 90000, "203.0.113.6"]]), "[]", uid))
+    conn.commit()
+    assert auth.hash_stored_networks(conn) == 1
+    sent = json.loads(conn.execute("SELECT sent_at FROM login_codes WHERE user_id=?", (uid,)).fetchone()[0])
+    assert sent == [[now - 60, auth._net("203.0.113.5")]]
+    assert auth.hash_stored_networks(conn) == 0                                            # idempotent
 
 
 def test_ipv6_throttle_groups_by_64():
@@ -447,3 +472,24 @@ def test_legacy_token_link_no_longer_signs_in(env):
     r = c.get(f"/login/{token}", follow_redirects=False)
     assert r.status_code == 200 and "no longer used" in r.text and "cop_session" not in r.headers.get("set-cookie", "")
     assert c.get("/account", follow_redirects=False).status_code == 303
+
+
+def test_reseau_en_clair_compte_et_converti_a_la_lecture(env):
+    """Entrée en clair écrite par l'ancien code pendant un déploiement : comptée pour le bon réseau ; journal
+    illisible : vidé sans bloquer le démarrage."""
+    import json
+    import time as _t
+
+    from cop_corpus import auth
+
+    conn, _ = env
+    uid, _ = auth.create_user(conn, "trans@ngo.org", "")
+    u = auth.by_id(conn, uid)
+    conn.execute("INSERT INTO login_codes(user_id, sent_at, fail_log, tries) VALUES(?,?,?,0)",
+                 (uid, "[]", json.dumps([[_t.time() - 60, "203.0.113.9"]] * auth.CODE_FAILS_PER_DAY)))
+    conn.commit()
+    assert auth.code_locked(conn, u, "203.0.113.9")
+    conn.execute("UPDATE login_codes SET sent_at='pas du json' WHERE user_id=?", (uid,))
+    conn.commit()
+    assert auth.hash_stored_networks(conn) == 1
+    assert conn.execute("SELECT sent_at, fail_log FROM login_codes WHERE user_id=?", (uid,)).fetchone()[0] is None
