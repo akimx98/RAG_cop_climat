@@ -1,6 +1,6 @@
 # 2026-11-27 — Phase 2 : le site ne calcule plus en fond
 
-*Taille : M (boucle et fils du site, mémoire, base) · Statut : validé · Programme :
+*Taille : M (boucle et fils du site, mémoire, base) · Statut : livré (27/11, fcb3037) · Programme :
 [revue d'architecture](2026-11-27-revue-architecture.md)*
 *Fichiers concernés : `web_live.py` (préchauffage, `_heavy`, `_frises`, `dossier_page`), `server.py` (lancement,
 `lifespan`), `worker.py` (fil `frises`), nouveau `frises.py`, `db.py` (table, `META_OWNERS`), `extract.py`
@@ -102,11 +102,22 @@ absente, signalée) ; un dossier en échec n'est réessayé qu'après 30 min ou 
 restreinte disparaît jusqu'au recalcul (transitoire, sans fuite). Écart à la note accepté : signature élargie à la
 cote, aux dates, `n_passages`, `lineage_key` (affichés dans la frise).
 
+## Vérifications en production (27/11, 15 h 20 UTC)
+
+- Comparaison des frises stockées à l'ancien calcul (`scripts/compare_frises.py`, conteneur jetable, base `ro`) :
+  **18 dossiers identiques, 0 différence**.
+- Mémoire anonyme : site **309 Mo** (436 avant) ; worker 142 Mo pendant les tours.
+- Pages dossier : **0,20–0,27 s** en cache ; premier affichage après redémarrage ou changement du corpus
+  **1,8 à 7,9 s** (nouveautés calculées à la demande) → suite #32.
+- `/database?q=` (6 requêtes de référence) : 1,07 à 2,6 s ; journal `[recherche]` : lexical 0,07–1,55 s,
+  sémantique 0,2–1,4 s, total ≈ 1–1,6 s.
+
 ## Suites
 
-(à la livraison)
+- #32 : premier affichage d'une page dossier après un changement du corpus (1 à 8 s).
+- #18 fermée.
 
 ## Promotion (à la livraison)
 
-- [ ] PITFALLS (« le site lit, le worker écrit » : calculs lourds dans le worker, table lue par le site)
-- [ ] architecture.md §1 et §6 ; statut ici, dans l'index et dans « Avancement » ; fermer #18
+- [x] PITFALLS (« le site lit, le worker écrit » : calculs lourds dans le worker, table lue par le site)
+- [x] architecture.md §1 et §6 ; statut ici, dans l'index et dans « Avancement » ; fermer #18

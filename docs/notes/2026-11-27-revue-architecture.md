@@ -96,8 +96,8 @@ Tenu à jour à chaque livraison (la tâche programmée « OpenCOP — reprise d
 |---|---|---|
 | 0 — rythme hors session, sonde externe, usage des robots | [2026-11-27-phase0-hors-session](2026-11-27-phase0-hors-session.md) | livré (27/11) |
 | 1 — un écrivain par donnée | [2026-11-27-phase1-un-ecrivain](2026-11-27-phase1-un-ecrivain.md) | livré (27/11) |
-| 2 — le site ne calcule plus en fond | [2026-11-27-phase2-site-sans-fond](2026-11-27-phase2-site-sans-fond.md) | en cours |
-| 3 — schéma unique et code mort | [2026-11-27-phase3-schema-code-mort](2026-11-27-phase3-schema-code-mort.md) | note prête |
+| 2 — le site ne calcule plus en fond | [2026-11-27-phase2-site-sans-fond](2026-11-27-phase2-site-sans-fond.md) | livré (27/11) |
+| 3 — schéma unique et code mort | [2026-11-27-phase3-schema-code-mort](2026-11-27-phase3-schema-code-mort.md) | en cours |
 | 5 — surface (décisions §7 acceptées par Akim le 27/11) | — | à faire |
 | 4 — accès de surveillance bridé | — | à faire |
 

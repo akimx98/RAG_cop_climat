@@ -74,6 +74,9 @@ incident ou chaque constat bloquant de revue ; on n'en retire que si le code ren
 - **Passer du code de la boucle dans des fils révèle des courses que la boucle masquait.** « Lire `meta` puis
   écrire » laissait un lien de connexion à usage unique ouvrir deux sessions (revue, 25/11). → Avant de passer une
   page en `def`, chercher les « tester puis écrire » ; écriture atomique (`INSERT OR IGNORE` + `rowcount`).
+- **Le site lit, le worker calcule** : un calcul lourd (frises : 26 s à froid, 80 Mo de documents découpés) ne
+  tourne jamais dans le processus du site, même en fil de fond (GIL partagé, mémoire). → Le worker calcule et
+  range en table ; le site lit et filtre par accès (`frises.py`, liste fermée des fils du site testée).
 - **Un cache ne garde jamais un échec** : un « database is locked » gardé 10 min = une page en 500 pendant
   10 min. → L'exception remonte, rien n'est mis en cache (`web._ttl_cached`, testé).
 
